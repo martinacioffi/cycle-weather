@@ -535,18 +535,20 @@
 
     // ---------- Breaks handling ----------
     function getBreaks() {
-      const rows = Array.from(document.querySelectorAll(".break-row"));
-      const list = [];
-      for (const r of rows) {
-        const km = parseFloat(r.querySelector(".break-km").value);
-        const min = parseFloat(r.querySelector(".break-min").value);
-        if (isFinite(km) && km >= 0 && isFinite(min) && min > 0) {
-          list.push({ distMeters: km * 1000, durSec: Math.round(min * 60) });
-        }
-      }
-      list.sort((a,b) => a.distMeters - b.distMeters);
-      return list;
+  const container = document.getElementById("breaksContainer");
+  const rows = Array.from(container.children);
+  const list = [];
+  for (const r of rows) {
+    const km = parseFloat(r.querySelector(".break-km").value);
+    const min = parseFloat(r.querySelector(".break-min").value);
+    if (isFinite(km) && km >= 0 && isFinite(min) && min > 0) {
+      list.push({ distMeters: km * 1000, durSec: Math.round(min * 60) });
     }
+  }
+  list.sort((a, b) => a.distMeters - b.distMeters);
+  log('getBreaks returns:', list);
+  return list;
+}
     function breakOffsetSeconds(distanceMeters, breaks) {
       let sum = 0;
       for (const b of breaks) if (distanceMeters >= b.distMeters) sum += b.durSec;
@@ -697,8 +699,8 @@ function windBarbs(windKmh) {
     // ---------- Chart (unified) ----------
     let tripChart;
     function resetChart() { if (tripChart) { tripChart.destroy(); tripChart = null; } }
-    function buildUnifiedChart(series) {
-      // series: [{ t: Date, tempC, precip, windKmh }]
+    function buildUnifiedChart(series, breaks, startDate) {
+      log('breaks passed to buildUnifiedChart:', breaks);
       resetChart();
       const ctx = document.getElementById("tripChart").getContext("2d");
       const xMin = Math.min(...series.map(s => +s.t));
@@ -709,6 +711,7 @@ function windBarbs(windKmh) {
     const b = breaks[i];
     const breakStart = new Date(startDate.getTime() + b.distMeters / (series[0].windKmh / 3.6) * 1000 + breakOffsetSeconds(b.distMeters, breaks) * 1000 - b.durSec * 1000);
     const breakEnd = new Date(breakStart.getTime() + b.durSec * 1000);
+    log('breakStart', breakStart.getTime(), 'breakEnd', breakEnd.getTime(), 'xMin', xMin, 'xMax', xMax);
     annotations[`break${i}`] = {
       type: "box",
       xMin: breakStart.getTime(),
@@ -789,11 +792,11 @@ function windBarbs(windKmh) {
               callbacks: {
                 title: items => new Date(items[0].parsed.x).toLocaleString()
               }
-            }
+            },
             annotation: { annotations }
           }
-        },
-            plugins: [Chart.registry.getPlugin('annotation')]
+        } //,
+  // plugins: [window['chartjs-plugin-annotation']]
       });
     }
 
@@ -1010,7 +1013,7 @@ const popupHtml = `
         .map(r => ({ t: r.eta, tempC: r.tempC, precip: r.precip, windKmh: r.windMs * 3.6, windDeg: r.windDeg
         }))
         .sort((a,b) => +a.t - +b.t);
-      buildUnifiedChart(chartSeries);
+      buildUnifiedChart(chartSeries, breaks, startDate);
 
       if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
       else log("Completed successfully.");
@@ -1069,18 +1072,63 @@ const popupHtml = `
       validateReady();
     });
 
-    fileInput.addEventListener("change", async (e) => {
-      const f = e.target.files?.[0];
-      if (!f) return;
-      try {
-        gpxText = await f.text();
-        log(`Loaded file: ${f.name} (${Math.round(f.size / 1024)} kB)`);
-      } catch (err) {
-        log("Error reading file: " + err.message);
-        gpxText = null;
+fileInput.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  try {
+    gpxText = await f.text();
+    log(`Loaded file: ${f.name} (${Math.round(f.size / 1024)} kB)`);
+  } catch (err) {
+    log("Error reading file: " + err.message);
+    gpxText = null;
+  }
+  validateReady();
+
+  // Remove previous map click handler if any
+  if (window.mapClickBreakHandler) {
+    map.off("click", window.mapClickBreakHandler);
+  }
+
+  // Add new map click handler for adding breaks
+  window.mapClickBreakHandler = function(e) {
+    if (!gpxText) {
+      log("Load a GPX file first.");
+      return;
+    }
+    let points, cum;
+    try {
+      points = parseGPX(gpxText);
+      cum = cumulDistance(points).cum;
+    } catch (err) {
+      log("Error: " + err.message);
+      return;
+    }
+    // Find nearest point on route
+    let minDist = Infinity, nearestIdx = 0;
+    for (let i = 0; i < points.length; i++) {
+      const d = haversine(e.latlng.lat, e.latlng.lng, points[i].lat, points[i].lon);
+      if (d < minDist) {
+        minDist = d;
+        nearestIdx = i;
       }
-      validateReady();
-    });
+    }
+    const distKm = (cum[nearestIdx] / 1000).toFixed(2);
+
+    // Add a break-row with distance pre-filled
+    const row = document.createElement("div");
+    row.className = "break-row";
+    row.innerHTML = `
+      <input type="number" class="break-km" min="0" step="0.1" placeholder="distance km" value="${distKm}" />
+      <input type="number" class="break-min" min="1" step="1" placeholder="duration min" />
+      <button type="button" title="Remove break">✕</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => row.remove());
+    document.getElementById("breaksContainer").appendChild(row);
+    validateReady();
+    log(`Break added at ${distKm} km (map click).`);
+  };
+  map.on("click", window.mapClickBreakHandler);
+});
 
     [
       startTimeInput, speedInput, speedUnit,
