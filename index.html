@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GPX Route Weather Forecast — Dynamic Temp, Breaks, Unified Chart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161a22;
+      --text: #e6e8ef;
+      --muted: #a5adba;
+      --accent: #66d9ef;
+      --line: #2a2f3a;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0.3px;
+    }
+    header .sub {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .wrap {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      min-height: calc(100vh - 60px);
+    }
+    .side {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: auto;
+    }
+    .group {
+      background: #1b202a;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .group h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--accent);
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 8px 0 6px;
+    }
+    input[type="file"],
+    input[type="number"],
+    input[type="datetime-local"],
+    input[type="text"],
+    select {
+      width: 100%;
+      background: #0f1115;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      box-sizing: border-box;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 140px;
+      gap: 8px;
+    }
+    button {
+      width: 100%;
+      background: linear-gradient(135deg, #4b9fff, #627aff);
+      color: white;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    button.ghost {
+      background: transparent;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      width: auto;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .stat {
+      background: #11151c;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .stat .label { font-size: 11px; color: var(--muted); }
+    .stat .value { font-size: 16px; margin-top: 2px; }
+    #log {
+      height: 120px;
+      overflow: auto;
+      background: #0d1016;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      color: #c0c5d0;
+    }
+    #map { width: 100%; height: 60vh; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: #11151c;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    .legend-temp {
+      padding: 8px 10px;
+      background: #11151c;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .legend-bar {
+      height: 10px;
+      width: 240px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin: 6px 0;
+      background: linear-gradient(90deg, #2c7bb6, #abd9e9, #ffffbf, #fdae61, #d7191c);
+    }
+    .legend-ticks {
+      display: flex;
+      justify-content: space-between;
+      width: 240px;
+      font-variant-numeric: tabular-nums;
+    }
+    .break-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 6px;
+      align-items: end;
+      margin-top: 6px;
+    }
+    .break-row button {
+      margin-top: 0;
+      padding: 6px 10px;
+    }
+    .charts {
+      padding: 10px 16px 20px;
+      border-top: 1px solid var(--line);
+      background: #0f1115;
+    }
+    .charts h3 {
+      margin: 10px 0 8px;
+      font-size: 14px;
+      color: var(--accent);
+    }
+    canvas {
+      background: #11151c;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+    }
+    footer.note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+    @media (min-width: 1100px) {
+      #map { height: calc(100vh - 60px - 230px); }
+    }
+    @media (max-width: 1040px) {
+      .wrap { grid-template-columns: 1fr; }
+      #map { height: 54vh; }
+    }
+    .main-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+#map, .charts {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  /* Remove fixed height from #map */
+}
+.charts {
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+  padding: 10px 16px 20px;
+  border-top: 1px solid var(--line);
+  background: #0f1115;
+}
+.charts canvas {
+  flex: 1 1 0;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0;
+}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GPX Route Weather Forecast</h1>
+    <div class="sub">Upload GPX → set start time, speed & breaks → see forecast along your route</div>
+  </header>
+
+  <div class="wrap">
+    <aside class="side">
+      <div class="group">
+        <h3>Inputs</h3>
+
+        <label for="gpxFile">GPX file</label>
+        <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" />
+
+        <label for="provider">Weather provider</label>
+        <select id="provider">
+          <option value="openmeteo" selected>Open‑Meteo (free, no API key)</option>
+          <option value="meteoblue">MeteoBlue (requires API key)</option>
+        </select>
+
+        <div id="meteoblueKeyRow" style="display:none">
+          <label for="meteoblueKey">MeteoBlue API key</label>
+          <input type="text" id="meteoblueKey" placeholder="Paste your MeteoBlue API key" />
+        </div>
+
+        <label for="startTime">Start time (local)</label>
+        <input type="datetime-local" id="startTime" />
+
+        <div class="row">
+          <div>
+            <label for="speed">Average speed</label>
+            <input type="number" id="speed" min="0" step="0.1" placeholder="e.g. 20" />
+          </div>
+          <div>
+            <label for="speedUnit">Unit</label>
+            <select id="speedUnit">
+              <option value="kmh" selected>km/h</option>
+              <option value="mph">mph</option>
+              <option value="ms">m/s</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="maxCalls">Max API calls</label>
+            <input type="number" id="maxCalls" min="5" max="200" value="60" />
+          </div>
+          <div>
+            <label for="sampleMeters">Min sample spacing</label>
+            <select id="sampleMeters">
+              <option value="250">250 m</option>
+              <option value="500">500 m</option>
+              <option value="1000">1 km</option>
+              <option value="2000" selected>2 km</option>
+              <option value="5000">5 km</option>
+              <option value="10000">10 km</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="group" style="margin-top:10px">
+          <h3>Breaks</h3>
+          <div id="breaksContainer"></div>
+          <button id="addBreakBtn" class="ghost" type="button">+ Add break</button>
+          <footer class="note">Breaks delay ETAs after the specified distance. Use km and minutes.</footer>
+        </div>
+
+        <button id="processBtn" disabled>Process route & fetch forecast</button>
+
+        <div class="legend-temp" id="legendTempBox">
+          <div><strong>Track color = temperature (°C)</strong></div>
+          <div class="legend-bar" id="legendBar"></div>
+          <div class="legend-ticks" id="legendTicks">
+            <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Stats</h3>
+        <div class="stats">
+          <div class="stat">
+            <div class="label">Total distance</div>
+            <div class="value" id="statDistance">–</div>
+          </div>
+          <div class="stat">
+            <div class="label">Estimated duration</div>
+            <div class="value" id="statDuration">–</div>
+          </div>
+          <div class="stat">
+            <div class="label">Min / Max temp</div>
+            <div class="value" id="statTempRange">–</div>
+          </div>
+          <div class="stat">
+            <div class="label">Wet share</div>
+            <div class="value" id="statWetShare">–</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Log</h3>
+        <div id="log">Load a GPX to begin.</div>
+        <footer class="note">Open‑Meteo forecast is UTC hour-aligned. MeteoBlue requires your API key.</footer>
+      </div>
+    </aside>
+    <div class="main-col">
+    <main id="map"></main>
+    <div class="charts">
+    <h3>Trip forecast</h3>
+    <canvas id="tripChart" height="60"></canvas>
+  </div>
+        </div>
+</div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.0.1/dist/chartjs-plugin-annotation.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <script>
+    // ---------- Utilities ----------
+    const toRad = d => (d * Math.PI) / 180;
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function bearing(lat1, lon1, lat2, lon2) {
+      const φ1 = toRad(lat1), φ2 = toRad(lat2);
+      const λ1 = toRad(lon1), λ2 = toRad(lon2);
+      const y = Math.sin(λ2 - λ1) * Math.cos(φ2);
+      const x = Math.cos(φ1) * Math.sin(φ2) -
+                Math.sin(φ1) * Math.cos(φ2) * Math.cos(λ2 - λ1);
+      const θ = Math.atan2(y, x);
+      return (θ * 180 / Math.PI + 360) % 360;
+    }
+
+    function formatKm(m) { return (m / 1000).toFixed(2) + " km"; }
+    function formatDuration(seconds) {
+      if (!isFinite(seconds) || seconds <= 0) return "–";
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const parts = [];
+      if (h) parts.push(h + "h");
+      parts.push((m < 10 && h ? "0" : "") + m + "m");
+      return parts.join(" ");
+    }
+    function speedToMps(val, unit) {
+      const v = parseFloat(val);
+      if (!isFinite(v) || v <= 0) return 0;
+      if (unit === "kmh") return v / 3.6;
+      if (unit === "mph") return v * 0.44704;
+      return v; // m/s
+    }
+    function utcHourISO(d) {
+      const date = new Date(d.getTime());
+      const mins = date.getUTCMinutes();
+      const secs = date.getUTCSeconds();
+      const ms = date.getUTCMilliseconds();
+      if (mins > 30 || (mins === 30 && (secs > 0 || ms > 0))) {
+        date.setUTCHours(date.getUTCHours() + 1);
+      }
+      date.setUTCMinutes(0, 0, 0);
+      const y = date.getUTCFullYear();
+      const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const d2 = String(date.getUTCDate()).padStart(2, "0");
+      const h = String(date.getUTCHours()).padStart(2, "0");
+      return `${y}-${m}-${d2}T${h}:00`;
+    }
+    function log(msg) {
+      const el = document.getElementById("log");
+      el.textContent += (el.textContent ? "\n" : "") + msg;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // ---------- Temperature color mapping (dynamic range) ----------
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function hexToRgb(hex) {
+      return {
+        r: parseInt(hex.slice(1,3), 16),
+        g: parseInt(hex.slice(3,5), 16),
+        b: parseInt(hex.slice(5,7), 16)
+      };
+    }
+    function rgbToHex({r,g,b}) {
+      const c = x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0");
+      return "#" + c(r) + c(g) + c(b);
+    }
+    function lerpColor(c1, c2, t) {
+      const a = hexToRgb(c1), b = hexToRgb(c2);
+      return rgbToHex({ r: lerp(a.r,b.r,t), g: lerp(a.g,b.g,t), b: lerp(a.b,b.b,t) });
+    }
+    // Multi-stop palette, we’ll interpolate across 0..1 and scale to [minTemp,maxTemp]
+    const PALETTE = ["#2c7bb6", "#abd9e9", "#ffffbf", "#fdae61", "#d7191c"]; // cool → hot
+
+    function colorFromPalette(t01) {
+      // t01 in [0,1], map across palette segments
+      const n = PALETTE.length - 1;
+      if (t01 <= 0) return PALETTE[0];
+      if (t01 >= 1) return PALETTE[n];
+      const pos = t01 * n;
+      const i = Math.floor(pos);
+      const frac = pos - i;
+      return lerpColor(PALETTE[i], PALETTE[i+1], frac);
+    }
+
+    function makeTempColorer(minTemp, maxTemp) {
+      const span = Math.max(0.1, maxTemp - minTemp); // avoid divide-by-zero
+      return function tempToColorDynamic(tempC) {
+        const t = Math.max(minTemp, Math.min(maxTemp, tempC));
+        const pct = (t - minTemp) / span;
+        return colorFromPalette(pct);
+      };
+    }
+
+    function updateLegend(minTemp, maxTemp) {
+      const bar = document.getElementById("legendBar");
+      const ticks = document.getElementById("legendTicks");
+      // Build gradient CSS across palette stops
+      const stops = PALETTE.map((c, i, arr) => {
+        const pct = Math.round((i / (arr.length - 1)) * 100);
+        return `${c} ${pct}%`;
+      }).join(", ");
+      bar.style.background = `linear-gradient(90deg, ${stops})`;
+      // Ticks at 0%, 25%, 50%, 75%, 100%
+      const t0 = minTemp;
+      const t1 = minTemp + (maxTemp - minTemp) * 0.25;
+      const t2 = minTemp + (maxTemp - minTemp) * 0.5;
+      const t3 = minTemp + (maxTemp - minTemp) * 0.75;
+      const t4 = maxTemp;
+      ticks.innerHTML = `
+        <span>${t0.toFixed(0)}</span>
+        <span>${t1.toFixed(0)}</span>
+        <span>${t2.toFixed(0)}</span>
+        <span>${t3.toFixed(0)}</span>
+        <span>${t4.toFixed(0)}</span>
+      `;
+    }
+
+    // ---------- GPX parsing ----------
+    function parseGPX(xmlText) {
+      const dom = new DOMParser().parseFromString(xmlText, "application/xml");
+      const trkpts = Array.from(dom.getElementsByTagName("trkpt"));
+      if (!trkpts.length) throw new Error("No <trkpt> points found in GPX.");
+      const pts = trkpts.map(pt => ({
+        lat: parseFloat(pt.getAttribute("lat")),
+        lon: parseFloat(pt.getAttribute("lon"))
+      })).filter(p => isFinite(p.lat) && isFinite(p.lon));
+      const dedup = [];
+      for (let i=0;i<pts.length;i++) {
+        if (i===0) dedup.push(pts[i]);
+        else {
+          const prev = dedup[dedup.length-1];
+          if (Math.abs(prev.lat-pts[i].lat)>1e-7 || Math.abs(prev.lon-pts[i].lon)>1e-7) dedup.push(pts[i]);
+        }
+      }
+      if (dedup.length < 2) throw new Error("Not enough distinct points in GPX.");
+      return dedup;
+    }
+    function cumulDistance(points) {
+      const cum = [0]; let total = 0;
+      for (let i=1;i<points.length;i++) {
+        total += haversine(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
+        cum.push(total);
+      }
+      return { cum, total };
+    }
+    function segmentBearings(points) {
+      const br = [];
+      for (let i=0;i<points.length-1;i++) br.push(bearing(points[i].lat, points[i].lon, points[i+1].lat, points[i+1].lon));
+      br.push(br[br.length-1]);
+      return br;
+    }
+    function buildSampleIndices(points, cum, maxCalls, minSpacingMeters) {
+      const n = points.length;
+      const idx = [0];
+      for (let i=1;i<n-1;i++) {
+        if ((cum[i] - cum[idx[idx.length-1]]) >= minSpacingMeters) idx.push(i);
+        if (idx.length >= maxCalls-1) break;
+      }
+      if (idx[idx.length-1] !== n-1) idx.push(n-1);
+      return idx;
+    }
+
+    // ---------- Breaks handling ----------
+    function getBreaks() {
+  const container = document.getElementById("breaksContainer");
+  const rows = Array.from(container.children);
+  const list = [];
+  for (const r of rows) {
+    const km = parseFloat(r.querySelector(".break-km").value);
+    const min = parseFloat(r.querySelector(".break-min").value);
+    if (isFinite(km) && km >= 0 && isFinite(min) && min > 0) {
+      list.push({ distMeters: km * 1000, durSec: Math.round(min * 60) });
+    }
+  }
+  list.sort((a, b) => a.distMeters - b.distMeters);
+  log('getBreaks returns:', list);
+  return list;
+}
+    function breakOffsetSeconds(distanceMeters, breaks) {
+      let sum = 0;
+      for (const b of breaks) if (distanceMeters >= b.distMeters) sum += b.durSec;
+      return sum;
+    }
+
+    // ---------- Provider fetchers ----------
+    const forecastCache = new Map();
+    const cacheKey = (lat, lon, provider) => `${provider}:${lat.toFixed(2)},${lon.toFixed(2)}`;
+
+    async function fetchOpenMeteo(lat, lon) {
+      const params = new URLSearchParams({
+        latitude: lat,
+        longitude: lon,
+        timezone: "UTC",
+        hourly: ["temperature_2m","windspeed_10m","winddirection_10m","precipitation"].join(","),
+        past_days: "0",
+        forecast_days: "16"
+      });
+      const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Open‑Meteo HTTP ${res.status}`);
+      const d = await res.json();
+      return {
+        times: d.hourly.time, // "YYYY-MM-DDTHH:00"
+        tempC: d.hourly.temperature_2m,
+        windSpeedMs: d.hourly.windspeed_10m,
+        windFromDeg: d.hourly.winddirection_10m,
+        precipMmHr: d.hourly.precipitation
+      };
+    }
+
+    // MeteoBlue: requires API key. You may need to adjust variable names based on package.
+    async function fetchMeteoBlue(lat, lon, apiKey) {
+      if (!apiKey) throw new Error("MeteoBlue API key missing.");
+      const base = "https://my.meteoblue.com/packages/basic-1h";
+      const params = new URLSearchParams({
+        lat: lat, lon: lon, apikey: apiKey, format: "json",
+        temperature: "temperature", windspeed: "windspeed", winddirection: "winddirection", precipitation: "precipitation"
+      });
+      const url = `${base}?${params.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`MeteoBlue HTTP ${res.status}`);
+      const d = await res.json();
+
+      const times = (d?.data_1h?.time || d?.hourly?.time || d?.time) || [];
+      const temp = (d?.data_1h?.temperature || d?.hourly?.temperature || d?.temperature) || [];
+      const wspd = (d?.data_1h?.windspeed || d?.hourly?.windspeed || d?.windspeed) || [];
+      const wdir = (d?.data_1h?.winddirection || d?.hourly?.winddirection || d?.winddirection) || [];
+      const pr = (d?.data_1h?.precipitation || d?.hourly?.precipitation || d?.precipitation) || [];
+
+      if (!times.length) throw new Error("MeteoBlue response missing hourly time series.");
+      return {
+        times,
+        tempC: temp,
+        windSpeedMs: wspd,
+        windFromDeg: wdir,
+        precipMmHr: pr
+      };
+    }
+
+    async function getForecast(lat, lon, provider, apiKey) {
+      const key = cacheKey(lat, lon, provider);
+      if (forecastCache.has(key)) return forecastCache.get(key);
+      const data = provider === "meteoblue" ? await fetchMeteoBlue(lat, lon, "DEMOKEY") : await fetchOpenMeteo(lat, lon);
+      forecastCache.set(key, data);
+      return data;
+    }
+
+    function pickHourAt(f, targetISOHour) {
+      return f.times.indexOf(targetISOHour);
+    }
+
+    // ---------- Map, legend, icons ----------
+    let map, routeLayerGroup, tempLegendControl;
+    function ensureMap() {
+      if (map) return;
+      map = L.map("map", { zoomControl: true });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(map);
+      routeLayerGroup = L.layerGroup().addTo(map);
+
+      // Also add floating legend on map
+      tempLegendControl = L.control({ position: "bottomright" });
+      tempLegendControl.onAdd = function() {
+        const div = L.DomUtil.create("div", "legend-temp");
+        div.innerHTML = `
+          <div><strong>Temperature (°C)</strong></div>
+          <div class="legend-bar" id="legendBarMap"></div>
+          <div class="legend-ticks" id="legendTicksMap">
+            <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
+          </div>
+        `;
+        return div;
+      };
+      tempLegendControl.addTo(map);
+    }
+
+    function dirArrow8(degFrom) {
+      const dirs = [
+        { a: 0, ch: "↓" },   // from N
+        { a: 45, ch: "↙" },  // from NE
+        { a: 90, ch: "←" },  // from E
+        { a: 135, ch: "↖" }, // from SE
+        { a: 180, ch: "↑" }, // from S
+        { a: 225, ch: "↗" }, // from SW
+        { a: 270, ch: "→" }, // from W
+        { a: 315, ch: "↘" }  // from NW
+      ];
+      let nearest = dirs[0], best = 999;
+      for (const d of dirs) {
+        const diff = Math.abs(((degFrom - d.a + 540) % 360) - 180);
+        if (diff < best) { best = diff; nearest = d; }
+      }
+      return nearest.ch;
+    }
+    function getWeatherIcon(tempC, precip) {
+  if (precip >= 4) return "⛈️"; // heavy rain
+  if (precip >= 1) return "🌧️"; // rain
+  if (precip >= 0.1) return "🌦️"; // light rain
+  if (tempC >= 28) return "☀️"; // hot/sunny
+  if (tempC >= 18) return "🌤️"; // warm/partly sunny
+  if (tempC >= 8) return "⛅"; // mild/cloudy
+  if (tempC >= 0) return "☁️"; // cool/cloudy
+  return "❄️"; // cold/snowy
+}
+function windBarbs(windKmh) {
+  if (windKmh >= 40) return "≡"; // 3 barbs
+  if (windKmh >= 20) return "≡".slice(0,2); // 2 barbs
+  if (windKmh >= 5)  return "≡".slice(0,1); // 1 barb
+  return ""; // calm
+}
+    function getWeatherEmoji(precip, windDeg) {
+  // Rain emoji logic
+      let rain = "";
+      if (precip >= 0.1 && precip < 1) rain = "🌦️";
+      else if (precip >= 1 && precip < 4) rain = "🌧️";
+      else if (precip >= 4) rain = "⛈️";
+
+      // Wind direction arrow (FROM direction)
+      const windArrow = dirArrow8(windDeg);
+
+      return `${rain}${rain ? " " : ""}${windArrow}`;
+}
+
+    // ---------- Chart (unified) ----------
+    let tripChart;
+    function resetChart() { if (tripChart) { tripChart.destroy(); tripChart = null; } }
+    function buildUnifiedChart(series, breaks, startDate) {
+      log('breaks passed to buildUnifiedChart:', breaks);
+      resetChart();
+      const ctx = document.getElementById("tripChart").getContext("2d");
+      const xMin = Math.min(...series.map(s => +s.t));
+      const xMax = Math.max(...series.map(s => +s.t));
+        // Build annotation boxes for breaks
+  const annotations = {};
+  for (let i = 0; i < breaks.length; i++) {
+    const b = breaks[i];
+    const breakStart = new Date(startDate.getTime() + b.distMeters / (series[0].windKmh / 3.6) * 1000 + breakOffsetSeconds(b.distMeters, breaks) * 1000 - b.durSec * 1000);
+    const breakEnd = new Date(breakStart.getTime() + b.durSec * 1000);
+    log('breakStart', breakStart.getTime(), 'breakEnd', breakEnd.getTime(), 'xMin', xMin, 'xMax', xMax);
+    annotations[`break${i}`] = {
+      type: "box",
+      xMin: breakStart.getTime(),
+      xMax: breakEnd.getTime(),
+      backgroundColor: "rgba(180,180,180,0.18)",
+      borderWidth: 0,
+      yScaleID: "yTemp"
+    };
+  }
+      tripChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          datasets: [
+            {
+              label: "Temp (°C)",
+              data: series.map(s => ({ x: +s.t, y: s.tempC })),
+              borderColor: "#f9d349",
+              backgroundColor: "rgba(249,211,73,0.15)",
+              tension: 0.25,
+              pointRadius: 0,
+              yAxisID: "yTemp"
+            },
+            {
+              label: "Precip (mm/h)",
+              data: series.map(s => ({ x: +s.t, y: s.precip })),
+              borderColor: "#66d9ef",
+              backgroundColor: "rgba(102,217,239,0.15)",
+              tension: 0.25,
+              pointRadius: 0,
+              yAxisID: "yPrecip"
+            },
+            {
+              label: "Wind (km/h)",
+              data: series.map(s => ({ x: +s.t, y: s.windKmh })),
+              borderColor: "#f97583",
+              backgroundColor: "rgba(249,117,131,0.15)",
+              tension: 0.25,
+              pointRadius: 0,
+              yAxisID: "yWind"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: "linear",
+              min: xMin,
+              max: xMax,
+              ticks: { color: "#e6e8ef", callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+              grid: { color: "rgba(255,255,255,0.06)" },
+              title: { display: true, text: "Time", color: "#a5adba" }
+            },
+            yTemp: {
+              position: "left",
+              ticks: { color: "#e6e8ef" },
+              title: { display: true, text: "°C", color: "#a5adba" },
+              grid: { color: "rgba(255,255,255,0.06)" }
+            },
+            yPrecip: {
+              position: "right",
+              ticks: { color: "#e6e8ef" },
+              title: { display: true, text: "mm/h", color: "#a5adba" },
+              grid: { drawOnChartArea: false }
+            },
+            yWind: {
+              position: "right",
+              offset: true,
+              ticks: { color: "#e6e8ef" },
+              title: { display: true, text: "km/h", color: "#a5adba" },
+              grid: { drawOnChartArea: false }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: "#e6e8ef" } },
+            tooltip: {
+              callbacks: {
+                title: items => new Date(items[0].parsed.x).toLocaleString()
+              }
+            },
+            annotation: { annotations }
+          }
+        } //,
+  // plugins: [window['chartjs-plugin-annotation']]
+      });
+    }
+
+    // ---------- Main processing ----------
+    let gpxText = null;
+    ensureMap();
+    // Define tile layers
+const openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+  maxZoom: 17,
+  attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
+});
+const openCycle = L.tileLayer('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=70a9b978ca5f485d82d655fbacc0eee0', {
+  maxZoom: 18,
+  attribution: 'Maps © Thunderforest, Data © OpenStreetMap contributors'
+});
+
+// Add OpenTopoMap as default
+openTopo.addTo(map);
+
+// Layer control
+const baseLayers = {
+  "OpenTopoMap": openTopo,
+  "OpenCycleMap": openCycle
+};
+L.control.layers(baseLayers).addTo(map);
+
+    async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacing, provider, mbKey) {
+      weatherMarkers = [];
+      routeLayerGroup.clearLayers();
+      document.getElementById("statDistance").textContent = "–";
+      document.getElementById("statDuration").textContent = "–";
+      document.getElementById("statTempRange").textContent = "–";
+      document.getElementById("statWetShare").textContent = "–";
+      document.getElementById("log").textContent = "";
+      resetChart();
+
+      const breaks = getBreaks();
+
+      log("Parsing GPX...");
+      const points = parseGPX(gpxText);
+      const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
+      map.fitBounds(bounds.pad(0.1));
+const start = points[0];
+const end = points[points.length - 1];
+
+// Start flag (green)
+const startFlag = L.divIcon({
+  html: '<span style="font-size:22px;">🏁</span>',
+  className: "",
+  iconSize: [24, 24],
+  iconAnchor: [12, 22]
+});
+L.marker([start.lat, start.lon], { icon: startFlag, title: "Start" }).addTo(routeLayerGroup);
+
+// End flag (red)
+const endFlag = L.divIcon({
+  html: '<span style="font-size:22px; color:#e74c3c;">🏁</span>',
+  className: "",
+  iconSize: [24, 24],
+  iconAnchor: [12, 22]
+});
+
+L.marker([end.lat, end.lon], { icon: endFlag, title: "End" }).addTo(routeLayerGroup);
+
+      const { cum, total } = cumulDistance(points);
+      const brngs = segmentBearings(points);
+      // Show breaks as orange flags
+for (const b of breaks) {
+  // Find the closest point on the route to the break distance
+  let breakIdx = 0;
+  for (let i = 1; i < cum.length; i++) {
+    if (cum[i] >= b.distMeters) {
+      breakIdx = i;
+      break;
+    }
+  }
+  const pt = points[breakIdx];
+  const breakFlag = L.divIcon({
+    html: '<span style="font-size:20px; color:orange;">📌</span>',
+    className: "",
+    iconSize: [20, 20],
+    iconAnchor: [11, 20]
+  });
+  L.marker([pt.lat, pt.lon], { icon: breakFlag, title: `Break at ${Math.round(b.distMeters/1000)} km` })
+    .addTo(routeLayerGroup)
+    .bindPopup(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
+}
+
+      const travelTimeSec = total / avgSpeedMps;
+      const totalBreaks = breakOffsetSeconds(total, breaks);
+      const durationSec = travelTimeSec + totalBreaks;
+
+      document.getElementById("statDistance").textContent = formatKm(total);
+      document.getElementById("statDuration").textContent = formatDuration(durationSec);
+
+      const baseLine = L.polyline(points.map(p => [p.lat, p.lon]), { color: "#777", weight: 3, opacity: 0.35 });
+      routeLayerGroup.addLayer(baseLine);
+
+      const sampleIdx = buildSampleIndices(points, cum, maxCalls, minSpacing);
+      log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacing} m).`);
+
+      const results = []; // { idx, lat, lon, eta, etaISOHour, tempC, windMs, windDeg, precip, travelBearing }
+      const errors = [];
+
+      const CONCURRENCY = 8;
+      let i = 0;
+      async function worker() {
+        while (i < sampleIdx.length) {
+          const my = i++;
+          const idx = sampleIdx[my];
+          const p = points[idx];
+          const etaSec = cum[idx] / avgSpeedMps + breakOffsetSeconds(cum[idx], breaks);
+          const eta = new Date(startDate.getTime() + etaSec * 1000);
+          const etaISOHour = utcHourISO(eta);
+          const travelBearing = brngs[idx];
+
+          try {
+            const fc = await getForecast(p.lat, p.lon, provider, mbKey);
+            const k = pickHourAt(fc, etaISOHour);
+            if (k === -1) {
+              errors.push({ idx, reason: "Time out of forecast range", etaISOHour });
+              log(`No forecast at ${etaISOHour} UTC for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
+              continue;
+            }
+            const rec = {
+              idx,
+              lat: p.lat, lon: p.lon,
+              eta, etaISOHour,
+              tempC: Number(fc.tempC[k]),
+              windMs: Number(fc.windSpeedMs[k]),
+              windDeg: Number(fc.windFromDeg[k]),
+              precip: Number(fc.precipMmHr[k]),
+              travelBearing
+            };
+            results.push(rec);
+          } catch (e) {
+            errors.push({ idx, reason: e.message });
+            log(`Forecast error @${idx}: ${e.message}`);
+          }
+        }
+      }
+      const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
+      await Promise.all(workers);
+
+      results.sort((a,b) => a.idx - b.idx);
+
+      if (!results.length) {
+        log("No forecast results to render.");
+        return;
+      }
+
+      // Compute dynamic temperature range
+      const temps = results.map(r => r.tempC).filter(t => isFinite(t));
+      let minT = Math.min(...temps);
+      let maxT = Math.max(...temps);
+      if (!isFinite(minT) || !isFinite(maxT)) { minT = 0; maxT = 1; }
+      if (maxT - minT < 0.1) { maxT = minT + 0.1; } // avoid zero span
+
+      // Update both legends (sidebar + map)
+      updateLegend(minT, maxT);
+      const barMap = document.getElementById("legendBarMap");
+      const ticksMap = document.getElementById("legendTicksMap");
+      if (barMap && ticksMap) {
+        const stops = PALETTE.map((c, i, arr) => `${c} ${Math.round((i/(arr.length-1))*100)}%`).join(", ");
+        barMap.style.background = `linear-gradient(90deg, ${stops})`;
+        const t0 = minT;
+        const t1 = minT + (maxT - minT) * 0.25;
+        const t2 = minT + (maxT - minT) * 0.5;
+        const t3 = minT + (maxT - minT) * 0.75;
+        const t4 = maxT;
+        ticksMap.innerHTML = `
+          <span>${t0.toFixed(0)}</span>
+          <span>${t1.toFixed(0)}</span>
+          <span>${t2.toFixed(0)}</span>
+          <span>${t3.toFixed(0)}</span>
+          <span>${t4.toFixed(0)}</span>
+        `;
+      }
+
+      // Build colorer for track
+      const tempColor = makeTempColorer(minT, maxT);
+
+      // Render colored segments
+      let wetPts = 0;
+      for (let s=0; s<points.length-1; s++) {
+        const nearest = nearestByIdx(results, s);
+        const t = nearest ? nearest.tempC : null;
+        const color = (t == null) ? "#cccccc" : tempColor(t);
+        const seg = L.polyline([[points[s].lat, points[s].lon],[points[s+1].lat, points[s+1].lon]], { color, weight: 5, opacity: 0.95 });
+        routeLayerGroup.addLayer(seg);
+      }
+
+      // Add per-sample markers with readable boxes (precip + wind in km/h)
+      for (const r of results) {
+          const weatherIcon = getWeatherIcon(r.tempC, r.precip);
+  const windArrow = dirArrow8(r.windDeg);
+  const barbs = windBarbs(r.windMs * 3.6);
+  const icon = L.divIcon({
+    html: `<div style="font-size:15px; color:#444; display:flex; flex-direction:column; align-items:center;">
+      <span>${weatherIcon}</span>
+      <span style="font-size:13px; margin-top:-2px;">
+            ${windArrow}<span style="font-size:10px; margin-left:2px;">${barbs}</span>
+      </span>
+    </div>`,
+    className: "",
+    iconSize: [20, 22],
+    iconAnchor: [10, 11]
+  });
+  const marker = L.marker([r.lat, r.lon], { icon }).addTo(routeLayerGroup);
+
+    const windKmh = (r.windMs * 3.6).toFixed(1);
+    const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+const popupHtml = `
+  <div style="min-width:200px">
+    <strong>ETA:</strong> ${etaStr}<br/>
+    <strong>Forecast:</strong><br/>
+    ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
+    🌧️ Precipitation: ${r.precip.toFixed(1)} mm/h<br/>
+    💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}
+  </div>
+`;
+
+
+    marker.bindPopup(popupHtml);
+        if ((r.precip || 0) >= 0.1) wetPts++;
+      }
+
+      document.getElementById("statTempRange").textContent = `${minT.toFixed(1)}°C → ${maxT.toFixed(1)}°C`;
+      document.getElementById("statWetShare").textContent = Math.round(100 * wetPts / results.length) + "%";
+
+      // Unified chart
+      const chartSeries = results
+        .map(r => ({ t: r.eta, tempC: r.tempC, precip: r.precip, windKmh: r.windMs * 3.6, windDeg: r.windDeg
+        }))
+        .sort((a,b) => +a.t - +b.t);
+      buildUnifiedChart(chartSeries, breaks, startDate);
+
+      if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
+      else log("Completed successfully.");
+    }
+
+    function nearestByIdx(results, idx) {
+      if (!results.length) return null;
+      let lo = 0, hi = results.length - 1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (results[mid].idx === idx) return results[mid];
+        if (results[mid].idx < idx) lo = mid + 1; else hi = mid - 1;
+      }
+      const cand = [];
+      if (lo < results.length) cand.push(results[lo]);
+      if (hi >= 0) cand.push(results[hi]);
+      cand.sort((a,b) => Math.abs(a.idx - idx) - Math.abs(b.idx - idx));
+      return cand[0] || null;
+    }
+
+    // ---------- Wire up UI ----------
+    const fileInput = document.getElementById("gpxFile");
+    const providerSel = document.getElementById("provider");
+    const meteoblueKeyInput = document.getElementById("meteoblueKey");
+    const meteoblueKeyRow = document.getElementById("meteoblueKeyRow");
+    const startTimeInput = document.getElementById("startTime");
+    const speedInput = document.getElementById("speed");
+    speedInput.value = 14;
+    const speedUnit = document.getElementById("speedUnit");
+    const processBtn = document.getElementById("processBtn");
+    const maxCallsInput = document.getElementById("maxCalls");
+    const sampleMetersSelect = document.getElementById("sampleMeters");
+    const breaksContainer = document.getElementById("breaksContainer");
+    const addBreakBtn = document.getElementById("addBreakBtn");
+
+    function validateReady() {
+      const ok = !!gpxText && startTimeInput.value && parseFloat(speedInput.value) > 0;
+      processBtn.disabled = !ok;
+    }
+
+    providerSel.addEventListener("change", () => {
+      meteoblueKeyRow.style.display = providerSel.value === "meteoblue" ? "block" : "none";
+      validateReady();
+    });
+
+    addBreakBtn.addEventListener("click", () => {
+      const row = document.createElement("div");
+      row.className = "break-row";
+      row.innerHTML = `
+        <input type="number" class="break-km" min="0" step="0.1" placeholder="distance km" />
+        <input type="number" class="break-min" min="1" step="1" placeholder="duration min" />
+        <button type="button" title="Remove break">✕</button>
+      `;
+      row.querySelector("button").addEventListener("click", () => row.remove());
+      breaksContainer.appendChild(row);
+      validateReady();
+    });
+
+fileInput.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  try {
+    gpxText = await f.text();
+    log(`Loaded file: ${f.name} (${Math.round(f.size / 1024)} kB)`);
+  } catch (err) {
+    log("Error reading file: " + err.message);
+    gpxText = null;
+  }
+  validateReady();
+
+  // Remove previous map click handler if any
+  if (window.mapClickBreakHandler) {
+    map.off("click", window.mapClickBreakHandler);
+  }
+
+  // Add new map click handler for adding breaks
+  window.mapClickBreakHandler = function(e) {
+    if (!gpxText) {
+      log("Load a GPX file first.");
+      return;
+    }
+    let points, cum;
+    try {
+      points = parseGPX(gpxText);
+      cum = cumulDistance(points).cum;
+    } catch (err) {
+      log("Error: " + err.message);
+      return;
+    }
+    // Find nearest point on route
+    let minDist = Infinity, nearestIdx = 0;
+    for (let i = 0; i < points.length; i++) {
+      const d = haversine(e.latlng.lat, e.latlng.lng, points[i].lat, points[i].lon);
+      if (d < minDist) {
+        minDist = d;
+        nearestIdx = i;
+      }
+    }
+    const distKm = (cum[nearestIdx] / 1000).toFixed(2);
+
+    // Add a break-row with distance pre-filled
+    const row = document.createElement("div");
+    row.className = "break-row";
+    row.innerHTML = `
+      <input type="number" class="break-km" min="0" step="0.1" placeholder="distance km" value="${distKm}" />
+      <input type="number" class="break-min" min="1" step="1" placeholder="duration min" />
+      <button type="button" title="Remove break">✕</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => row.remove());
+    document.getElementById("breaksContainer").appendChild(row);
+    validateReady();
+    log(`Break added at ${distKm} km (map click).`);
+  };
+  map.on("click", window.mapClickBreakHandler);
+});
+
+    [
+      startTimeInput, speedInput, speedUnit,
+      maxCallsInput, sampleMetersSelect,
+      meteoblueKeyInput, providerSel
+    ].forEach(el => {
+      el.addEventListener("input", validateReady);
+      el.addEventListener("change", validateReady);
+    });
+
+    processBtn.addEventListener("click", async () => {
+      try {
+        const startVal = startTimeInput.value;
+        const startDate = new Date(startVal);
+        if (isNaN(startDate.getTime())) {
+          log("Invalid start time.");
+          return;
+        }
+        const v = parseFloat(speedInput.value);
+        const mps = speedToMps(v, speedUnit.value);
+        if (!mps) {
+          log("Invalid average speed.");
+          return;
+        }
+        const maxCalls = Math.max(5, Math.min(200, parseInt(maxCallsInput.value || "60", 10)));
+                const minSpacing = parseInt(sampleMetersSelect.value, 10);
+        const provider = providerSel.value;
+        const mbKey = meteoblueKeyInput.value.trim();
+
+        processBtn.disabled = true;
+        await processRoute(gpxText, startDate, mps, maxCalls, minSpacing, provider, mbKey);
+      } catch (e) {
+        log("Failed: " + e.message);
+      } finally {
+        validateReady();
+      }
+    });
+    // Set default start time to tomorrow at 07:00
+window.addEventListener("DOMContentLoaded", () => {
+  const startTimeInput = document.getElementById("startTime");
+  const now = new Date();
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 7, 0, 0, 0);
+  // Format as yyyy-MM-ddTHH:mm for input[type="datetime-local"]
+  const pad = n => n.toString().padStart(2, "0");
+  const val = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T07:00`;
+  startTimeInput.value = val;
+});
+    // --- Weather marker toggle ---
+let weatherMarkers = [];
+let weatherMarkersVisible = true;
+
+function addWeatherMarker(marker) {
+  weatherMarkers.push(marker);
+}
+
+function setWeatherMarkersVisible(visible) {
+  weatherMarkersVisible = visible;
+  for (const m of weatherMarkers) {
+    if (visible) {
+      m.addTo(routeLayerGroup);
+    } else {
+      routeLayerGroup.removeLayer(m);
+    }
+  }
+}
+
+// Add toggle control to map
+/*L.Control.WeatherToggle = L.Control.extend({
+  onAdd: function(map) {
+    const btn = L.DomUtil.create("button", "leaflet-bar");
+    btn.textContent = "🌦️";
+    btn.title = "Show/hide weather icons";
+    btn.style.width = "34px";
+    btn.style.height = "34px";
+    btn.style.fontSize = "18px";
+    btn.style.background = "#222";
+    btn.style.color = "#fff";
+    btn.style.border = "none";
+    btn.style.cursor = "pointer";
+    btn.onclick = function(e) {
+      e.stopPropagation();
+      setWeatherMarkersVisible(!weatherMarkersVisible);
+      btn.style.opacity = weatherMarkersVisible ? "1" : "0.5";
+    };
+    return btn;
+  },
+  onRemove: function(map) {}
+});
+L.control.weatherToggle = function(opts) {
+  return new L.Control.WeatherToggle(opts);
+};
+map.whenReady(() => {
+  L.control.weatherToggle({ position: "topright" }).addTo(map);
+});*/
+
+// --- Update marker creation in processRoute ---
+/* Replace this in your marker loop:
+const marker = L.marker([r.lat, r.lon], { icon }).addTo(routeLayerGroup);
+...
+marker.bindPopup(popupHtml);
+*/
+const marker = L.marker([r.lat, r.lon], { icon });
+addWeatherMarker(marker);
+if (weatherMarkersVisible) marker.addTo(routeLayerGroup);
+marker.bindPopup(popupHtml);
+
+// --- Clear markers at start of processRoute ---
+// weatherMarkers = [];
+  </script>
+</body>
+</html>
