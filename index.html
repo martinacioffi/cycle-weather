@@ -188,6 +188,11 @@
           font-size: 14px;
           color: var(--accent);
         }
+        .charts canvas {
+          width: 100% !important;
+          height: auto !important;
+          max-height: 300px; /* or whatever fits your layout */
+        }
         canvas {
           background: #11151c;
           border: 1px solid var(--line);
@@ -345,7 +350,8 @@
         <main id="map"></main>
         <div class="charts">
             <h3>Trip forecast</h3>
-            <canvas id="tripChart" height="60"></canvas>
+                <canvas id="tempPrecipChart"></canvas>
+                <canvas id="windChart"></canvas>
         </div>
     </div>
 </div>
@@ -357,8 +363,10 @@
         crossorigin=""
 ></script>
 <!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.0.1/dist/chartjs-plugin-annotation.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.0.1/dist/chartjs-plugin-annotation.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0"></script>
 
 <script>
     // ---------- Utilities ----------
@@ -697,8 +705,156 @@ function windBarbs(windKmh) {
 }
 
     // ---------- Chart (unified) ----------
+    Chart.register(ChartDataLabels);
+    //Chart.register(ChartAnnotation);
+    //tripChart.register(ChartDataLabels);
+    //tripChart.register(ChartAnnotation);
+
     let tripChart;
     function resetChart() { if (tripChart) { tripChart.destroy(); tripChart = null; } }
+    function buildTempPrecipChart(series) {
+
+  const ctx = document.getElementById("tempPrecipChart").getContext("2d");
+        const xMin = Math.min(...series.map(s => +s.t));
+      const xMax = Math.max(...series.map(s => +s.t));
+  return new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: series.map(s => s.t),
+      datasets: [
+        {
+          type: "line",
+          label: "Temp (°C)",
+          data: series.map(s => s.tempC),
+          borderColor: "#f9d349",
+          backgroundColor: "rgba(249,211,73,0.15)",
+          yAxisID: "yTemp",
+          tension: 0.25,
+          pointStyle: false,
+        },
+        {
+          type: "bar",
+          label: "Precip (mm/h)",
+          data: series.map(s => s.precip),
+          backgroundColor: "#66d9ef",
+          yAxisID: "yPrecip",
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+        labels: { color: "#e6e8ef" }
+        },
+        tooltip: {
+          callbacks: {
+            title: items => new Date(items[0].label).toLocaleString()
+          }
+        },
+        datalabels: {
+          display: true,
+          align: 'top',
+          formatter: (value, ctx) => {
+            // Show weather emoji above temp points
+            if (ctx.datasetIndex === 0) {
+              const i = ctx.dataIndex;
+              return getWeatherIcon(series[i].tempC, series[i].precip);
+            }
+            return '';
+          },
+          font: { size: 18 }
+        }
+      },
+      scales: {
+            x: {
+              type: "linear",
+              min: xMin,
+              max: xMax,
+              ticks: { color: "#e6e8ef", callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+              grid: { color: "rgba(255,255,255,0.06)" },
+              title: { display: true, text: "Time", color: "#a5adba" }
+            },
+        yTemp: {
+          position: "left",
+          title: { display: true, text: "°C", color: "#a5adba" },
+          ticks: { color: "#e6e8ef" },
+          grid: { color: "rgba(255,255,255,0.06)" }
+        },
+        yPrecip: {
+          position: "right",
+          title: { display: true, text: "mm/h", color: "#a5adba" },
+          ticks: { color: "#e6e8ef" },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
+}
+
+function buildWindChart(series) {
+  const ctx = document.getElementById("windChart").getContext("2d");
+        const xMin = Math.min(...series.map(s => +s.t));
+      const xMax = Math.max(...series.map(s => +s.t));
+  return new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: series.map(s => s.t),
+      datasets: [
+        {
+          label: "Wind (km/h)",
+          data: series.map(s => s.windKmh),
+          borderColor: "#f97583",
+          backgroundColor: "rgba(249,117,131,0.15)",
+          yAxisID: "yWind",
+          tension: 0.25,
+          pointStyle: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#e6e8ef" } },
+        tooltip: {
+          callbacks: {
+            title: items => new Date(items[0].label).toLocaleString()
+          }
+        },
+        datalabels: {
+          display: true,
+          align: 'top',
+          formatter: (value, ctx) => {
+            // Show wind direction arrow above wind points
+            const i = ctx.dataIndex;
+            return dirArrow8(series[i].windDeg);
+          },
+          font: { size: 18 }
+        }
+      },
+      scales: {
+            x: {
+              type: "linear",
+              min: xMin,
+              max: xMax,
+              ticks: { color: "#e6e8ef", callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+              grid: { color: "rgba(255,255,255,0.06)" },
+              title: { display: true, text: "Time", color: "#a5adba" }
+            },
+        yWind: {
+          position: "left",
+          title: { display: true, text: "km/h", color: "#a5adba" },
+          ticks: { color: "#e6e8ef" },
+          grid: { color: "rgba(255,255,255,0.06)" }
+        }
+      }
+    },
+     plugins: [ChartDataLabels]
+  });
+}
     function buildUnifiedChart(series, breaks, startDate) {
       log('breaks passed to buildUnifiedChart:', breaks);
       resetChart();
@@ -1032,7 +1188,9 @@ const popupHtml = `
         .map(r => ({ t: r.eta, tempC: r.tempC, precip: r.precip, windKmh: r.windMs * 3.6, windDeg: r.windDeg
         }))
         .sort((a,b) => +a.t - +b.t);
-      buildUnifiedChart(chartSeries, breaks, startDate);
+      // buildUnifiedChart(chartSeries, breaks, startDate);
+      buildTempPrecipChart(chartSeries);
+      buildWindChart(chartSeries);
 
       if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
       else log("Completed successfully.");
