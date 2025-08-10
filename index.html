@@ -1,366 +1,366 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>GPX Route Weather Forecast — Dynamic Temp, Breaks, Unified Chart</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-  <style>
-    :root {
-      --bg: #0f1115;
-      --panel: #161a22;
-      --text: #e6e8ef;
-      --muted: #a5adba;
-      --accent: #66d9ef;
-      --line: #2a2f3a;
-    }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
-    }
-    header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 18px;
-      letter-spacing: 0.3px;
-    }
-    header .sub {
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .wrap {
-      display: grid;
-      grid-template-columns: 380px 1fr;
-      min-height: calc(100vh - 60px);
-    }
-    .side {
-      border-right: 1px solid var(--line);
-      background: var(--panel);
-      padding: 16px;
+    <meta charset="utf-8"/>
+    <title>GPX Route Weather Forecast — Dynamic Temp, Breaks, Unified Chart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <!-- Leaflet CSS -->
+    <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+    />
+    <style>
+        :root {
+          --bg: #0f1115;
+          --panel: #161a22;
+          --text: #e6e8ef;
+          --muted: #a5adba;
+          --accent: #66d9ef;
+          --line: #2a2f3a;
+        }
+        body {
+          margin: 0;
+          background: var(--bg);
+          color: var(--text);
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+        }
+        header {
+          padding: 16px 20px;
+          border-bottom: 1px solid var(--line);
+          display: flex;
+          align-items: baseline;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        header h1 {
+          margin: 0;
+          font-size: 18px;
+          letter-spacing: 0.3px;
+        }
+        header .sub {
+          color: var(--muted);
+          font-size: 13px;
+        }
+        .wrap {
+          display: grid;
+          grid-template-columns: 380px 1fr;
+          min-height: calc(100vh - 60px);
+        }
+        .side {
+          border-right: 1px solid var(--line);
+          background: var(--panel);
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          overflow: auto;
+        }
+        .group {
+          background: #1b202a;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          padding: 12px;
+        }
+        .group h3 {
+          margin: 0 0 8px;
+          font-size: 14px;
+          color: var(--accent);
+        }
+        label {
+          display: block;
+          font-size: 12px;
+          color: var(--muted);
+          margin: 8px 0 6px;
+        }
+        input[type="file"],
+        input[type="number"],
+        input[type="datetime-local"],
+        input[type="text"],
+        select {
+          width: 100%;
+          background: #0f1115;
+          color: var(--text);
+          border: 1px solid var(--line);
+          border-radius: 6px;
+          padding: 8px 10px;
+          box-sizing: border-box;
+        }
+        .row {
+          display: grid;
+          grid-template-columns: 1fr 140px;
+          gap: 8px;
+        }
+        button {
+          width: 100%;
+          background: linear-gradient(135deg, #4b9fff, #627aff);
+          color: white;
+          border: none;
+          padding: 10px 12px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          margin-top: 8px;
+        }
+        button.ghost {
+          background: transparent;
+          border: 1px dashed var(--line);
+          color: var(--muted);
+          width: auto;
+          padding: 6px 10px;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+        button:disabled { opacity: 0.6; cursor: default; }
+        .stats {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          margin-top: 6px;
+        }
+        .stat {
+          background: #11151c;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          padding: 10px;
+        }
+        .stat .label { font-size: 11px; color: var(--muted); }
+        .stat .value { font-size: 16px; margin-top: 2px; }
+        #log {
+          height: 120px;
+          overflow: auto;
+          background: #0d1016;
+          border: 1px dashed var(--line);
+          border-radius: 8px;
+          padding: 8px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 12px;
+          white-space: pre-wrap;
+          color: #c0c5d0;
+        }
+        #map { width: 100%; height: 60vh; }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+          background: #11151c;
+          color: var(--text);
+          border: 1px solid var(--line);
+        }
+        .legend-temp {
+          padding: 8px 10px;
+          background: #11151c;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          color: var(--muted);
+          font-size: 12px;
+        }
+        .legend-bar {
+          height: 10px;
+          width: 240px;
+          border-radius: 6px;
+          border: 1px solid rgba(255,255,255,0.08);
+          margin: 6px 0;
+          background: linear-gradient(90deg, #2c7bb6, #abd9e9, #ffffbf, #fdae61, #d7191c);
+        }
+        .legend-ticks {
+          display: flex;
+          justify-content: space-between;
+          width: 240px;
+          font-variant-numeric: tabular-nums;
+        }
+        .break-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr auto;
+          gap: 6px;
+          align-items: end;
+          margin-top: 6px;
+        }
+        .break-row button {
+          margin-top: 0;
+          padding: 6px 10px;
+        }
+        .charts {
+          padding: 10px 16px 20px;
+          border-top: 1px solid var(--line);
+          background: #0f1115;
+        }
+        .charts h3 {
+          margin: 10px 0 8px;
+          font-size: 14px;
+          color: var(--accent);
+        }
+        canvas {
+          background: #11151c;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          padding: 8px;
+        }
+        footer.note {
+          color: var(--muted);
+          font-size: 12px;
+          margin-top: 6px;
+        }
+        @media (min-width: 1100px) {
+          #map { height: calc(100vh - 60px - 230px); }
+        }
+        @media (max-width: 1040px) {
+          .wrap { grid-template-columns: 1fr; }
+          #map { height: 54vh; }
+        }
+        .main-col {
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      overflow: auto;
+      min-width: 0;
+      height: 100%;
     }
-    .group {
-      background: #1b202a;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-    }
-    .group h3 {
-      margin: 0 0 8px;
-      font-size: 14px;
-      color: var(--accent);
-    }
-    label {
-      display: block;
-      font-size: 12px;
-      color: var(--muted);
-      margin: 8px 0 6px;
-    }
-    input[type="file"],
-    input[type="number"],
-    input[type="datetime-local"],
-    input[type="text"],
-    select {
+    #map, .charts {
+      flex: 1 1 0;
+      min-height: 0;
       width: 100%;
-      background: #0f1115;
-      color: var(--text);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 8px 10px;
-      box-sizing: border-box;
-    }
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 140px;
-      gap: 8px;
-    }
-    button {
-      width: 100%;
-      background: linear-gradient(135deg, #4b9fff, #627aff);
-      color: white;
-      border: none;
-      padding: 10px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      margin-top: 8px;
-    }
-    button.ghost {
-      background: transparent;
-      border: 1px dashed var(--line);
-      color: var(--muted);
-      width: auto;
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    button:disabled { opacity: 0.6; cursor: default; }
-    .stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 6px;
-    }
-    .stat {
-      background: #11151c;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px;
-    }
-    .stat .label { font-size: 11px; color: var(--muted); }
-    .stat .value { font-size: 16px; margin-top: 2px; }
-    #log {
-      height: 120px;
-      overflow: auto;
-      background: #0d1016;
-      border: 1px dashed var(--line);
-      border-radius: 8px;
-      padding: 8px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 12px;
-      white-space: pre-wrap;
-      color: #c0c5d0;
-    }
-    #map { width: 100%; height: 60vh; }
-    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-      background: #11151c;
-      color: var(--text);
-      border: 1px solid var(--line);
-    }
-    .legend-temp {
-      padding: 8px 10px;
-      background: #11151c;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .legend-bar {
-      height: 10px;
-      width: 240px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.08);
-      margin: 6px 0;
-      background: linear-gradient(90deg, #2c7bb6, #abd9e9, #ffffbf, #fdae61, #d7191c);
-    }
-    .legend-ticks {
-      display: flex;
-      justify-content: space-between;
-      width: 240px;
-      font-variant-numeric: tabular-nums;
-    }
-    .break-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr auto;
-      gap: 6px;
-      align-items: end;
-      margin-top: 6px;
-    }
-    .break-row button {
-      margin-top: 0;
-      padding: 6px 10px;
+      /* Remove fixed height from #map */
     }
     .charts {
+      display: flex;
+      flex-direction: column;
+      justify-content: stretch;
       padding: 10px 16px 20px;
       border-top: 1px solid var(--line);
       background: #0f1115;
     }
-    .charts h3 {
-      margin: 10px 0 8px;
-      font-size: 14px;
-      color: var(--accent);
+    .charts canvas {
+      flex: 1 1 0;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 0;
     }
-    canvas {
-      background: #11151c;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px;
-    }
-    footer.note {
-      color: var(--muted);
-      font-size: 12px;
-      margin-top: 6px;
-    }
-    @media (min-width: 1100px) {
-      #map { height: calc(100vh - 60px - 230px); }
-    }
-    @media (max-width: 1040px) {
-      .wrap { grid-template-columns: 1fr; }
-      #map { height: 54vh; }
-    }
-    .main-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  height: 100%;
-}
-#map, .charts {
-  flex: 1 1 0;
-  min-height: 0;
-  width: 100%;
-  /* Remove fixed height from #map */
-}
-.charts {
-  display: flex;
-  flex-direction: column;
-  justify-content: stretch;
-  padding: 10px 16px 20px;
-  border-top: 1px solid var(--line);
-  background: #0f1115;
-}
-.charts canvas {
-  flex: 1 1 0;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0;
-}
-  </style>
+    </style>
 </head>
 <body>
-  <header>
+<header>
     <h1>GPX Route Weather Forecast</h1>
     <div class="sub">Upload GPX → set start time, speed & breaks → see forecast along your route</div>
-  </header>
+</header>
 
-  <div class="wrap">
+<div class="wrap">
     <aside class="side">
-      <div class="group">
-        <h3>Inputs</h3>
+        <div class="group">
+            <h3>Inputs</h3>
 
-        <label for="gpxFile">GPX file</label>
-        <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" />
+            <label for="gpxFile">GPX file</label>
+            <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml"/>
 
-        <label for="provider">Weather provider</label>
-        <select id="provider">
-          <option value="openmeteo" selected>Open‑Meteo (free, no API key)</option>
-          <option value="meteoblue">MeteoBlue (requires API key)</option>
-        </select>
-
-        <div id="meteoblueKeyRow" style="display:none">
-          <label for="meteoblueKey">MeteoBlue API key</label>
-          <input type="text" id="meteoblueKey" placeholder="Paste your MeteoBlue API key" />
-        </div>
-
-        <label for="startTime">Start time (local)</label>
-        <input type="datetime-local" id="startTime" />
-
-        <div class="row">
-          <div>
-            <label for="speed">Average speed</label>
-            <input type="number" id="speed" min="0" step="0.1" placeholder="e.g. 20" />
-          </div>
-          <div>
-            <label for="speedUnit">Unit</label>
-            <select id="speedUnit">
-              <option value="kmh" selected>km/h</option>
-              <option value="mph">mph</option>
-              <option value="ms">m/s</option>
+            <label for="provider">Weather provider</label>
+            <select id="provider">
+                <option value="openmeteo" selected>Open‑Meteo (free, no API key)</option>
+                <option value="meteoblue">MeteoBlue (requires API key)</option>
             </select>
-          </div>
+
+            <div id="meteoblueKeyRow" style="display:none">
+                <label for="meteoblueKey">MeteoBlue API key</label>
+                <input type="text" id="meteoblueKey" placeholder="Paste your MeteoBlue API key"/>
+            </div>
+
+            <label for="startTime">Start time (local)</label>
+            <input type="datetime-local" id="startTime"/>
+
+            <div class="row">
+                <div>
+                    <label for="speed">Average speed</label>
+                    <input type="number" id="speed" min="0" step="0.1" placeholder="e.g. 20"/>
+                </div>
+                <div>
+                    <label for="speedUnit">Unit</label>
+                    <select id="speedUnit">
+                        <option value="kmh" selected>km/h</option>
+                        <option value="mph">mph</option>
+                        <option value="ms">m/s</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div>
+                    <label for="maxCalls">Max API calls</label>
+                    <input type="number" id="maxCalls" min="5" max="200" value="60"/>
+                </div>
+                <div>
+                    <label for="sampleMeters">Min sample spacing</label>
+                    <select id="sampleMeters">
+                        <option value="250">250 m</option>
+                        <option value="500">500 m</option>
+                        <option value="1000">1 km</option>
+                        <option value="2000" selected>2 km</option>
+                        <option value="5000">5 km</option>
+                        <option value="10000">10 km</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="group" style="margin-top:10px">
+                <h3>Breaks</h3>
+                <div id="breaksContainer"></div>
+                <button id="addBreakBtn" class="ghost" type="button">+ Add break</button>
+                <footer class="note">Breaks delay ETAs after the specified distance. Use km and minutes.</footer>
+            </div>
+
+            <button id="processBtn" disabled>Process route & fetch forecast</button>
+
+            <div class="legend-temp" id="legendTempBox">
+                <div><strong>Track color = temperature (°C)</strong></div>
+                <div class="legend-bar" id="legendBar"></div>
+                <div class="legend-ticks" id="legendTicks">
+                    <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
+                </div>
+            </div>
         </div>
 
-        <div class="row">
-          <div>
-            <label for="maxCalls">Max API calls</label>
-            <input type="number" id="maxCalls" min="5" max="200" value="60" />
-          </div>
-          <div>
-            <label for="sampleMeters">Min sample spacing</label>
-            <select id="sampleMeters">
-              <option value="250">250 m</option>
-              <option value="500">500 m</option>
-              <option value="1000">1 km</option>
-              <option value="2000" selected>2 km</option>
-              <option value="5000">5 km</option>
-              <option value="10000">10 km</option>
-            </select>
-          </div>
+        <div class="group">
+            <h3>Stats</h3>
+            <div class="stats">
+                <div class="stat">
+                    <div class="label">Total distance</div>
+                    <div class="value" id="statDistance">–</div>
+                </div>
+                <div class="stat">
+                    <div class="label">Estimated duration</div>
+                    <div class="value" id="statDuration">–</div>
+                </div>
+                <div class="stat">
+                    <div class="label">Min / Max temp</div>
+                    <div class="value" id="statTempRange">–</div>
+                </div>
+                <div class="stat">
+                    <div class="label">Wet share</div>
+                    <div class="value" id="statWetShare">–</div>
+                </div>
+            </div>
         </div>
 
-        <div class="group" style="margin-top:10px">
-          <h3>Breaks</h3>
-          <div id="breaksContainer"></div>
-          <button id="addBreakBtn" class="ghost" type="button">+ Add break</button>
-          <footer class="note">Breaks delay ETAs after the specified distance. Use km and minutes.</footer>
+        <div class="group">
+            <h3>Log</h3>
+            <div id="log">Load a GPX to begin.</div>
+            <footer class="note">Open‑Meteo forecast is UTC hour-aligned. MeteoBlue requires your API key.</footer>
         </div>
-
-        <button id="processBtn" disabled>Process route & fetch forecast</button>
-
-        <div class="legend-temp" id="legendTempBox">
-          <div><strong>Track color = temperature (°C)</strong></div>
-          <div class="legend-bar" id="legendBar"></div>
-          <div class="legend-ticks" id="legendTicks">
-            <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="group">
-        <h3>Stats</h3>
-        <div class="stats">
-          <div class="stat">
-            <div class="label">Total distance</div>
-            <div class="value" id="statDistance">–</div>
-          </div>
-          <div class="stat">
-            <div class="label">Estimated duration</div>
-            <div class="value" id="statDuration">–</div>
-          </div>
-          <div class="stat">
-            <div class="label">Min / Max temp</div>
-            <div class="value" id="statTempRange">–</div>
-          </div>
-          <div class="stat">
-            <div class="label">Wet share</div>
-            <div class="value" id="statWetShare">–</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="group">
-        <h3>Log</h3>
-        <div id="log">Load a GPX to begin.</div>
-        <footer class="note">Open‑Meteo forecast is UTC hour-aligned. MeteoBlue requires your API key.</footer>
-      </div>
     </aside>
     <div class="main-col">
-    <main id="map"></main>
-    <div class="charts">
-    <h3>Trip forecast</h3>
-    <canvas id="tripChart" height="60"></canvas>
-  </div>
+        <main id="map"></main>
+        <div class="charts">
+            <h3>Trip forecast</h3>
+            <canvas id="tripChart" height="60"></canvas>
         </div>
+    </div>
 </div>
 
-  <!-- Leaflet JS -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.0.1/dist/chartjs-plugin-annotation.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Leaflet JS -->
+<script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.0.1/dist/chartjs-plugin-annotation.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <script>
+<script>
     // ---------- Utilities ----------
     const toRad = d => (d * Math.PI) / 180;
 
@@ -1256,6 +1256,6 @@ marker.bindPopup(popupHtml);
 
 // --- Clear markers at start of processRoute ---
 // weatherMarkers = [];
-  </script>
+</script>
 </body>
 </html>
