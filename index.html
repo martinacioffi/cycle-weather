@@ -1377,67 +1377,17 @@ window.addEventListener("DOMContentLoaded", () => {
   const val = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T07:00`;
   startTimeInput.value = val;
 });
-    // --- Weather marker toggle ---
+// --- Weather markers ---
 let weatherMarkers = [];
-let weatherMarkersVisible = true;
 
 function addWeatherMarker(marker) {
   weatherMarkers.push(marker);
 }
 
-function setWeatherMarkersVisible(visible) {
-  weatherMarkersVisible = visible;
-  for (const m of weatherMarkers) {
-    if (visible) {
-      m.addTo(routeLayerGroup);
-    } else {
-      routeLayerGroup.removeLayer(m);
-    }
-  }
-}
-
-// Add toggle control to map
-/*L.Control.WeatherToggle = L.Control.extend({
-  onAdd: function(map) {
-    const btn = L.DomUtil.create("button", "leaflet-bar");
-    btn.textContent = "🌦️";
-    btn.title = "Show/hide weather icons";
-    btn.style.width = "34px";
-    btn.style.height = "34px";
-    btn.style.fontSize = "18px";
-    btn.style.background = "#222";
-    btn.style.color = "#fff";
-    btn.style.border = "none";
-    btn.style.cursor = "pointer";
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      setWeatherMarkersVisible(!weatherMarkersVisible);
-      btn.style.opacity = weatherMarkersVisible ? "1" : "0.5";
-    };
-    return btn;
-  },
-  onRemove: function(map) {}
-});
-L.control.weatherToggle = function(opts) {
-  return new L.Control.WeatherToggle(opts);
-};
-map.whenReady(() => {
-  L.control.weatherToggle({ position: "topright" }).addTo(map);
-});*/
-
 // --- Update marker creation in processRoute ---
-/* Replace this in your marker loop:
 const marker = L.marker([r.lat, r.lon], { icon }).addTo(routeLayerGroup);
-...
-marker.bindPopup(popupHtml);
-*/
-const marker = L.marker([r.lat, r.lon], { icon });
 addWeatherMarker(marker);
-if (weatherMarkersVisible) marker.addTo(routeLayerGroup);
 marker.bindPopup(popupHtml);
-
-// --- Clear markers at start of processRoute ---
-// weatherMarkers = [];
 </script>
 </body>
 </html>
