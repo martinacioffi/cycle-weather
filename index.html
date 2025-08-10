@@ -225,11 +225,13 @@
 
   .main-col {
     flex: 1;
+    width: 100%;
     overflow: hidden;
   }
 
   #map {
     height: 300px;
+    margin-top: 10px;
   }
 }
         .main-col {
@@ -239,7 +241,7 @@
       height: 100%;
     }
     #map, .charts {
-      flex: 1 1 0;
+      flex: 1 1 auto;
       min-height: 0;
       width: 100%;
       /* Remove fixed height from #map */
@@ -273,7 +275,7 @@
             <h3>Inputs</h3>
 
             <label for="gpxFile">GPX file</label>
-            <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml"/>
+            <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,*/*"/>
 
             <label for="provider">Weather provider</label>
             <select id="provider">
