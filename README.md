@@ -1,5 +1,5 @@
 # Cycle Weather
-See weather forecast along cycling route (.gpx file)
+See weather forecast along a cycling route (.gpx file)
 
 ## Description
 Cycle Weather is a simple HTML page that allows you to visualize the weather forecast along a cycling route defined in a GPX file. It uses the Open-Meteo API to fetch weather data and displays it on a map.
