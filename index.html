@@ -554,7 +554,6 @@
     }
   }
   list.sort((a, b) => a.distMeters - b.distMeters);
-  log('getBreaks returns:', list);
   return list;
 }
     function breakOffsetSeconds(distanceMeters, breaks) {
@@ -707,7 +706,6 @@ function windBarbs(windKmh) {
     // ---------- Chart (unified) ----------
     Chart.register(ChartDataLabels);
 
-    let tripChart;
     let tempPrecipChart;
     let windChart;
     function destroyChartById(canvasId) {
@@ -716,16 +714,10 @@ function windBarbs(windKmh) {
 }
 
     function resetChart() {
-  if (tripChart) {
-    tripChart.destroy();
-    tripChart = null;
-  }
-
   if (tempPrecipChart) {
     tempPrecipChart.destroy();
     tempPrecipChart = null;
   }
-
   if (windChart) {
     windChart.destroy();
     windChart = null;
@@ -879,106 +871,6 @@ function buildWindChart(series) {
      plugins: [ChartDataLabels]
   });
 }
-    function buildUnifiedChart(series, breaks, startDate) {
-      log('breaks passed to buildUnifiedChart:', breaks);
-      resetChart();
-      const ctx = document.getElementById("tripChart").getContext("2d");
-      const xMin = Math.min(...series.map(s => +s.t));
-      const xMax = Math.max(...series.map(s => +s.t));
-        // Build annotation boxes for breaks
-  const annotations = {};
-  for (let i = 0; i < breaks.length; i++) {
-    const b = breaks[i];
-    const breakStart = new Date(startDate.getTime() + b.distMeters / (series[0].windKmh / 3.6) * 1000 + breakOffsetSeconds(b.distMeters, breaks) * 1000 - b.durSec * 1000);
-    const breakEnd = new Date(breakStart.getTime() + b.durSec * 1000);
-    log('breakStart', breakStart.getTime(), 'breakEnd', breakEnd.getTime(), 'xMin', xMin, 'xMax', xMax);
-    annotations[`break${i}`] = {
-      type: "box",
-      xMin: breakStart.getTime(),
-      xMax: breakEnd.getTime(),
-      backgroundColor: "rgba(180,180,180,0.18)",
-      borderWidth: 0,
-      yScaleID: "yTemp"
-    };
-  }
-      tripChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          datasets: [
-            {
-              label: "Temp (°C)",
-              data: series.map(s => ({ x: +s.t, y: s.tempC })),
-              borderColor: "#f9d349",
-              backgroundColor: "rgba(249,211,73,0.15)",
-              tension: 0.25,
-              pointRadius: 0,
-              yAxisID: "yTemp"
-            },
-            {
-              label: "Precip (mm/h)",
-              data: series.map(s => ({ x: +s.t, y: s.precip })),
-              borderColor: "#66d9ef",
-              backgroundColor: "rgba(102,217,239,0.15)",
-              tension: 0.25,
-              pointRadius: 0,
-              yAxisID: "yPrecip"
-            },
-            {
-              label: "Wind (km/h)",
-              data: series.map(s => ({ x: +s.t, y: s.windKmh })),
-              borderColor: "#f97583",
-              backgroundColor: "rgba(249,117,131,0.15)",
-              tension: 0.25,
-              pointRadius: 0,
-              yAxisID: "yWind"
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              type: "linear",
-              min: xMin,
-              max: xMax,
-              ticks: { color: "#e6e8ef", callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
-              grid: { color: "rgba(255,255,255,0.06)" },
-              title: { display: true, text: "Time", color: "#a5adba" }
-            },
-            yTemp: {
-              position: "left",
-              ticks: { color: "#e6e8ef" },
-              title: { display: true, text: "°C", color: "#a5adba" },
-              grid: { color: "rgba(255,255,255,0.06)" }
-            },
-            yPrecip: {
-              position: "right",
-              ticks: { color: "#e6e8ef" },
-              title: { display: true, text: "mm/h", color: "#a5adba" },
-              grid: { drawOnChartArea: false }
-            },
-            yWind: {
-              position: "right",
-              offset: true,
-              ticks: { color: "#e6e8ef" },
-              title: { display: true, text: "km/h", color: "#a5adba" },
-              grid: { drawOnChartArea: false }
-            }
-          },
-          plugins: {
-            legend: { labels: { color: "#e6e8ef" } },
-            tooltip: {
-              callbacks: {
-                title: items => new Date(items[0].parsed.x).toLocaleString()
-              }
-            },
-            annotation: { annotations }
-          }
-        } //,
-  // plugins: [window['chartjs-plugin-annotation']]
-      });
-    }
 
     // ---------- Main processing ----------
     let gpxText = null;
@@ -1207,12 +1099,11 @@ const popupHtml = `
       document.getElementById("statTempRange").textContent = `${minT.toFixed(1)}°C → ${maxT.toFixed(1)}°C`;
       document.getElementById("statWetShare").textContent = Math.round(100 * wetPts / results.length) + "%";
 
-      // Unified chart
+      // Build charts
       const chartSeries = results
         .map(r => ({ t: r.eta, tempC: r.tempC, precip: r.precip, windKmh: r.windMs * 3.6, windDeg: r.windDeg
         }))
         .sort((a,b) => +a.t - +b.t);
-      // buildUnifiedChart(chartSeries, breaks, startDate);
       buildTempPrecipChart(chartSeries);
       buildWindChart(chartSeries);
 
