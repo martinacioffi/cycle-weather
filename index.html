@@ -182,6 +182,7 @@
           padding: 6px 10px;
         }
         .charts {
+          min-height: 200px;
           padding: 10px 16px 20px;
           border-top: 1px solid var(--line);
           background: #0f1115;
@@ -215,6 +216,23 @@
     display: flex;
     flex-direction: column;
   }
+  .legend-temp {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+
+  .legend-bar,
+  .legend-ticks {
+    width: 140px;
+  }
+
+  .legend-bar {
+    height: 6px;
+  }
+
+  .legend-ticks span {
+    font-size: 10px;
+  }
 
   .side {
     max-height: 50vh;
@@ -226,7 +244,7 @@
   .main-col {
     flex: 1;
     width: 100%;
-    overflow: hidden;
+    overflow: auto;
   }
 
   #map {
@@ -258,7 +276,7 @@
       flex: 1 1 0;
       width: 100% !important;
       height: auto !important;
-      min-height: 0;
+      min-height: 150px;
       max-height: 300px;
     }
     </style>
