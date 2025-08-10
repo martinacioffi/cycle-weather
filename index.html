@@ -706,17 +706,38 @@ function windBarbs(windKmh) {
 
     // ---------- Chart (unified) ----------
     Chart.register(ChartDataLabels);
-    //Chart.register(ChartAnnotation);
-    //tripChart.register(ChartDataLabels);
-    //tripChart.register(ChartAnnotation);
 
     let tripChart;
-    function resetChart() { if (tripChart) { tripChart.destroy(); tripChart = null; } }
+    let tempPrecipChart;
+    let windChart;
+    function destroyChartById(canvasId) {
+  const existing = Chart.getChart(canvasId);
+  if (existing) existing.destroy();
+}
+
+    function resetChart() {
+  if (tripChart) {
+    tripChart.destroy();
+    tripChart = null;
+  }
+
+  if (tempPrecipChart) {
+    tempPrecipChart.destroy();
+    tempPrecipChart = null;
+  }
+
+  if (windChart) {
+    windChart.destroy();
+    windChart = null;
+  }
+}
     function buildTempPrecipChart(series) {
+    resetChart();
+    destroyChartById("tempPrecipChart");
 
   const ctx = document.getElementById("tempPrecipChart").getContext("2d");
-        const xMin = Math.min(...series.map(s => +s.t));
-      const xMax = Math.max(...series.map(s => +s.t));
+  const xMin = Math.min(...series.map(s => +s.t));
+  const xMax = Math.max(...series.map(s => +s.t));
   return new Chart(ctx, {
     type: "bar",
     data: {
@@ -795,9 +816,12 @@ function windBarbs(windKmh) {
 }
 
 function buildWindChart(series) {
+  resetChart();
+  destroyChartById("windChart");
+
   const ctx = document.getElementById("windChart").getContext("2d");
-        const xMin = Math.min(...series.map(s => +s.t));
-      const xMax = Math.max(...series.map(s => +s.t));
+  const xMin = Math.min(...series.map(s => +s.t));
+  const xMax = Math.max(...series.map(s => +s.t));
   return new Chart(ctx, {
     type: "line",
     data: {
