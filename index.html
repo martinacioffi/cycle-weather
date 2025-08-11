@@ -608,6 +608,13 @@
       for (const b of breaks) if (distanceMeters >= b.distMeters) sum += b.durSec;
       return sum;
     }
+    function getBreakTimeWindows(breaks, getTimeForDistance) {
+  return breaks.map(b => {
+    const startTime = getTimeForDistance(b.distMeters);
+    const endTime = startTime + b.durSec;
+    return { startTime, endTime };
+  });
+}
 
     // ---------- Provider fetchers ----------
     const forecastCache = new Map();
