@@ -405,6 +405,8 @@
         crossorigin=""
 ></script>
 <!-- Chart.js -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.css" />
+<script src="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@4.0.1/dist/chartjs-plugin-annotation.umd.min.js"></script>
@@ -675,7 +677,7 @@
     let map, routeLayerGroup, tempLegendControl;
     function ensureMap() {
       if (map) return;
-      map = L.map("map", { zoomControl: true });
+      map = L.map("map", { zoomControl: true, fullscreenControl: true });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 18,
         attribution: "&copy; OpenStreetMap"
