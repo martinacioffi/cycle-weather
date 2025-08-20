@@ -645,36 +645,30 @@
     // MeteoBlue: requires API key. You may need to adjust variable names based on package.
     async function fetchMeteoBlue(lat, lon, apiKey) {
       if (!apiKey) throw new Error("MeteoBlue API key missing.");
-      const base = "https://my.meteoblue.com/packages/basic-1h";
+      const base = "https://my.meteoblue.com/packages/basic-15min";
       const params = new URLSearchParams({
-        lat: lat, lon: lon, apikey: apiKey, format: "json",
-        temperature: "temperature", windspeed: "windspeed", winddirection: "winddirection", precipitation: "precipitation"
+        lat: lat, lon: lon, apikey: apiKey, format: "json", timezone: "Europe/Rome"
       });
       const url = `${base}?${params.toString()}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`MeteoBlue HTTP ${res.status}`);
       const d = await res.json();
+      const xmin = d?.data_xmin;
 
-      const times = (d?.data_1h?.time || d?.hourly?.time || d?.time) || [];
-      const temp = (d?.data_1h?.temperature || d?.hourly?.temperature || d?.temperature) || [];
-      const wspd = (d?.data_1h?.windspeed || d?.hourly?.windspeed || d?.windspeed) || [];
-      const wdir = (d?.data_1h?.winddirection || d?.hourly?.winddirection || d?.winddirection) || [];
-      const pr = (d?.data_1h?.precipitation || d?.hourly?.precipitation || d?.precipitation) || [];
-
-      if (!times.length) throw new Error("MeteoBlue response missing hourly time series.");
+      if (!xmin?.time.length) throw new Error("MeteoBlue response missing hourly time series.");
       return {
-        times,
-        tempC: temp,
-        windSpeedMs: wspd,
-        windFromDeg: wdir,
-        precipMmHr: pr
+        times: xmin.time.map(t => t.replace(" ", "T")),
+        tempC: xmin.temperature,
+        windSpeedMs: xmin.windspeed,
+        windFromDeg: xmin.winddirection,
+        precipMmHr: xmin.precipitation
       };
     }
 
     async function getForecast(lat, lon, provider, apiKey) {
       const key = cacheKey(lat, lon, provider);
       if (forecastCache.has(key)) return forecastCache.get(key);
-      const data = provider === "meteoblue" ? await fetchMeteoBlue(lat, lon, "DEMOKEY") : await fetchOpenMeteo(lat, lon);
+      const data = provider === "meteoblue" ? await fetchMeteoBlue(lat, lon, apiKey) : await fetchOpenMeteo(lat, lon);
       forecastCache.set(key, data);
       return data;
     }
