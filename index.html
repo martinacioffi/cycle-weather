@@ -811,7 +811,7 @@ function windBarbs(windKmh) {
         },
         tooltip: {
           callbacks: {
-            title: items => new Date(items[0].label).toLocaleString()
+            title: items => new Date(items[0].parsed.x).toLocaleString()
           }
         },
         datalabels: {
