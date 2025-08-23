@@ -170,21 +170,10 @@ touch-action: auto;
   margin-top: 0;
   padding: 6px 10px;
 }
-.charts {
-  min-height: 200px;
-  padding: 10px 16px 20px;
-  border-top: 1px solid var(--line);
-  background: #0f1115;
-}
 .charts h3 {
   margin: 10px 0 8px;
   font-size: 14px;
   color: var(--accent);
-}
-.charts canvas {
-  width: 100% !important;
-  height: auto !important;
-  max-height: 300px; /* or whatever fits your layout */
 }
 canvas {
   background: #11151c;
@@ -265,6 +254,5 @@ background: #0f1115;
 flex: 1 1 0;
 width: 100% !important;
 height: auto !important;
-min-height: 150px;
-max-height: 300px;
+min-height: 300px;
 }
