@@ -1,0 +1,270 @@
+:root {
+  --bg: #0f1115;
+  --panel: #161a22;
+  --text: #e6e8ef;
+  --muted: #a5adba;
+  --accent: #66d9ef;
+  --line: #2a2f3a;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+}
+header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+header h1 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.3px;
+}
+header .sub {
+  color: var(--muted);
+  font-size: 13px;
+}
+#legendTempBox {
+display: none !important;
+}
+.wrap {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  min-height: calc(100vh - 60px);
+}
+.side {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: auto;
+}
+.group {
+  background: #1b202a;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+.group h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--accent);
+}
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0 6px;
+}
+input[type="file"],
+input[type="number"],
+input[type="datetime-local"],
+input[type="text"],
+select {
+  width: 100%;
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+.row {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 8px;
+}
+button {
+  width: 100%;
+  background: linear-gradient(135deg, #4b9fff, #627aff);
+  color: white;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 8px;
+}
+button.ghost {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  width: auto;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: default; }
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+.stat {
+  background: #11151c;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+.stat .label { font-size: 11px; color: var(--muted); }
+.stat .value { font-size: 16px; margin-top: 2px; }
+#log {
+  height: 120px;
+  overflow: auto;
+  background: #0d1016;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: #c0c5d0;
+}
+#map { width: 100%; height: 60vh; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: #11151c;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.leaflet-container {
+touch-action: auto;
+}
+.legend-temp {
+  padding: 8px 10px;
+  background: #11151c;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.legend-bar {
+  height: 10px;
+  width: 240px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+  margin: 6px 0;
+  background: linear-gradient(90deg, #2c7bb6, #abd9e9, #ffffbf, #fdae61, #d7191c);
+}
+.legend-ticks {
+  display: flex;
+  justify-content: space-between;
+  width: 240px;
+  font-variant-numeric: tabular-nums;
+}
+.break-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  align-items: end;
+  margin-top: 6px;
+}
+.break-row button {
+  margin-top: 0;
+  padding: 6px 10px;
+}
+.charts {
+  min-height: 200px;
+  padding: 10px 16px 20px;
+  border-top: 1px solid var(--line);
+  background: #0f1115;
+}
+.charts h3 {
+  margin: 10px 0 8px;
+  font-size: 14px;
+  color: var(--accent);
+}
+.charts canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 300px; /* or whatever fits your layout */
+}
+canvas {
+  background: #11151c;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}
+footer.note {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+@media (min-width: 1100px) {
+  #map { height: calc(100vh - 60px - 230px); }
+}
+@media (max-width: 768px) {
+.wrap {
+display: flex;
+flex-direction: column;
+}
+.legend-temp {
+font-size: 10px;
+padding: 4px 6px;
+}
+
+.legend-bar,
+.legend-ticks {
+width: 140px;
+}
+
+.legend-bar {
+height: 6px;
+}
+
+.legend-ticks span {
+font-size: 10px;
+}
+
+.side {
+max-height: 50vh;
+overflow-y: auto;
+border-right: none;
+border-bottom: 1px solid var(--line);
+}
+
+.main-col {
+flex: 1;
+width: 100%;
+overflow: auto;
+}
+
+#map {
+height: 300px;
+margin-top: 10px;
+}
+}
+.main-col {
+display: flex;
+flex-direction: column;
+min-width: 0;
+height: 100%;
+}
+#map, .charts {
+flex: 1 1 auto;
+min-height: 0;
+width: 100%;
+/* Remove fixed height from #map */
+}
+.charts {
+display: flex;
+flex-direction: column;
+justify-content: stretch;
+padding: 10px 16px 20px;
+border-top: 1px solid var(--line);
+background: #0f1115;
+}
+.charts canvas {
+flex: 1 1 0;
+width: 100% !important;
+height: auto !important;
+min-height: 150px;
+max-height: 300px;
+}
