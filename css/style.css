@@ -20,6 +20,16 @@ header {
   gap: 12px;
   flex-wrap: wrap;
 }
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* space between image and text */
+}
+.logo {
+  width: 40px;
+  height: auto;
+  border-radius: 10px;
+}
 header h1 {
   margin: 0;
   font-size: 18px;
