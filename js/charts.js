@@ -28,36 +28,62 @@ export function buildTempChart(series) {
           data: series.map(s => s.tempC),
           borderColor: "#f9d349",
           backgroundColor: "rgba(249,211,73,0.15)",
-          yAxisID: "yTemp",
+          yAxisID: "y",
+          datalabels: { display: false },
           tension: 0.25,
           pointStyle: false,
+        },
+        {
+          type: "line",
+          label: "Felt Temp (°C)",
+          data: series.map(s => s.feltTempC),
+          borderColor: "#f96949",
+          backgroundColor: "rgba(249,211,73,0.15)",
+          yAxisID: "y",
+          datalabels: { display: false },
+          tension: 0.25,
+          pointStyle: false,
+        },
+        {
+          type: "line",
+          label: "", // Icons on top
+          data: series.map(s => ({ x: +s.t, y: Math.max(...series.map(s => s.tempC)) + 1 })), // fixed y-value
+          borderWidth: 0,
+          pointRadius: 0,
+          yAxisID: "y",
+          datalabels: {
+            display: true,
+            align: "top",
+            anchor: "end",
+            clip: false,
+            formatter: (value, ctx) => {
+              const i = ctx.dataIndex;
+              return getWeatherIcon(series[i].tempC, series[i].precip);
+            },
+            font: { size: 18 }
+           },
+          tooltip: { enabled: false }
         }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
           labels: { color: "#e6e8ef" }
         },
         tooltip: {
+          enabled: true,
           callbacks: {
             title: items => new Date(items[0].parsed.x).toLocaleString()
+          },
+            filter: (ctx) => {
+            // Only include datasets with a label (i.e., exclude icons)
+            return ctx.dataset.label !== "";
           }
         },
-        datalabels: {
-          display: true,
-          align: 'top',
-          formatter: (value, ctx) => {
-            if (ctx.datasetIndex === 0) {
-              const i = ctx.dataIndex;
-              return getWeatherIcon(series[i].tempC, series[i].precip);
-            }
-            return '';
-          },
-          font: { size: 18 }
-        }
       },
       scales: {
         x: {
@@ -71,11 +97,14 @@ export function buildTempChart(series) {
           grid: { color: "rgba(255,255,255,0.06)" },
           title: { display: true, text: "Time", color: "#a5adba" }
         },
-        yTemp: {
+        y: {
           position: "left",
           title: { display: true, text: "°C", color: "#a5adba" },
           ticks: { color: "#e6e8ef" },
-          grid: { color: "rgba(255,255,255,0.06)" }
+          grid: { color: "rgba(255,255,255,0.06)" },
+          beginAtZero: false, // Let Chart.js auto-scale
+          suggestedMin: Math.min(...series.map(s => s.tempC)) - 1,
+          suggestedMax: Math.max(...series.map(s => s.tempC)) + 1
         },
       }
     },
@@ -106,6 +135,7 @@ export function buildPrecipChart(series) {
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      interaction: { mode: 'nearest', intersect: false },
       plugins: {
         legend: {
           labels: { color: "#e6e8ef" }
@@ -173,11 +203,12 @@ export function buildWindChart(series) {
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      interaction: { mode: 'nearest', intersect: false },
       plugins: {
         legend: { labels: { color: "#e6e8ef" } },
         tooltip: {
           callbacks: {
-            title: items => new Date(items[0].label).toLocaleString()
+            title: items => new Date(items[0].parsed.x).toLocaleString()
           }
         },
         datalabels: {

@@ -280,9 +280,12 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
           lat: p.lat, lon: p.lon,
           eta, etaISOHour,
           tempC: Number(fc.tempC[k]),
+          feltTempC: Number(fc.feltTempC[k]),
+          gusts: Number(fc.windGusts[k]),
           windMs: Number(fc.windSpeedMs[k]),
           windDeg: Number(fc.windFromDeg[k]),
           precip: Number(fc.precipMmHr[k]),
+          isDay: Number(fc.isDay[k]),
           travelBearing
         });
       } catch (e) {
@@ -374,7 +377,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
 
   // Charts
   const chartSeries = results
-    .map(r => ({ t: r.eta, tempC: r.tempC, precip: r.precip, windKmh: r.windMs * 3.6, windDeg: r.windDeg }))
+    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.windGusts, precip: r.precip, windKmh: r.windMs * 3.6, windDeg: r.windDeg, isDay: r.isDay }))
     .sort((a,b) => +a.t - +b.t);
   buildTempChart(chartSeries);
   buildPrecipChart(chartSeries)

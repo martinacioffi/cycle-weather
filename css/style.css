@@ -170,11 +170,6 @@ touch-action: auto;
   margin-top: 0;
   padding: 6px 10px;
 }
-.charts h3 {
-  margin: 10px 0 8px;
-  font-size: 14px;
-  color: var(--accent);
-}
 canvas {
   background: #11151c;
   border: 1px solid var(--line);
@@ -225,10 +220,6 @@ width: 100%;
 overflow: auto;
 }
 
-#map {
-height: 300px;
-margin-top: 10px;
-}
 }
 .main-col {
 display: flex;
@@ -236,11 +227,17 @@ flex-direction: column;
 min-width: 0;
 height: 100%;
 }
-#map, .charts {
+
+#map {
 flex: 1 1 auto;
-min-height: 0;
+min-height: 350px;
 width: 100%;
-/* Remove fixed height from #map */
+margin-top: 10px;
+}
+.charts h3 {
+  margin: 10px 0 8px;
+  font-size: 14px;
+  color: var(--accent);
 }
 .charts {
 display: flex;

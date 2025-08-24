@@ -7,7 +7,7 @@ async function fetchOpenMeteo(lat, lon) {
     latitude: lat,
     longitude: lon,
     timezone: "UTC",
-    hourly: ["temperature_2m","windspeed_10m","winddirection_10m","precipitation"].join(","),
+    minutely_15: ["temperature_2m", "apparent_temperature", "wind_gusts_10m", "windspeed_10m","winddirection_10m","precipitation", "is_day"].join(","),
     past_days: "0",
     forecast_days: "16"
   });
@@ -16,11 +16,14 @@ async function fetchOpenMeteo(lat, lon) {
   if (!res.ok) throw new Error(`Open‑Meteo HTTP ${res.status}`);
   const d = await res.json();
   return {
-    times: d.hourly.time, // "YYYY-MM-DDTHH:00"
-    tempC: d.hourly.temperature_2m,
-    windSpeedMs: d.hourly.windspeed_10m,
-    windFromDeg: d.hourly.winddirection_10m,
-    precipMmHr: d.hourly.precipitation
+    times: d.minutely_15.time, // "YYYY-MM-DDTHH:00"
+    tempC: d.minutely_15.temperature_2m,
+    feltTempC: d.minutely_15.apparent_temperature,
+    windGusts: d.minutely_15.wind_gusts_10m,
+    windSpeedMs: d.minutely_15.windspeed_10m,
+    windFromDeg: d.minutely_15.winddirection_10m,
+    precipMmHr: d.minutely_15.precipitation,
+    isDay: d.minutely_15.is_day
   };
 }
 
@@ -37,13 +40,16 @@ async function fetchMeteoBlue(lat, lon, apiKey) {
   const d = await res.json();
   const xmin = d?.data_xmin;
 
-  if (!xmin?.time.length) throw new Error("MeteoBlue response missing hourly time series.");
+  if (!xmin?.time.length) throw new Error("MeteoBlue response missing time series.");
   return {
     times: xmin.time.map(t => t.replace(" ", "T")),
     tempC: xmin.temperature,
+    feltTempC: xmin.felttemperature,
+    windGusts: [],
     windSpeedMs: xmin.windspeed,
     windFromDeg: xmin.winddirection,
-    precipMmHr: xmin.precipitation
+    precipMmHr: xmin.precipitation,
+    isDay: []
   };
 }
 
