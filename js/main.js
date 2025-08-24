@@ -130,20 +130,26 @@ fileInput.addEventListener("change", async (e) => {
       const d = haversine(e.latlng.lat, e.latlng.lng, points[i].lat, points[i].lon);
       if (d < minDist) { minDist = d; nearestIdx = i; }
     }
-    const distKm = (cum[nearestIdx] / 1000).toFixed(2);
+  const thresholdMeters = 500; // adjust as needed
+  if (minDist > thresholdMeters) {
+    log(`Click too far from route (distance: ${minDist.toFixed(1)} m, threshold: ${thresholdMeters} m).`);
+    return;
+  }
 
-    const row = document.createElement("div");
-    row.className = "break-row";
-    row.innerHTML = `
-      <input type="number" class="break-km" min="0" step="0.1" value="${distKm}" />
-      <input type="number" class="break-min" min="1" step="1" placeholder="duration min" />
-      <button type="button" title="Remove break">✕</button>
-    `;
-    row.querySelector("button").addEventListener("click", () => row.remove());
-    breaksContainer.appendChild(row);
-    validateReady();
-    log(`Break added at ${distKm} km (map click).`);
-  };
+  const distKm = (cum[nearestIdx] / 1000).toFixed(2);
+
+  const row = document.createElement("div");
+  row.className = "break-row";
+  row.innerHTML = `
+    <input type="number" class="break-km" min="0" step="0.1" value="${distKm}" />
+    <input type="number" class="break-min" min="1" step="1" placeholder="duration min" />
+    <button type="button" title="Remove break">✕</button>
+  `;
+  row.querySelector("button").addEventListener("click", () => row.remove());
+  breaksContainer.appendChild(row);
+  validateReady();
+  log(`Break added at ${distKm} km (map click, ${minDist.toFixed(1)} m from route).`);
+};
   map.on("click", window.mapClickBreakHandler);
 });
 
