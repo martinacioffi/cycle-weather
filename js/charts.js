@@ -47,14 +47,14 @@ export function buildTempChart(series) {
         {
           type: "line",
           label: "", // Icons on top
-          data: series.map(s => ({ x: +s.t, y: Math.max(...series.map(s => s.tempC)) + 1 })), // fixed y-value
+          data: series.map(s => ({ x: +s.t, y: Math.max(...series.map(s => s.tempC)) })), // fixed y-value
           borderWidth: 0,
           pointRadius: 0,
           yAxisID: "y",
           datalabels: {
             display: true,
             align: "top",
-            anchor: "end",
+            anchor: "top",
             clip: false,
             formatter: (value, ctx) => {
               const i = ctx.dataIndex;
@@ -104,7 +104,7 @@ export function buildTempChart(series) {
           grid: { color: "rgba(255,255,255,0.06)" },
           beginAtZero: false, // Let Chart.js auto-scale
           suggestedMin: Math.min(...series.map(s => s.tempC)) - 1,
-          suggestedMax: Math.max(...series.map(s => s.tempC)) + 1
+          suggestedMax: Math.max(...series.map(s => s.tempC)) + 2
         },
       }
     },

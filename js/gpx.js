@@ -42,11 +42,42 @@ export function segmentBearings(points) {
   return br;
 }
 
-export function buildSampleIndices(points, cum, maxCalls, minSpacingMeters) {
+export function buildSampleIndices(points, cum, maxCalls, minSpacingMeters, minSpacingMinutes, avgSpeedMps, startDate, breaks = []) {
+  /**
+ * Build sample indices along a GPX track based on distance and/or time spacing.
+ *
+ * @param {Array} points - Parsed GPX points (with .lat, .lon, .time optional).
+ * @param {Array} cum - Cumulative distances (meters) for each point.
+ * @param {number} maxCalls - Max number of samples allowed.
+ * @param {number} minSpacingMeters - Minimum spacing in meters.
+ * @param {number} minSpacingMinutes - Minimum spacing in minutes.
+ * @param {number} avgSpeedMps - Average travel speed in m/s.
+ * @param {Date} startDate - Start datetime.
+ * @param {Array} breaks - Optional breaks [{distMeters, durSec}, …].
+ */
   const n = points.length;
   const idx = [0];
+
+  // track “last sample” position
+  let lastDist = 0;
+  let lastEtaSec = 0; // sec since startDate
+
   for (let i = 1; i < n - 1; i++) {
-    if ((cum[i] - cum[idx[idx.length - 1]]) >= minSpacingMeters) idx.push(i);
+    const curDist = cum[i];
+    const distSinceLast = curDist - lastDist;
+
+    // ETA including breaks
+    const etaSec = curDist / avgSpeedMps + breakOffsetSeconds(curDist, breaks);
+    const timeSinceLast = etaSec - lastEtaSec;
+
+    const enoughDist = minSpacingMeters > 0 && distSinceLast >= minSpacingMeters;
+    const enoughTime = minSpacingMinutes > 0 && timeSinceLast >= minSpacingMinutes * 60;
+
+    if (enoughDist || enoughTime) {
+      idx.push(i);
+      lastDist = curDist;
+      lastEtaSec = etaSec;
+    }
     if (idx.length >= maxCalls - 1) break;
   }
   if (idx[idx.length - 1] !== n - 1) idx.push(n - 1);

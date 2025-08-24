@@ -20,7 +20,7 @@ async function fetchOpenMeteo(lat, lon) {
     tempC: d.minutely_15.temperature_2m,
     feltTempC: d.minutely_15.apparent_temperature,
     windGusts: d.minutely_15.wind_gusts_10m,
-    windSpeedMs: d.minutely_15.windspeed_10m,
+    windSpeedKmH: d.minutely_15.windspeed_10m,
     windFromDeg: d.minutely_15.winddirection_10m,
     precipMmHr: d.minutely_15.precipitation,
     isDay: d.minutely_15.is_day
@@ -46,7 +46,7 @@ async function fetchMeteoBlue(lat, lon, apiKey) {
     tempC: xmin.temperature,
     feltTempC: xmin.felttemperature,
     windGusts: [],
-    windSpeedMs: xmin.windspeed,
+    windSpeedKmH: xmin.windspeed,
     windFromDeg: xmin.winddirection,
     precipMmHr: xmin.precipitation,
     isDay: []

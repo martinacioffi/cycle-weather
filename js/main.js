@@ -37,6 +37,7 @@ const speedUnit = document.getElementById("speedUnit");
 const processBtn = document.getElementById("processBtn");
 const maxCallsInput = document.getElementById("maxCalls");
 const sampleMetersSelect = document.getElementById("sampleMeters");
+const sampleMinutesSelect = document.getElementById("sampleMinutes");
 const breaksContainer = document.getElementById("breaksContainer");
 const addBreakBtn = document.getElementById("addBreakBtn");
 
@@ -166,11 +167,12 @@ processBtn.addEventListener("click", async () => {
 
     const maxCalls = Math.max(5, Math.min(200, parseInt(maxCallsInput.value || "60", 10)));
     const minSpacing = parseInt(sampleMetersSelect.value, 10);
+    const minTimeSpacing = parseInt(sampleMinutesSelect.value, 15);  // minutes
     const provider = providerSel.value;
     const mbKey = meteoblueKeyInput.value.trim();
 
     processBtn.disabled = true;
-    await processRoute(gpxText, startDate, mps, maxCalls, minSpacing, provider, mbKey);
+    await processRoute(gpxText, startDate, mps, maxCalls, minSpacing, minTimeSpacing, provider, mbKey);
   } catch (e) {
     log("Failed: " + e.message);
   } finally {
@@ -179,7 +181,7 @@ processBtn.addEventListener("click", async () => {
 });
 
 // ---------- Core: processRoute ----------
-async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacing, provider, mbKey) {
+async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacing, minTimeSpacing, provider, mbKey) {
   // Reset UI
   clearWeatherMarkers();
   routeLayerGroup.clearLayers();
@@ -248,11 +250,11 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
   routeLayerGroup.addLayer(baseLine);
 
   // Sampling
-  const sampleIdx = buildSampleIndices(points, cum, maxCalls, minSpacing);
+  const sampleIdx = buildSampleIndices(points, cum, maxCalls, minSpacing, minTimeSpacing, avgSpeedMps, startDate, breaks);
   log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacing} m).`);
 
   // Fetch forecasts
-  const results = []; // { idx, lat, lon, eta, etaISOHour, tempC, windMs, windDeg, precip, travelBearing }
+  const results = []; // { idx, lat, lon, eta, etaISOHour, tempC, windKmH, windDeg, precip, travelBearing }
   const errors = [];
   const CONCURRENCY = 8;
   let i = 0;
@@ -282,7 +284,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
           tempC: Number(fc.tempC[k]),
           feltTempC: Number(fc.feltTempC[k]),
           gusts: Number(fc.windGusts[k]),
-          windMs: Number(fc.windSpeedMs[k]),
+          windKmH: Number(fc.windSpeedKmH[k]),
           windDeg: Number(fc.windFromDeg[k]),
           precip: Number(fc.precipMmHr[k]),
           isDay: Number(fc.isDay[k]),
@@ -339,7 +341,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
   for (const r of results) {
     const weatherIcon = getWeatherIcon(r.tempC, r.precip);
     const windArrow = dirArrow8(r.windDeg);
-    const barbs = windBarbs(r.windMs * 3.6);
+    const barbs = windBarbs(r.windKmH);
 
     const icon = L.divIcon({
       html: `<div style="font-size:15px; color:#444; display:flex; flex-direction:column; align-items:center;">
@@ -356,7 +358,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
     const marker = L.marker([r.lat, r.lon], { icon }).addTo(routeLayerGroup);
     addWeatherMarker(marker);
 
-    const windKmh = (r.windMs * 3.6).toFixed(1);
+    const windKmh = (r.windKmH).toFixed(1);
     const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
     const popupHtml = `
       <div style="min-width:200px">
@@ -377,7 +379,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
 
   // Charts
   const chartSeries = results
-    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.windGusts, precip: r.precip, windKmh: r.windMs * 3.6, windDeg: r.windDeg, isDay: r.isDay }))
+    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.windGusts, precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, isDay: r.isDay }))
     .sort((a,b) => +a.t - +b.t);
   buildTempChart(chartSeries);
   buildPrecipChart(chartSeries)
