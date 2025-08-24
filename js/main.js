@@ -55,7 +55,16 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Initialize map
   map = ensureMap();
+  map.on("zoomend", () => {
+  const zoom = map.getZoom();
+  // pick a scaling factor relative to zoom
+  const scale = 1 + (zoom - 10) * 0.2; // adjust base zoom and multiplier
 
+  document.querySelectorAll(".weather-icon").forEach(el => {
+    el.style.transform = `scale(${scale})`;
+    el.style.transformOrigin = "center center";
+  });
+});
   validateReady();
 });
 
@@ -355,12 +364,14 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
     const barbs = windBarbs(r.windKmH);
 
     const icon = L.divIcon({
-      html: `<div style="font-size:15px; color:#444; display:flex; flex-direction:column; align-items:center;">
-        <span>${weatherIcon}</span>
-        <span style="font-size:13px; margin-top:-2px;">
-          ${windArrow}<span style="font-size:10px; margin-left:2px;">${barbs}</span>
-        </span>
-      </div>`,
+      html: `<div class="weather-icon"
+             style="display:flex; flex-direction:column; align-items:center; line-height:1;">
+          <span style="font-size:15px; margin:0; padding:0;">${weatherIcon}</span>
+          <span style="font-size:12px; color:#000; font-weight:bold; margin-top:-4px; display:flex; align-items:center;">
+            ${windArrow}
+            <span style="font-size:10px; color:#000; font-weight:bold; margin-left:2px;">${barbs}</span>
+          </span>
+        </div>`,
       className: "",
       iconSize: [20, 22],
       iconAnchor: [10, 11]
