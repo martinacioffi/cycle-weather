@@ -196,6 +196,11 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
 
   log("Parsing GPX...");
   const points = parseGPX(gpxText);
+  log(`Route has ${points.length} points, ${formatKm(cumulDistance(points).total)} total.`);
+  log(`Expected travel time (no breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps)} at ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
+    if (breaks.length) {
+        log(`Expected travel time (with breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps + breakOffsetSeconds(cumulDistance(points).total, breaks))}.`);
+    }
   const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
   map.fitBounds(bounds.pad(0.1));
 
