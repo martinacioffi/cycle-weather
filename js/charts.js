@@ -47,7 +47,7 @@ export function buildTempChart(series) {
         {
           type: "line",
           label: "", // Icons on top
-          data: series.map(s => ({ x: +s.t, y: Math.max(...series.map(s => s.tempC)) })), // fixed y-value
+          data: series.map(s => ({ x: +s.t, y: Math.max(...series.map(s => s.tempC)) + 1 })), // fixed y-value
           borderWidth: 0,
           pointRadius: 0,
           yAxisID: "y",

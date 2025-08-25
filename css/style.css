@@ -87,9 +87,30 @@ select {
   box-sizing: border-box;
 }
 .row {
-  display: grid;
+  display: flex;
   grid-template-columns: 1fr 140px;
   gap: 8px;
+}
+.row > div {
+  flex: 1; /* Ensures equal width for each column */
+}
+.input-with-suffix {
+  display: flex;
+  align-items: center;
+}
+
+.input-with-suffix input {
+  width: 100%;
+  padding-right: 1.5em; /* space for the suffix */
+  box-sizing: border-box;
+}
+
+.input-with-suffix .suffix {
+  margin-left: -1.5em;
+  padding-left: 0.3em;
+  font-weight: bold;
+  color: #555;
+  pointer-events: none;
 }
 button {
   width: 100%;

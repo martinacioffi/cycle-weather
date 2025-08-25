@@ -1,6 +1,12 @@
 // ---------- Math & Geospatial Utilities ----------
 export const toRad = d => (d * Math.PI) / 180;
 
+export function getPercentInput(id) {
+  const raw = document.getElementById(id)?.value;
+  const val = parseFloat(raw);
+  return isFinite(val) ? val / 100 : 0;
+}
+
 export function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = toRad(lat2 - lat1);

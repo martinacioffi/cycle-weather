@@ -1,7 +1,7 @@
 import {
   haversine, bearing, formatKm, formatDuration, speedToMps, utcHourISO,
   log, lerp, hexToRgb, rgbToHex, lerpColor, PALETTE, colorFromPalette,
-  makeTempColorer, updateLegend
+  makeTempColorer, updateLegend, getPercentInput
 } from './utils.js';
 
 import {
@@ -33,6 +33,8 @@ const meteoblueKeyInput = document.getElementById("meteoblueKey");
 const meteoblueKeyRow = document.getElementById("meteoblueKeyRow");
 const startTimeInput = document.getElementById("startTime");
 const speedInput = document.getElementById("speed");
+const speedUp = document.getElementById("speedUp");
+const speedDown = document.getElementById("speedDown");
 const speedUnit = document.getElementById("speedUnit");
 const processBtn = document.getElementById("processBtn");
 const maxCallsInput = document.getElementById("maxCalls");
@@ -163,7 +165,7 @@ fileInput.addEventListener("change", async (e) => {
 });
 
 [
-  startTimeInput, speedInput, speedUnit,
+  startTimeInput, speedInput, speedUp, speedDown, speedUnit,
   maxCallsInput, sampleMetersSelect,
   meteoblueKeyInput, providerSel
 ].forEach(el => {
@@ -177,7 +179,11 @@ processBtn.addEventListener("click", async () => {
     if (isNaN(startDate.getTime())) return log("Invalid start time.");
 
     const speedVal = parseFloat(speedInput.value);
+    const speedValUp = getPercentInput("speedUp");
+    const speedValDown = getPercentInput("speedDown");
     const mps = speedToMps(speedVal, speedUnit.value);
+    const mpsUp = speedToMps(speedVal * (1 - speedValUp ?? 0), speedUnit.value);
+    const mpsDown = speedToMps(speedVal * (1 + speedValDown ?? 0), speedUnit.value);
     if (!mps) return log("Invalid average speed.");
 
     const maxCalls = Math.max(5, Math.min(200, parseInt(maxCallsInput.value || "60", 10)));
@@ -187,7 +193,7 @@ processBtn.addEventListener("click", async () => {
     const mbKey = meteoblueKeyInput.value.trim();
 
     processBtn.disabled = true;
-    await processRoute(gpxText, startDate, mps, maxCalls, minSpacing, minTimeSpacing, provider, mbKey);
+    await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, mbKey);
   } catch (e) {
     log("Failed: " + e.message);
   } finally {
@@ -196,7 +202,7 @@ processBtn.addEventListener("click", async () => {
 });
 
 // ---------- Core: processRoute ----------
-async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacing, minTimeSpacing, provider, mbKey) {
+async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls, minSpacing, minTimeSpacing, provider, mbKey) {
   // Reset UI
   clearWeatherMarkers();
   routeLayerGroup.clearLayers();
@@ -212,7 +218,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
   log("Parsing GPX...");
   const points = parseGPX(gpxText);
   log(`Route has ${points.length} points, ${formatKm(cumulDistance(points).total)} total.`);
-  log(`Expected travel time (no breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps)} at ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
+  log(`Expected travel time (no breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps)} at an average speed of ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
     if (breaks.length) {
         log(`Expected travel time (with breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps + breakOffsetSeconds(cumulDistance(points).total, breaks))}.`);
     }
@@ -272,7 +278,26 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
   // Sampling
   const sampleIdx = buildSampleIndices(points, cum, maxCalls, minSpacing, minTimeSpacing, avgSpeedMps, startDate, breaks);
   log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacing} m).`);
+  const segmentSpeeds = [];
 
+    for (let s = 0; s < sampleIdx.length - 1; s++) {
+      const i1 = sampleIdx[s];
+      const i2 = sampleIdx[s + 1];
+
+      const p1 = points[i1];
+      const p2 = points[i2];
+      const dist = cum[i2] - cum[i1];
+      const elev1 = p1.ele ?? 0;
+      const elev2 = p2.ele ?? 0;
+      const slope = (elev2 - elev1) / dist;
+
+      let speed = avgSpeedMps;
+      if (slope > 0.05) speed = avgSpeedMpsUp;
+      else if (slope < -0.04) speed = avgSpeedMpsDown;
+      // const slopePct = slope * 100;
+      // log(`Segment ${s}: slope=${slopePct.toFixed(1)}%, speed=${(speed * 3.6).toFixed(1)} km/h`);
+      segmentSpeeds.push({ from: i1, to: i2, speed });
+    }
   // Fetch forecasts
   const results = []; // { idx, lat, lon, eta, etaISOHour, tempC, windKmH, windDeg, precip, travelBearing }
   const errors = [];
@@ -284,7 +309,14 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
       const my = i++;
       const idx = sampleIdx[my];
       const p = points[idx];
-      const etaSec = cum[idx] / avgSpeedMps + breakOffsetSeconds(cum[idx], breaks);
+      //const etaSec = cum[idx] / avgSpeedMps + breakOffsetSeconds(cum[idx], breaks);
+    let etaSec = 0;
+    for (const seg of segmentSpeeds) {
+      if (seg.to > idx) break;
+      const segDist = cum[seg.to] - cum[seg.from];
+      etaSec += segDist / seg.speed;
+    }
+    etaSec += breakOffsetSeconds(cum[idx], breaks);
       const eta = new Date(startDate.getTime() + etaSec * 1000);
       const etaISOHour = utcHourISO(eta);
       const travelBearing = brngs[idx];
@@ -321,7 +353,12 @@ async function processRoute(gpxText, startDate, avgSpeedMps, maxCalls, minSpacin
 
   results.sort((a,b) => a.idx - b.idx);
   if (!results.length) { log("No forecast results to render."); return; }
-
+  const lastEta = results[results.length - 1]?.eta;
+if (lastEta) {
+  const durationMs = lastEta.getTime() - startDate.getTime();
+  const durationSec = durationMs / 1000;
+  document.getElementById("statDuration").textContent = formatDuration(durationSec);
+}
   // Temp range + legend (sidebar + map)
   const temps = results.map(r => r.tempC).filter(t => isFinite(t));
   let minT = Math.min(...temps);

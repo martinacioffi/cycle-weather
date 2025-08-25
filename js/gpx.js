@@ -5,10 +5,15 @@ export function parseGPX(xmlText) {
   const dom = new DOMParser().parseFromString(xmlText, "application/xml");
   const trkpts = Array.from(dom.getElementsByTagName("trkpt"));
   if (!trkpts.length) throw new Error("No <trkpt> points found in GPX.");
-  const pts = trkpts.map(pt => ({
-    lat: parseFloat(pt.getAttribute("lat")),
-    lon: parseFloat(pt.getAttribute("lon"))
-  })).filter(p => isFinite(p.lat) && isFinite(p.lon));
+  const pts = trkpts.map(pt => {
+    const lat = parseFloat(pt.getAttribute("lat"));
+    const lon = parseFloat(pt.getAttribute("lon"));
+    const eleTag = pt.getElementsByTagName("ele")[0];
+    const ele = eleTag ? parseFloat(eleTag.textContent) : null;
+
+    return { lat, lon, ele };
+  }).filter(p => isFinite(p.lat) && isFinite(p.lon));
+
   const dedup = [];
   for (let i = 0; i < pts.length; i++) {
     if (i === 0) dedup.push(pts[i]);
