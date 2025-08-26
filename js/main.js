@@ -1,7 +1,7 @@
 import {
   haversine, bearing, formatKm, formatDuration, speedToMps, utcHourISO,
   log, lerp, hexToRgb, rgbToHex, lerpColor, PALETTE, colorFromPalette,
-  makeTempColorer, updateLegend, getPercentInput
+  makeTempColorer, updateLegend, getPercentInput, convertWindToGrade
 } from './utils.js';
 
 import {
@@ -397,17 +397,16 @@ if (lastEta) {
   // Sample markers with icons + popups
   for (const r of results) {
     const weatherIcon = getWeatherIcon(r.tempC, r.precip);
-    const windArrow = dirArrow8(r.windDeg);
-    const barbs = windBarbs(r.windKmH);
+    const windGrade = convertWindToGrade(r.windKmH, 'km/h');
 
     const icon = L.divIcon({
-      html: `<div class="weather-icon"
-             style="display:flex; flex-direction:column; align-items:center; line-height:1;">
-          <span style="font-size:15px; margin:0; padding:0;">${weatherIcon}</span>
-          <span style="font-size:12px; color:#000; font-weight:bold; margin-top:-4px; display:flex; align-items:center;">
-            ${windArrow}
-            <span style="font-size:10px; color:#000; font-weight:bold; margin-left:2px;">${barbs}</span>
-          </span>
+       html: `
+        <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center;">
+            <span style="font-size:16px; vertical-align: middle;">${weatherIcon}</span>
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+          <img src="images/beaufort_scale/wind${windGrade}.svg"
+               style="width: 100%; height: 100%; object-fit: contain; margin-top: -8px;" />
+        </div>
         </div>`,
       className: "",
       iconSize: [20, 22],
