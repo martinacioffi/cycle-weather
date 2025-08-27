@@ -56,7 +56,7 @@ window.addEventListener("DOMContentLoaded", () => {
   speedInput.value = 14;
 
   // Initialize map
-  map = ensureMap();
+  map = ensureMap(providerSel.value);
   map.on("zoomend", () => {
   const zoom = map.getZoom();
   // pick a scaling factor relative to zoom

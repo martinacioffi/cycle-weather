@@ -42,7 +42,7 @@ export function windBarbs(windKmh) {
   return ""; // calm
 }
 
-export function ensureMap() {
+export function ensureMap(provider) {
       if (map) return;
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -64,13 +64,16 @@ export function ensureMap() {
         `;
         return div;
       };
+
+      const weatherAttr = provider === "meteoblue" ? ' | Weather data © <a href="https://www.meteoblue.com/" target="_blank">Meteoblue</a>' : ' | Weather data © <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>';
+
       const openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
       maxZoom: 17,
-      attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
+      attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)' + weatherAttr
     });
     const openCycle = L.tileLayer('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=70a9b978ca5f485d82d655fbacc0eee0', {
       maxZoom: 18,
-      attribution: 'Maps © Thunderforest, Data © OpenStreetMap contributors'
+      attribution: 'Maps © Thunderforest, Data © OpenStreetMap contributors' + weatherAttr
     });
 
     // Add OpenTopoMap as default
@@ -85,3 +88,15 @@ export function ensureMap() {
       tempLegendControl.addTo(map);
       return map;
     }
+
+function updateMapAttribution(provider) {
+  let attribution = "&copy; OpenStreetMap";
+
+  if (provider === "meteoblue") {
+    attribution += ' | Weather data © <a href="https://www.meteoblue.com/" target="_blank">Meteoblue</a>';
+  } else if (provider === "openmeteo") {
+    attribution += ' | Weather data © <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>';
+  }
+
+  activeBaseLayer.setAttribution(attribution);
+}
