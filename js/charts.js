@@ -16,6 +16,14 @@ export function buildTempChart(series) {
   const ctx = document.getElementById("tempChart").getContext("2d");
   const xMin = Math.min(...series.map(s => +s.t));
   const xMax = Math.max(...series.map(s => +s.t));
+  const overallYMax = Math.max(
+  ...series.map(s => s.tempC),
+  ...series.map(s => s.feltTempC)
+);
+  const overallYMin = Math.min(
+  ...series.map(s => s.tempC),
+  ...series.map(s => s.feltTempC)
+);
 
   return new Chart(ctx, {
     type: "bar",
@@ -47,7 +55,7 @@ export function buildTempChart(series) {
         {
           type: "line",
           label: "", // Icons on top
-          data: series.map(s => ({ x: +s.t, y: Math.max(...series.map(s => s.tempC)) + 1 })), // fixed y-value
+          data: series.map(s => ({ x: +s.t, y: overallYMax + 1 })), // fixed y-value
           borderWidth: 0,
           pointRadius: 0,
           yAxisID: "y",
@@ -90,6 +98,7 @@ export function buildTempChart(series) {
           type: "linear",
           min: xMin,
           max: xMax,
+          offset: false,
           ticks: {
             color: "#e6e8ef",
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -100,11 +109,11 @@ export function buildTempChart(series) {
         y: {
           position: "left",
           title: { display: true, text: "°C", color: "#a5adba" },
-          ticks: { color: "#e6e8ef" },
+          ticks: { color: "#e6e8ef" , padding: 8},
           grid: { color: "rgba(255,255,255,0.06)" },
           beginAtZero: false, // Let Chart.js auto-scale
-          suggestedMin: Math.min(...series.map(s => s.tempC)) - 1,
-          suggestedMax: Math.max(...series.map(s => s.tempC)) + 2
+          suggestedMin: overallYMin - 1,
+          suggestedMax: overallYMax + 2
         },
       }
     },
@@ -160,6 +169,7 @@ export function buildPrecipChart(series) {
           type: "linear",
           min: xMin,
           max: xMax,
+          offset: false,
           ticks: {
             color: "#e6e8ef",
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -169,8 +179,14 @@ export function buildPrecipChart(series) {
         },
         yPrecip: {
           position: "left",
+          beginAtZero: true,
+          suggestedMax: Math.ceil(Math.max(...series.map(s => s.precip))),
           title: { display: true, text: "mm/h", color: "#a5adba" },
-          ticks: { color: "#e6e8ef" },
+          ticks: {
+          padding: 8,
+          stepSize: 1,
+          callback: function(value) {if (value % 1 === 0) {return value;}},
+          color: "#e6e8ef" },
           grid: { drawOnChartArea: false }
         }
       }
@@ -236,7 +252,7 @@ export function buildWindChart(series) {
         yWind: {
           position: "left",
           title: { display: true, text: "km/h", color: "#a5adba" },
-          ticks: { color: "#e6e8ef" },
+          ticks: { color: "#e6e8ef" , padding: 8},
           grid: { color: "rgba(255,255,255,0.06)" }
         }
       }
