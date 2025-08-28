@@ -437,7 +437,7 @@ if (lastEta) {
 
   // Charts
   const chartSeries = results
-    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.windGusts, precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, isDay: r.isDay }))
+    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts, precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, isDay: r.isDay }))
     .sort((a,b) => +a.t - +b.t);
   buildTempChart(chartSeries);
   buildPrecipChart(chartSeries)

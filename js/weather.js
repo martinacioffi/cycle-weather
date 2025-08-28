@@ -6,7 +6,7 @@ async function fetchOpenMeteo(lat, lon) {
   const params = new URLSearchParams({
     latitude: lat,
     longitude: lon,
-    timezone: "UTC",
+    timezone: "Europe/Rome",
     minutely_15: ["temperature_2m", "apparent_temperature", "wind_gusts_10m", "windspeed_10m","winddirection_10m","precipitation", "is_day"].join(","),
     past_days: "0",
     forecast_days: "16"
@@ -22,7 +22,7 @@ async function fetchOpenMeteo(lat, lon) {
     windGusts: d.minutely_15.wind_gusts_10m,
     windSpeedKmH: d.minutely_15.windspeed_10m,
     windFromDeg: d.minutely_15.winddirection_10m,
-    precipMmHr: d.minutely_15.precipitation,
+    precipMmHr: d.minutely_15.precipitation * 4, // TODO fix this, use the actual 15 mins value and change unit of measure everywhere
     isDay: d.minutely_15.is_day
   };
 }

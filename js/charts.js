@@ -199,6 +199,14 @@ export function buildWindChart(series) {
   const ctx = document.getElementById("windChart").getContext("2d");
   const xMin = Math.min(...series.map(s => +s.t));
   const xMax = Math.max(...series.map(s => +s.t));
+    const overallYMax = Math.max(
+  ...series.map(s => s.windKmh),
+  ...series.map(s => s.gusts)
+);
+  const overallYMin = Math.min(
+  ...series.map(s => s.windKmh),
+  ...series.map(s => s.gusts)
+);
 
   return new Chart(ctx, {
     type: "line",
@@ -208,8 +216,17 @@ export function buildWindChart(series) {
         {
           label: "Wind (km/h)",
           data: series.map(s => s.windKmh),
-          borderColor: "#f97583",
+          borderColor: "#f975f2",
           backgroundColor: "rgba(249,117,131,0.15)",
+          yAxisID: "yWind",
+          tension: 0.25,
+          pointStyle: false,
+        },
+        {
+          label: "Wind Gusts (km/h)",
+          data: series.map(s => s.gusts),
+          borderColor: "#6a06c2",
+          backgroundColor: "rgba(255,209,102,0.15)",
           yAxisID: "yWind",
           tension: 0.25,
           pointStyle: false,
@@ -219,7 +236,7 @@ export function buildWindChart(series) {
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      interaction: { mode: 'nearest', intersect: false },
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: "#e6e8ef" } },
         tooltip: {
@@ -242,6 +259,7 @@ export function buildWindChart(series) {
           type: "linear",
           min: xMin,
           max: xMax,
+          offset: false,
           ticks: {
             color: "#e6e8ef",
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -253,7 +271,10 @@ export function buildWindChart(series) {
           position: "left",
           title: { display: true, text: "km/h", color: "#a5adba" },
           ticks: { color: "#e6e8ef" , padding: 8},
-          grid: { color: "rgba(255,255,255,0.06)" }
+          grid: { color: "rgba(255,255,255,0.06)" },
+          beginAtZero: true,
+          suggestedMin: overallYMin - 1,
+          suggestedMax: overallYMax + 2
         }
       }
     },
