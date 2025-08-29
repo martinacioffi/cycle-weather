@@ -14,7 +14,7 @@ import {
 } from './weather.js';
 
 import {
-  ensureMap, dirArrow8, getWeatherIcon, windBarbs, routeLayerGroup
+  ensureMap, dirArrow8, getWeatherIcon, windBarbs, routeLayerGroup, getWeatherPictogram
 } from './map.js';
 
 import {
@@ -339,6 +339,8 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
           windKmH: Number(fc.windSpeedKmH[k]),
           windDeg: Number(fc.windFromDeg[k]),
           precip: Number(fc.precipMmHr[k]),
+          cloudCover: Number(fc.cloudCover[k]),
+          cloudCoverLow: Number(fc.cloudCoverLow[k]),
           isDay: Number(fc.isDay[k]),
           travelBearing
         });
@@ -397,7 +399,28 @@ if (lastEta) {
   // Sample markers with icons + popups
   for (const r of results) {
     const weatherIcon = getWeatherIcon(r.tempC, r.precip);
+    // Uncomment to use Meteoblue pictograms instead of simple emojis
+    // const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts)
     const windGrade = convertWindToGrade(r.windKmH, 'km/h');
+
+    /* Uncomment to use Meteoblue pictograms instead of simple emojis
+    const icon = L.divIcon({
+       html: `
+        <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center;">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+          <img src="images/meteoblue_pictograms/${weatherIcon}.svg"
+             style="width: 100%; height: 100%; object-fit: contain;" />
+        </div>
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+          <img src="images/beaufort_scale/wind${windGrade}.svg"
+               style="width: 100%; height: 100%; object-fit: contain; margin-top: -8px;" />
+        </div>
+        </div>`,
+      className: "",
+      iconSize: [20, 22],
+      iconAnchor: [10, 11]
+    });
+    */
 
     const icon = L.divIcon({
        html: `
@@ -437,7 +460,9 @@ if (lastEta) {
 
   // Charts
   const chartSeries = results
-    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts, precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, isDay: r.isDay }))
+    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
+    precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
+    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay }))
     .sort((a,b) => +a.t - +b.t);
   buildTempChart(chartSeries);
   buildPrecipChart(chartSeries)

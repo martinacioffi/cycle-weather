@@ -7,7 +7,9 @@ async function fetchOpenMeteo(lat, lon) {
     latitude: lat,
     longitude: lon,
     timezone: "Europe/Rome",
-    minutely_15: ["temperature_2m", "apparent_temperature", "wind_gusts_10m", "windspeed_10m","winddirection_10m","precipitation", "is_day"].join(","),
+    minutely_15: ["temperature_2m", "apparent_temperature",
+    "wind_gusts_10m", "windspeed_10m","winddirection_10m",
+    "precipitation", "cloud_cover", "cloud_cover_low", "is_day"].join(","),
     past_days: "0",
     forecast_days: "16"
   });
@@ -23,6 +25,8 @@ async function fetchOpenMeteo(lat, lon) {
     windSpeedKmH: d.minutely_15.windspeed_10m,
     windFromDeg: d.minutely_15.winddirection_10m,
     precipMmHr: d.minutely_15.precipitation * 4, // TODO fix this, use the actual 15 mins value and change unit of measure everywhere
+    cloudCover: d.minutely_15.cloud_cover,
+    cloudCoverLow: d.minutely_15.cloud_cover_low,
     isDay: d.minutely_15.is_day
   };
 }
@@ -30,7 +34,8 @@ async function fetchOpenMeteo(lat, lon) {
 // MeteoBlue: requires API key. You may need to adjust variable names based on package.
 async function fetchMeteoBlue(lat, lon, apiKey) {
   if (!apiKey) throw new Error("MeteoBlue API key missing.");
-  const base = "https://my.meteoblue.com/packages/basic-15min";
+  const base = "https://my.meteoblue.com/packages/basic-15min"; // TODO add _cloud-15min and check result
+  // TODO this returns the pictocode!! can we use it?
   const params = new URLSearchParams({
     lat: lat, lon: lon, apikey: apiKey, format: "json", timezone: "Europe/Rome"
   });
@@ -49,6 +54,8 @@ async function fetchMeteoBlue(lat, lon, apiKey) {
     windSpeedKmH: xmin.windspeed,
     windFromDeg: xmin.winddirection,
     precipMmHr: xmin.precipitation,
+    cloudCover: [],
+    cloudCoverLow: [],
     isDay: []
   };
 }

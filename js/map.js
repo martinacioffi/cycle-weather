@@ -15,6 +15,57 @@ export function getWeatherIcon(tempC, precip) {
   return "❄️"; // cold/snowy
 }
 
+/**
+ * Return a Meteoblue pictogram code (e.g., "01_day", "23_night")
+ * based on temp, precip, cloud cover, fog indicator, wind, and time of day.
+ */
+export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0) {
+  const suffix = isDay ? "_day" : "_night";
+
+  // Thresholds
+  const windy = Math.max(windKmH, gusts) >= 40;  // strong wind/gust threshold (km/h)
+  const stormy = Math.max(windKmH, gusts) >= 60; // very strong winds
+
+  // Fog/low stratus
+  if (cloudCoverLow >= 80 && precip < 0.1 && windKmH < 10) {
+    return "16" + suffix; // Fog
+  }
+
+  // Thunderstorms
+  if (precip >= 8) return "30" + suffix;
+  if (precip >= 4) return "27" + suffix;
+
+  // Snow / mixed / rain
+  if (precip >= 2 && tempC <= 1) return "29" + suffix; // Heavy snowstorm
+  if (precip >= 2) return "25" + suffix; // Heavy rain
+  if (precip >= 1 && tempC <= 1) return "26" + suffix; // Snow
+  if (precip >= 1 && tempC > 0 && tempC < 3) return "35" + suffix; // Mix
+  if (precip >= 1) return "23" + suffix; // Rain
+  if (precip >= 0.5 && tempC <= 1) return "24" + suffix; // Light snow
+  if (precip >= 0.5) return "33" + suffix; // Light rain
+  if (precip >= 0.1 && tempC <= 1) return "34" + suffix; // Very light snow
+
+  // At this point: negligible precip — decide by wind + clouds
+
+  // **Windy variants** — based on Meteoblue's windy pictos
+  if (windy) {
+    if (cloudCover <= 30) return "05" + suffix; // Mostly sunny, windy
+    if (cloudCover <= 60) return "08" + suffix; // Partly cloudy, windy
+    if (cloudCover <= 80) return "20" + suffix; // Mostly cloudy, windy
+    return "21" + suffix; // Overcast, windy
+  }
+
+  // Normal (non-windy) cloud logic
+  if (cloudCover <= 10) return "01" + suffix; // Clear
+  // Clear with cirrus variants
+  if (cloudCover <= 30 && cloudCoverLow <= 10 && cloudCover > 0) return "02" + suffix;
+  if (cloudCover <= 60 && cloudCoverLow <= 10) return "03" + suffix;
+  if (cloudCover <= 30) return "04" + suffix; // Few clouds
+  if (cloudCover <= 60) return "07" + suffix; // Partly cloudy
+  if (cloudCover <= 80) return "19" + suffix; // Mostly cloudy
+  return "22" + suffix; // Overcast
+}
+
 // Returns a directional arrow based on wind degrees (8-point compass)
 export function dirArrow8(deg) {
       const dirs = [
@@ -45,10 +96,10 @@ export function windBarbs(windKmh) {
 export function ensureMap(provider) {
       if (map) return;
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      const openStreet = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 18,
         attribution: "&copy; OpenStreetMap"
-      }).addTo(map);
+      })
       routeLayerGroup = L.layerGroup().addTo(map);
 
       // Also add floating legend on map
@@ -82,7 +133,8 @@ export function ensureMap(provider) {
     // Layer control
     const baseLayers = {
       "OpenTopoMap": openTopo,
-      "OpenCycleMap": openCycle
+      "OpenCycleMap": openCycle,
+      "OpenStreetMap": openStreet
     };
     L.control.layers(baseLayers).addTo(map);
       tempLegendControl.addTo(map);

@@ -1,4 +1,4 @@
-import { getWeatherIcon, dirArrow8 } from './map.js';
+import { getWeatherIcon, dirArrow8, getWeatherPictogram } from './map.js';
 
 export function destroyChartById(canvasId) {
   const existing = Chart.getChart(canvasId);
@@ -9,6 +9,137 @@ export function resetChart() {
   if (Chart.getChart("tempChart")) Chart.getChart("tempChart").destroy();
   if (Chart.getChart("precipChart")) Chart.getChart("precipChart").destroy();
   if (Chart.getChart("windChart")) Chart.getChart("windChart").destroy();
+}
+
+export function buildTempChartPictograms(series) {
+  destroyChartById("tempChart");
+  const ctx = document.getElementById("tempChart").getContext("2d");
+
+  const xMin = Math.min(...series.map(s => +s.t));
+  const xMax = Math.max(...series.map(s => +s.t));
+  const overallYMax = Math.max(...series.map(s => s.tempC), ...series.map(s => s.feltTempC));
+  const overallYMin = Math.min(...series.map(s => s.tempC), ...series.map(s => s.feltTempC));
+
+  // ---- Preload all pictograms for this series ----
+  const pictogramCache = {};
+  const uniquePictoNames = [
+    ...new Set(series.map(s =>
+      getWeatherPictogram(s.tempC, s.precip, s.cloudCover, s.cloudCoverLow, s.isDay, s.windKmH, s.gusts)
+    ))
+  ];
+
+  uniquePictoNames.forEach(name => {
+    const img = new Image();
+    img.src = `images/meteoblue_pictograms/${name}.svg`;
+    pictogramCache[name] = img; // stored even before load — will draw when ready
+  });
+
+  // ---- Custom plugin to render pictograms every redraw ----
+  const WeatherIconPlugin = {
+    id: 'weatherIcons',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const iconDatasetIndex = chart.data.datasets.findIndex(ds => ds.label === "");
+      if (iconDatasetIndex === -1) return;
+
+      const meta = chart.getDatasetMeta(iconDatasetIndex);
+      meta.data.forEach((point, i) => {
+        const s = chart.data.series[i];
+        if (!s) return;
+
+        const pictoName = getWeatherPictogram(
+          s.tempC, s.precip, s.cloudCover, s.cloudCoverLow, s.isDay, s.windKmH, s.gusts
+        );
+
+        const img = pictogramCache[pictoName];
+        if (img && img.complete) {
+          ctx.drawImage(img, point.x - 10, point.y - 30, 20, 20);
+        }
+      });
+    }
+  };
+
+  // ---- Create chart ----
+  return new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: series.map(s => s.t),
+      series, // store full series so plugin can access it
+      datasets: [
+        {
+          type: "line",
+          label: "Temp (°C)",
+          data: series.map(s => s.tempC),
+          borderColor: "#f9d349",
+          backgroundColor: "rgba(249,211,73,0.15)",
+          yAxisID: "y",
+          datalabels: { display: false },
+          tension: 0.25,
+          pointStyle: false
+        },
+        {
+          type: "line",
+          label: "Felt Temp (°C)",
+          data: series.map(s => s.feltTempC),
+          borderColor: "#f96949",
+          backgroundColor: "rgba(249,211,73,0.15)",
+          yAxisID: "y",
+          datalabels: { display: false },
+          tension: 0.25,
+          pointStyle: false
+        },
+        {
+          type: "line",
+          label: "", // Icons dataset
+          data: series.map(s => ({ x: +s.t, y: overallYMax + 1 })),
+          borderWidth: 0,
+          pointRadius: 0,
+          yAxisID: "y",
+          datalabels: { display: false },
+          tooltip: { enabled: false }
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: "#e6e8ef" } },
+        tooltip: {
+          enabled: true,
+          callbacks: {
+            title: items => new Date(items[0].parsed.x).toLocaleString()
+          },
+          filter: ctx => ctx.dataset.label !== "" // skip icons dataset
+        }
+      },
+      scales: {
+        x: {
+          type: "linear",
+          min: xMin,
+          max: xMax,
+          offset: false,
+          ticks: {
+            color: "#e6e8ef",
+            callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          },
+          grid: { color: "rgba(255,255,255,0.06)" },
+          title: { display: true, text: "Time", color: "#a5adba" }
+        },
+        y: {
+          position: "left",
+          title: { display: true, text: "°C", color: "#a5adba" },
+          ticks: { color: "#e6e8ef", padding: 8 },
+          grid: { color: "rgba(255,255,255,0.06)" },
+          beginAtZero: false,
+          suggestedMin: overallYMin - 1,
+          suggestedMax: overallYMax + 2
+        }
+      }
+    },
+    plugins: [ChartDataLabels, WeatherIconPlugin]
+  });
 }
 
 export function buildTempChart(series) {
