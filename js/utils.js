@@ -84,6 +84,39 @@ export function speedToMps(val, unit) {
   return v; // m/s
 }
 
+export function utcQuarterISO(d) {
+  const date = new Date(d.getTime()); // clone so we don’t mutate the original
+
+  const mins = date.getUTCMinutes();
+  const secs = date.getUTCSeconds();
+  const ms = date.getUTCMilliseconds();
+
+  // Convert total minutes (with fractional) for easy rounding
+  const totalMins = mins + secs / 60 + ms / 60000;
+
+  // 15-minute chunks in an hour
+  const chunk = 15;
+
+  // Round to nearest chunk
+  const roundedChunk = Math.round(totalMins / chunk) * chunk;
+
+  // Handle wrap‑around (e.g., 60 → next hour)
+  if (roundedChunk === 60) {
+    date.setUTCHours(date.getUTCHours() + 1);
+    date.setUTCMinutes(0, 0, 0);
+  } else {
+    date.setUTCMinutes(roundedChunk, 0, 0);
+  }
+
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d2 = String(date.getUTCDate()).padStart(2, "0");
+  const h = String(date.getUTCHours()).padStart(2, "0");
+  const mm = String(date.getUTCMinutes()).padStart(2, "0");
+
+  return `${y}-${m}-${d2}T${h}:${mm}`;
+}
+
 export function utcHourISO(d) {
   const date = new Date(d.getTime());
   const mins = date.getUTCMinutes();

@@ -1,12 +1,13 @@
 import {
   haversine, bearing, formatKm, formatDuration, speedToMps, utcHourISO,
   log, lerp, hexToRgb, rgbToHex, lerpColor, PALETTE, colorFromPalette,
-  makeTempColorer, updateLegend, getPercentInput, convertWindToGrade
+  makeTempColorer, updateLegend, getPercentInput, convertWindToGrade,
+  utcQuarterISO
 } from './utils.js';
 
 import {
   parseGPX, cumulDistance, segmentBearings, buildSampleIndices,
-  getBreaks, breakOffsetSeconds, nearestByIdx, getBreakTimeWindows
+  getBreaks, breakOffsetSeconds, nearestByIdx, getBreakTimeWindows, insertBreaksIntoPoints
 } from './gpx.js';
 
 import {
@@ -62,7 +63,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // pick a scaling factor relative to zoom
   const scale = 1 + (zoom - 10) * 0.2; // adjust base zoom and multiplier
 
-  document.querySelectorAll(".weather-icon").forEach(el => {
+  document.querySelectorAll(".weather-icon, .break-icon").forEach(el => {
     el.style.transform = `scale(${scale})`;
     el.style.transformOrigin = "center center";
   });
@@ -213,11 +214,12 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   document.getElementById("log").textContent = "";
   resetChart();
 
-  const breaks = getBreaks();
-
   log("Parsing GPX...");
-  const points = parseGPX(gpxText);
-  log(`Route has ${points.length} points, ${formatKm(cumulDistance(points).total)} total.`);
+
+  const pointsRaw = parseGPX(gpxText);
+  const breaks = getBreaks(pointsRaw);
+  const points = insertBreaksIntoPoints(pointsRaw, breaks, minTimeSpacing);
+  log(`Route has ${pointsRaw.length} points, ${formatKm(cumulDistance(points).total)} total.`);
   log(`Expected travel time (no breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps)} at an average speed of ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
     if (breaks.length) {
         log(`Expected travel time (with breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps + breakOffsetSeconds(cumulDistance(points).total, breaks))}.`);
@@ -250,16 +252,16 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
 
   // Break markers (orange pins)
   for (const b of breaks) {
-    let breakIdx = 0;
-    for (let i = 1; i < cum.length; i++) { if (cum[i] >= b.distMeters) { breakIdx = i; break; } }
-    const pt = points[breakIdx];
     const breakFlag = L.divIcon({
-      html: '<span style="font-size:20px; color:orange;">📌</span>',
+      html:
+      //'<span class="break-icon" style="font-size:20px; color:orange;">📌</span>',
+      `<div class="break-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: right;">
+            <span style="font-size:16px; vertical-align: top;">📌</span>`,
       className: "",
       iconSize: [20, 20],
       iconAnchor: [11, 20]
     });
-    L.marker([pt.lat, pt.lon], { icon: breakFlag, title: `Break at ${Math.round(b.distMeters/1000)} km` })
+    L.marker([b.lat, b.lon], { icon: breakFlag, title: `Break at ${Math.round(b.distMeters/1000)} km` })
       .addTo(routeLayerGroup)
       .bindPopup(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
   }
@@ -289,13 +291,20 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
       const dist = cum[i2] - cum[i1];
       const elev1 = p1.ele ?? 0;
       const elev2 = p2.ele ?? 0;
-      const slope = (elev2 - elev1) / dist;
+      const slope = (elev2 - elev1) / dist ?? 0;
 
-      let speed = avgSpeedMps;
-      if (slope > 0.05) speed = avgSpeedMpsUp;
-      else if (slope < -0.04) speed = avgSpeedMpsDown;
-      // const slopePct = slope * 100;
-      // log(`Segment ${s}: slope=${slopePct.toFixed(1)}%, speed=${(speed * 3.6).toFixed(1)} km/h`);
+      let speed;
+      // If both points are break samples from the same break, set speed to 0
+      if (
+        p1.isBreak && p2.isBreak &&
+        p1.breakIdx !== undefined && p1.breakIdx === p2.breakIdx
+      ) {
+        speed = 0;
+      } else {
+        speed = avgSpeedMps;
+        if (slope > 0.05) speed = avgSpeedMpsUp;
+        else if (slope < -0.04) speed = avgSpeedMpsDown;
+      }
       segmentSpeeds.push({ from: i1, to: i2, speed });
     }
   // Fetch forecasts
@@ -304,56 +313,121 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   const CONCURRENCY = 8;
   let i = 0;
 
-  async function worker() {
-    while (i < sampleIdx.length) {
-      const my = i++;
-      const idx = sampleIdx[my];
-      const p = points[idx];
-      //const etaSec = cum[idx] / avgSpeedMps + breakOffsetSeconds(cum[idx], breaks);
-    let etaSec = 0;
-    for (const seg of segmentSpeeds) {
-      if (seg.to > idx) break;
-      const segDist = cum[seg.to] - cum[seg.from];
-      etaSec += segDist / seg.speed;
-    }
-    etaSec += breakOffsetSeconds(cum[idx], breaks);
-      const eta = new Date(startDate.getTime() + etaSec * 1000);
-      const etaISOHour = utcHourISO(eta);
-      const travelBearing = brngs[idx];
+async function worker() {
+  let lastBreakEndSec = null;
+  let breakStartSec = null;
+  let lastWasBreak = false;
+  const breakTimes = {}; // { [breakIdx]: { start: sec, end: sec } }
 
-      try {
-        const fc = await getForecast(p.lat, p.lon, provider, mbKey);
-        const k = pickHourAt(fc, etaISOHour);
-        if (k === -1) {
-          errors.push({ idx, reason: "Time out of forecast range", etaISOHour });
-          log(`No forecast at ${etaISOHour} UTC for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
-          continue;
-        }
-        results.push({
-          idx,
-          lat: p.lat, lon: p.lon,
-          eta, etaISOHour,
-          tempC: Number(fc.tempC[k]),
-          feltTempC: Number(fc.feltTempC[k]),
-          gusts: Number(fc.windGusts[k]),
-          windKmH: Number(fc.windSpeedKmH[k]),
-          windDeg: Number(fc.windFromDeg[k]),
-          precip: Number(fc.precipMmHr[k]),
-          cloudCover: Number(fc.cloudCover[k]),
-          cloudCoverLow: Number(fc.cloudCoverLow[k]),
-          isDay: Number(fc.isDay[k]),
-          travelBearing
-        });
-      } catch (e) {
-        errors.push({ idx, reason: e.message });
-        log(`Forecast error @${idx}: ${e.message}`);
+  while (i < sampleIdx.length) {
+    const my = i++;
+    const idx = sampleIdx[my];
+    const p = points[idx];
+
+    let etaSec = 0;
+    // If this is the first break sample, record break start
+    if (p.isBreak && p.breakSample === 0) {
+      // Find the last normal point before this break
+      let lastNormalIdx = idx - 1;
+      while (lastNormalIdx >= 0 && points[lastNormalIdx].isBreak) lastNormalIdx--;
+      let etaSec = 0;
+      for (const seg of segmentSpeeds) {
+        if (seg.to > lastNormalIdx) break;
+        const segDist = cum[seg.to] - cum[seg.from];
+        if (seg.speed === 0) continue;
+        etaSec += segDist / seg.speed;
       }
+      etaSec += breakOffsetSeconds(cum[lastNormalIdx], breaks);
+        breakTimes[p.breakIdx] = {
+          start: etaSec,
+          end: etaSec + breaks[p.breakIdx].durSec
+        };
+        breakStartSec = breakTimes[p.breakIdx].start;
+        lastBreakEndSec = breakTimes[p.breakIdx].end;
+        lastWasBreak = true;
+    }
+
+if (p.isBreak) {
+  // If breakTimes for this breakIdx is not set, compute it now
+  if (!breakTimes[p.breakIdx]) {
+    // Find the last normal point before this break
+    let lastNormalIdx = idx - 1;
+    while (lastNormalIdx >= 0 && points[lastNormalIdx].isBreak) lastNormalIdx--;
+    let etaSecTmp = 0;
+    for (const seg of segmentSpeeds) {
+      if (seg.to > lastNormalIdx) break;
+      const segDist = cum[seg.to] - cum[seg.from];
+      if (seg.speed === 0) continue;
+      etaSecTmp += segDist / seg.speed;
+    }
+    etaSecTmp += breakOffsetSeconds(cum[lastNormalIdx], breaks);
+    breakTimes[p.breakIdx] = {
+      start: etaSecTmp,
+      end: etaSecTmp + breaks[p.breakIdx].durSec
+    };
+  }
+  const spacingSec = minTimeSpacing * 60;
+  const bt = breakTimes[p.breakIdx];
+  breakStartSec = bt.start;
+  lastBreakEndSec = bt.end;
+  etaSec = breakStartSec + (p.breakSample ?? 0) * spacingSec;
+  lastWasBreak = true;
+}
+    else if (lastWasBreak && lastBreakEndSec !== null) {
+      etaSec = lastBreakEndSec;
+      lastBreakEndSec = null;
+      breakStartSec = null;
+      lastWasBreak = false;
+    } else {
+      // Normal segment: sum as usual
+      for (const seg of segmentSpeeds) {
+        if (seg.to > idx) break;
+        const segDist = cum[seg.to] - cum[seg.from];
+        if (seg.speed === 0) continue;
+        etaSec += segDist / seg.speed;
+      }
+      etaSec += breakOffsetSeconds(cum[idx], breaks);
+      lastWasBreak = false;
+    }
+
+    const eta = new Date(startDate.getTime() + etaSec * 1000);
+    const etaISOHour = utcQuarterISO(eta);
+    const travelBearing = brngs[idx];
+
+    try {
+      const fc = await getForecast(p.lat, p.lon, provider, mbKey);
+      const k = pickHourAt(fc, etaISOHour);
+      if (k === -1) {
+        errors.push({ idx, reason: "Time out of forecast range", etaISOHour });
+        log(`No forecast at ${etaISOHour} UTC for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
+        continue;
+      }
+      results.push({
+        ...p,
+        eta,
+        etaISOHour,
+        tempC: Number(fc.tempC[k]),
+        feltTempC: Number(fc.feltTempC[k]),
+        gusts: Number(fc.windGusts[k]),
+        windKmH: Number(fc.windSpeedKmH[k]),
+        windDeg: Number(fc.windFromDeg[k]),
+        precip: Number(fc.precipMmHr[k]),
+        cloudCover: Number(fc.cloudCover[k]),
+        cloudCoverLow: Number(fc.cloudCoverLow[k]),
+        isDay: Number(fc.isDay[k]),
+        travelBearing
+      });
+    } catch (e) {
+      errors.push({ idx, reason: e.message });
+      log(`Forecast error @${idx}: ${e.message}`);
     }
   }
+}
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
 
-  results.sort((a,b) => a.idx - b.idx);
+  results.sort((a,b) => a.eta - b.eta);
+  console.log('sorted results', results);
   if (!results.length) { log("No forecast results to render."); return; }
   const lastEta = results[results.length - 1]?.eta;
 if (lastEta) {
@@ -462,7 +536,7 @@ if (lastEta) {
   const chartSeries = results
     .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
     precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
-    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay }))
+    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, isBreak: r.isBreak }))
     .sort((a,b) => +a.t - +b.t);
   buildTempChart(chartSeries);
   buildPrecipChart(chartSeries)

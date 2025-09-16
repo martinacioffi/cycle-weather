@@ -11,6 +11,67 @@ export function resetChart() {
   if (Chart.getChart("windChart")) Chart.getChart("windChart").destroy();
 }
 
+function getBreakRanges(series) {
+  const ranges = [];
+  let start = null;
+
+  for (let i = 0; i < series.length; i++) {
+    if (series[i].isBreak) {
+      if (start === null) start = i;
+    } else {
+      if (start !== null) {
+        ranges.push([start, i - 1]);
+        start = null;
+      }
+    }
+  }
+  if (start !== null) {
+    ranges.push([start, series.length - 1]);
+  }
+  return ranges;
+}
+
+const BreakShadingPlugin = {
+  id: 'breakShading',
+  afterDraw(chart) {
+    const { ctx, chartArea } = chart;
+    const series = chart.data.series;
+    if (!series || !chartArea || chartArea.width === 0) return;
+
+    const ranges = getBreakRanges(series);
+    if (!ranges.length) return;
+
+    const xScale = chart.scales.x;
+
+    // --- Create a diagonal line pattern ---
+    const patternCanvas = document.createElement('canvas');
+    patternCanvas.width = 8;   // tile size
+    patternCanvas.height = 8;
+    const pctx = patternCanvas.getContext('2d');
+
+    pctx.strokeStyle = 'rgba(200, 200, 200, 0.4)'; // line color
+    pctx.lineWidth = 0.5;
+    pctx.beginPath();
+    pctx.moveTo(0, 8);
+    pctx.lineTo(8, 0);
+    pctx.stroke();
+
+    const pattern = ctx.createPattern(patternCanvas, 'repeat');
+
+    // --- Draw each break range with the pattern ---
+    ctx.save();
+    ctx.fillStyle = pattern;
+
+    ranges.forEach(([startIdx, endIdx]) => {
+      const xStart = xScale.getPixelForValue(+series[startIdx].t);
+      const xEnd = xScale.getPixelForValue(+series[endIdx].t);
+      ctx.fillRect(xStart, chartArea.top, xEnd - xStart, chartArea.bottom - chartArea.top);
+    });
+
+    ctx.restore();
+  }
+};
+
 export function buildTempChartPictograms(series) {
   destroyChartById("tempChart");
   const ctx = document.getElementById("tempChart").getContext("2d");
@@ -160,6 +221,7 @@ export function buildTempChart(series) {
     type: "bar",
     data: {
       labels: series.map(s => s.t),
+      series,
       datasets: [
         {
           type: "line",
@@ -248,7 +310,7 @@ export function buildTempChart(series) {
         },
       }
     },
-    plugins: [ChartDataLabels]
+    plugins: [ChartDataLabels, BreakShadingPlugin]
   });
 }
 
@@ -262,6 +324,7 @@ export function buildPrecipChart(series) {
     type: "bar",
     data: {
       labels: series.map(s => s.t),
+      series,
       datasets: [
         {
           type: "bar",
@@ -322,6 +385,7 @@ export function buildPrecipChart(series) {
         }
       }
     },
+    plugins: [BreakShadingPlugin]
   });
 }
 
@@ -343,6 +407,7 @@ export function buildWindChart(series) {
     type: "line",
     data: {
       labels: series.map(s => s.t),
+      series,
       datasets: [
         {
           label: "Wind (km/h)",
@@ -409,6 +474,6 @@ export function buildWindChart(series) {
         }
       }
     },
-    plugins: [ChartDataLabels]
+    plugins: [ChartDataLabels, BreakShadingPlugin]
   });
 }

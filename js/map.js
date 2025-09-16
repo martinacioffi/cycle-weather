@@ -96,10 +96,6 @@ export function windBarbs(windKmh) {
 export function ensureMap(provider) {
       if (map) return;
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
-      const openStreet = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: "&copy; OpenStreetMap"
-      })
       routeLayerGroup = L.layerGroup().addTo(map);
 
       // Also add floating legend on map
@@ -126,6 +122,10 @@ export function ensureMap(provider) {
       maxZoom: 18,
       attribution: 'Maps © Thunderforest, Data © OpenStreetMap contributors' + weatherAttr
     });
+    const openStreet = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap" + weatherAttr
+      })
 
     // Add OpenTopoMap as default
     openTopo.addTo(map);

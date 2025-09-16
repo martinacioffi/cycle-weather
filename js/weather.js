@@ -17,6 +17,29 @@ async function fetchOpenMeteo(lat, lon) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Open‑Meteo HTTP ${res.status}`);
   const d = await res.json();
+  const times15 = d.minutely_15.time; // "YYYY-MM-DDTHH:MM" in Europe/Rome
+  const precip15 = (d.minutely_15.precipitation || []).map(v => Number(v));
+  // console.log('returned 15 minutely precip:', precip15);
+
+  // Build hourly totals labeled at HH:00 using HH:00 + HH-15 + HH-30 + HH-45
+  const hourlyTimes = [];
+  const hourlyPrecipMm = [];
+
+  for (let i = 0; i < times15.length; i++) {
+    // Label hours exactly at :00 and ensure we have the previous three quarters
+    if (times15[i].endsWith(":00") && i >= 3) {
+      const sum =
+        (isFinite(precip15[i])   ? precip15[i]   : 0) +
+        (isFinite(precip15[i-1]) ? precip15[i-1] : 0) +
+        (isFinite(precip15[i-2]) ? precip15[i-2] : 0) +
+        (isFinite(precip15[i-3]) ? precip15[i-3] : 0);
+
+      hourlyTimes.push(times15[i]);                 // e.g., "2025-08-29T08:00"
+      hourlyPrecipMm.push(+sum.toFixed(3));         // keep a tidy precision
+      // console.log('pushed', +sum.toFixed(3), 'mm/h for', times15[i]);
+    }
+  }
+
   return {
     times: d.minutely_15.time, // "YYYY-MM-DDTHH:00"
     tempC: d.minutely_15.temperature_2m,
@@ -24,7 +47,7 @@ async function fetchOpenMeteo(lat, lon) {
     windGusts: d.minutely_15.wind_gusts_10m,
     windSpeedKmH: d.minutely_15.windspeed_10m,
     windFromDeg: d.minutely_15.winddirection_10m,
-    precipMmHr: d.minutely_15.precipitation * 4, // TODO fix this, use the actual 15 mins value and change unit of measure everywhere
+    precipMmHr: hourlyPrecipMm,
     cloudCover: d.minutely_15.cloud_cover,
     cloudCoverLow: d.minutely_15.cloud_cover_low,
     isDay: d.minutely_15.is_day
