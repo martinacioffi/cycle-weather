@@ -472,7 +472,7 @@ if (lastEta) {
 
   // Sample markers with icons + popups
   for (const r of results) {
-    const weatherIcon = getWeatherIcon(r.tempC, r.precip);
+    const weatherIcon = getWeatherIcon(r.tempC, r.precip, r.isDay);
     // Uncomment to use Meteoblue pictograms instead of simple emojis
     // const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts)
     const windGrade = convertWindToGrade(r.windKmH, 'km/h');

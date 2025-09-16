@@ -3,16 +3,55 @@ export let map = null;
 export let routeLayerGroup = null;
 export let tempLegendControl = null;
 
-// Returns a weather icon based on temperature and precipitation
-export function getWeatherIcon(tempC, precip) {
+// Returns a weather icon based on temperature and precipitation and day light
+export function getWeatherIcon(tempC, precip, isDay) {
   if (precip >= 4) return "⛈️"; // heavy rain
   if (precip >= 1) return "🌧️"; // rain
-  if (precip >= 0.1) return "🌦️"; // light rain
-  if (tempC >= 28) return "☀️"; // hot/sunny
-  if (tempC >= 18) return "🌤️"; // warm/partly sunny
-  if (tempC >= 8) return "⛅"; // mild/cloudy
+  if (precip >= 0.1) return isDay ? "🌦️" : "🌧️"; // light rain
+
+  if (tempC >= 28) return isDay ? "☀️" : "🌙"; // hot/sunny or clear night
+  if (tempC >= 18) return isDay ? "🌤️" : "🌙"; // warm/partly sunny or clear night
+  if (tempC >= 8) return isDay ? "⛅": "☁️"; // mild/cloudy (same for day/night)
   if (tempC >= 0) return "☁️"; // cool/cloudy
   return "❄️"; // cold/snowy
+}
+
+export function getWeatherIconCombo(tempC, precip, isDay) {
+  // Define base icons for day
+  let icon = "";
+  if (precip >= 4) {
+    icon = "⛈️"; // heavy rain
+  } else if (precip >= 1) {
+    icon = "🌧️"; // rain
+  } else if (precip >= 0.1) {
+    icon = "🌦️"; // light rain
+  } else if (tempC >= 28) {
+    icon = "☀️"; // hot/sunny
+  } else if (tempC >= 18) {
+    icon = "🌤️"; // warm/partly sunny
+  } else if (tempC >= 8) {
+    icon = "⛅"; // mild/cloudy
+  } else if (tempC >= 0) {
+    icon = "☁️"; // cool/cloudy
+  } else {
+    icon = "❄️"; // cold/snowy
+  }
+
+  // Adjust for night
+  if (!isDay) {
+    switch (icon) {
+      case "☀️": icon = "🌙"; break;             // clear night
+      case "🌤️": icon = "🌙☁️"; break;          // partly cloudy night
+      case "⛅": icon = "🌙☁️☁️"; break;         // cloudy night
+      case "☁️": icon = "🌙☁️"; break;          // overcast night
+      case "🌦️": icon = "🌙🌧️"; break;         // light rain at night
+      case "🌧️": icon = "🌙🌧️"; break;         // rain at night
+      case "⛈️": icon = "🌙⛈️"; break;         // thunderstorm at night
+      case "❄️": icon = "🌙❄️"; break;         // snow at night
+    }
+  }
+
+  return icon;
 }
 
 /**

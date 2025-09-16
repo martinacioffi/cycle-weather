@@ -79,7 +79,13 @@ async function fetchMeteoBlue(lat, lon, apiKey) {
     precipMmHr: xmin.precipitation,
     cloudCover: [],
     cloudCoverLow: [],
-    isDay: []
+    // return isdaylight if present, else approximate by 06–18h
+    isDay: xmin.isdaylight && xmin.isdaylight.length === xmin.time.length
+      ? xmin.isdaylight
+      : xmin.time.map(t => {
+        const hour = parseInt(t.slice(11, 13), 10);
+        return hour >= 6 && hour < 18 ? 1 : 0;
+      })
   };
 }
 

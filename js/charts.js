@@ -72,6 +72,42 @@ const BreakShadingPlugin = {
   }
 };
 
+const DaylightShadingPlugin = {
+  id: 'daylightShading',
+  afterDraw(chart) {
+    const { ctx, chartArea } = chart;
+    const series = chart.data.series;
+    if (!series || !chartArea || chartArea.width === 0) return;
+
+    // Find all [start, end] index ranges where isDay === 1
+    const ranges = [];
+    let start = null;
+    for (let i = 0; i < series.length; i++) {
+      if (series[i].isDay === 1) {
+        if (start === null) start = i;
+      } else {
+        if (start !== null) {
+          ranges.push([start, i - 1]);
+          start = null;
+        }
+      }
+    }
+    if (start !== null) ranges.push([start, series.length - 1]);
+
+    const xScale = chart.scales.x;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 230, 50, 0.18)'; // semi-transparent yellow
+
+    ranges.forEach(([startIdx, endIdx]) => {
+      const xStart = xScale.getPixelForValue(+series[startIdx].t);
+      const xEnd = xScale.getPixelForValue(+series[endIdx].t);
+      ctx.fillRect(xStart, chartArea.top, xEnd - xStart, chartArea.bottom - chartArea.top);
+    });
+
+    ctx.restore();
+  }
+};
+
 export function buildTempChartPictograms(series) {
   destroyChartById("tempChart");
   const ctx = document.getElementById("tempChart").getContext("2d");
@@ -259,7 +295,7 @@ export function buildTempChart(series) {
             clip: false,
             formatter: (value, ctx) => {
               const i = ctx.dataIndex;
-              return getWeatherIcon(series[i].tempC, series[i].precip);
+              return getWeatherIcon(series[i].tempC, series[i].precip, series[i].isDay);
             },
             font: { size: 18 }
            },
@@ -310,7 +346,7 @@ export function buildTempChart(series) {
         },
       }
     },
-    plugins: [ChartDataLabels, BreakShadingPlugin]
+    plugins: [ChartDataLabels, BreakShadingPlugin, DaylightShadingPlugin]
   });
 }
 
@@ -385,7 +421,7 @@ export function buildPrecipChart(series) {
         }
       }
     },
-    plugins: [BreakShadingPlugin]
+    plugins: [BreakShadingPlugin, DaylightShadingPlugin]
   });
 }
 
@@ -474,6 +510,6 @@ export function buildWindChart(series) {
         }
       }
     },
-    plugins: [ChartDataLabels, BreakShadingPlugin]
+    plugins: [ChartDataLabels, BreakShadingPlugin, DaylightShadingPlugin]
   });
 }
