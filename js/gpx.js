@@ -77,7 +77,6 @@ export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 15) {
 
       // Insert all break samples at this location
       const numBreakSamples = Math.max(1, Math.ceil(b.durSec / spacingSec));
-      console.log(`Inserting ${numBreakSamples} break samples at idx ${i} for breakIdx ${breakIdx} (dist ${b.distMeters} m, dur ${b.durSec} sec)`);
       for (let j = 0; j < numBreakSamples; j++) {
         newPoints.push({
           lat, lon, ele,
@@ -93,7 +92,6 @@ export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 15) {
   }
   // Reindex
   newPoints = newPoints.map((p, idx) => ({ ...p, idx }));
-  console.log('New points after inserting breaks:', newPoints);
   return newPoints;
 }
 
@@ -139,35 +137,25 @@ for (let i = 1; i < n; i++) {
   let segTime = 0;
 
   if (points[i].isBreak) {
-    console.log('Found break point at idx', i, 'dist', curDist.toFixed(1), 'm');
     // If this is the first break point, record break start
     if (!inBreak) {
-      console.log('This is the first break point with idx', i);
-      console.log('points[i]:', points[i]);
-      console.log('points[i-1]:', points[i-1]);
       inBreak = true;
       breakStartTime = accumTime[i - 1];
-      console.log('Break start time:', breakStartTime);
       // Find the break object for this location
       const br = breaks.find(b => Math.abs(b.distMeters - curDist) < 1);
       breakDurSec = br ? br.durSec : 0;
-      console.log('Break duration (sec):', breakDurSec);
       // breakStartAccumTime = breakStartTime;
     }
     // During break: space points by minTimeSpacing
     segTime = minSpacingMinutes * 60;
-    console.log('During break, adding segTime:', segTime);
   } else {
     if (inBreak) {
-      console.log('Exiting break at idx', i);
       // This is the first real point after the break
       inBreak = false;
       // Force the time jump to match the full break duration
       const alreadyAdded = accumTime[i - 1] - breakStartTime;
       const remaining = breakDurSec - alreadyAdded;
       if (remaining > 0) segTime += remaining;
-      console.log('Exiting break, adding remaining segTime:', remaining);
-      console.log('alreadyAdded:', alreadyAdded, 'total breakDurSec:', breakDurSec);
     }
     // Add normal travel time
     const elev1 = points[i - 1].ele ?? 0;
@@ -182,12 +170,6 @@ for (let i = 1; i < n; i++) {
   accumDist[i] = accumDist[i - 1] + dist;
   accumTime[i] = accumTime[i - 1] + segTime;
 }
-  // print accumDist and accumTime for debugging between idx 1965 and 1980
-    console.log('Accumulated Distances and Times (idx 1965 to 1980):');
-    for (let i = 1965; i <= 1980 && i < n; i++) {
-      console.log(`Idx ${i}: Dist = ${accumDist[i].toFixed(2)} m, Time = ${accumTime[i].toFixed(2)} s`);
-      console.log('Point:', points[i]);
-    }
 
   // --- Phase B: Filter ---
   const filteredIdx = [0];
