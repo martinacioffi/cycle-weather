@@ -50,7 +50,7 @@ export function segmentBearings(points) {
   return br;
 }
 
-export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 5) {
+export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 15) {
   const spacingSec = minTimeSpacing * 60;
   let newPoints = [];
   let breakIdx = 0;
@@ -76,7 +76,8 @@ export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 5) {
       const ele = p1.ele != null && p2.ele != null ? p1.ele + frac * (p2.ele - p1.ele) : null;
 
       // Insert all break samples at this location
-      const numBreakSamples = Math.max(1, Math.floor(b.durSec / spacingSec));
+      const numBreakSamples = Math.max(1, Math.ceil(b.durSec / spacingSec));
+      console.log(`Inserting ${numBreakSamples} break samples at idx ${i} for breakIdx ${breakIdx} (dist ${b.distMeters} m, dur ${b.durSec} sec)`);
       for (let j = 0; j < numBreakSamples; j++) {
         newPoints.push({
           lat, lon, ele,
@@ -92,64 +93,144 @@ export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 5) {
   }
   // Reindex
   newPoints = newPoints.map((p, idx) => ({ ...p, idx }));
+  console.log('New points after inserting breaks:', newPoints);
   return newPoints;
 }
 
-export function buildSampleIndices(points, cum, maxCalls, minSpacingMeters, minSpacingMinutes, avgSpeedMps, startDate, breaks = []) {
+function normalizeBreaks(breaks) {
+  if (Array.isArray(breaks)) return breaks;
+  if (!breaks) return [];
+  // If it's array-like (numeric keys + length), convert it
+  if (Number.isInteger(breaks.length)) {
+    try {
+      return Array.from({ length: breaks.length }, (_, i) => breaks[i]).filter(Boolean);
+    } catch {
+      // fall through
+    }
+  }
+  // If it's a single break object, wrap it
+  if (typeof breaks === 'object' && ('durSec' in breaks || 'distMeters' in breaks)) {
+    return [breaks];
+  }
+  // As a last resort, take enumerable values
+  return Object.values(breaks);
+}
+
+export function buildSampleIndices(points, cum, maxCalls, minSpacingMeters, minSpacingMinutes, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaksRaw = []) {
   const n = points.length;
-  const idx = [0];
-  let lastDist = 0;
-  let lastEtaSec = 0;
-  const etaSecs = [0];
+  if (!avgSpeedMpsUp) avgSpeedMpsUp = avgSpeedMps;
+  if (!avgSpeedMpsDown) avgSpeedMpsDown = avgSpeedMps;
 
+  const breaks = normalizeBreaks(breaksRaw);
+  const accumDist = [0];
+  const accumTime = [0];
+  let inBreak = false;
+  let breakStartTime = 0;
+  let breakStartAccumTime = 0;
+  let breakDurSec = 0;
+
+
+  // --- Phase A: Precompute ---
+for (let i = 1; i < n; i++) {
+  const prevDist = cum[i - 1];
+  const curDist = cum[i];
+  const dist = curDist - prevDist;
+
+  let segTime = 0;
+
+  if (points[i].isBreak) {
+    console.log('Found break point at idx', i, 'dist', curDist.toFixed(1), 'm');
+    // If this is the first break point, record break start
+    if (!inBreak) {
+      console.log('This is the first break point with idx', i);
+      console.log('points[i]:', points[i]);
+      console.log('points[i-1]:', points[i-1]);
+      inBreak = true;
+      breakStartTime = accumTime[i - 1];
+      console.log('Break start time:', breakStartTime);
+      // Find the break object for this location
+      const br = breaks.find(b => Math.abs(b.distMeters - curDist) < 1);
+      breakDurSec = br ? br.durSec : 0;
+      console.log('Break duration (sec):', breakDurSec);
+      // breakStartAccumTime = breakStartTime;
+    }
+    // During break: space points by minTimeSpacing
+    segTime = minSpacingMinutes * 60;
+    console.log('During break, adding segTime:', segTime);
+  } else {
+    if (inBreak) {
+      console.log('Exiting break at idx', i);
+      // This is the first real point after the break
+      inBreak = false;
+      // Force the time jump to match the full break duration
+      const alreadyAdded = accumTime[i - 1] - breakStartTime;
+      const remaining = breakDurSec - alreadyAdded;
+      if (remaining > 0) segTime += remaining;
+      console.log('Exiting break, adding remaining segTime:', remaining);
+      console.log('alreadyAdded:', alreadyAdded, 'total breakDurSec:', breakDurSec);
+    }
+    // Add normal travel time
+    const elev1 = points[i - 1].ele ?? 0;
+    const elev2 = points[i].ele ?? 0;
+    const slope = dist > 0 ? (elev2 - elev1) / dist : 0;
+    let speed = avgSpeedMps;
+    if (slope > 0.05) speed = avgSpeedMpsUp;
+    else if (slope < -0.04) speed = avgSpeedMpsDown;
+    segTime += speed > 0 ? dist / speed : 0;
+  }
+
+  accumDist[i] = accumDist[i - 1] + dist;
+  accumTime[i] = accumTime[i - 1] + segTime;
+}
+  // print accumDist and accumTime for debugging between idx 1965 and 1980
+    console.log('Accumulated Distances and Times (idx 1965 to 1980):');
+    for (let i = 1965; i <= 1980 && i < n; i++) {
+      console.log(`Idx ${i}: Dist = ${accumDist[i].toFixed(2)} m, Time = ${accumTime[i].toFixed(2)} s`);
+      console.log('Point:', points[i]);
+    }
+
+  // --- Phase B: Filter ---
+  const filteredIdx = [0];
   for (let i = 1; i < n - 1; i++) {
-    const curDist = cum[i];
-    const distSinceLast = curDist - lastDist;
-    const etaSec = curDist / avgSpeedMps + breakOffsetSeconds(curDist, breaks);
-    const timeSinceLast = etaSec - lastEtaSec;
+    const lastIdx = filteredIdx[filteredIdx.length - 1];
+    const distSinceLast = accumDist[i] - accumDist[lastIdx];
+    const timeSinceLast = accumTime[i] - accumTime[lastIdx];
 
-    if (
-      points[i].isBreak ||
-      (minSpacingMeters > 0 && distSinceLast >= minSpacingMeters) ||
-      (minSpacingMinutes > 0 && timeSinceLast >= minSpacingMinutes * 60)
-    ) {
-      idx.push(i);
-      etaSecs.push(etaSec);
-      lastDist = curDist;
-      lastEtaSec = etaSec;
+    if (distSinceLast >= minSpacingMeters || timeSinceLast >= minSpacingMinutes * 60) {
+      filteredIdx.push(i);
     }
   }
-  if (idx[idx.length - 1] !== n - 1) {
-    idx.push(n - 1);
-    const etaSec = cum[n - 1] / avgSpeedMps + breakOffsetSeconds(cum[n - 1], breaks);
-    etaSecs.push(etaSec);
+  if (filteredIdx[filteredIdx.length - 1] !== n - 1) {
+    filteredIdx.push(n - 1);
   }
 
-  if (idx.length <= maxCalls) {
-    return idx;
-  }
 
-  // Resample: pick maxCalls indices evenly over time
-  const totalTime = etaSecs[etaSecs.length - 1] - etaSecs[0];
-  const step = totalTime / (maxCalls - 1);
-  const resampled = [idx[0]];
-  let targetTime = etaSecs[0] + step;
-  let j = 1;
-  for (let k = 1; k < maxCalls - 1; k++) {
-    while (j < etaSecs.length && etaSecs[j] < targetTime) j++;
-    if (j >= etaSecs.length) break;
-    // Pick the closer of etaSecs[j-1] and etaSecs[j]
-    if (j > 0 && Math.abs(etaSecs[j - 1] - targetTime) < Math.abs(etaSecs[j] - targetTime)) {
-      resampled.push(idx[j - 1]);
-    } else {
-      resampled.push(idx[j]);
+  // --- Phase C: Resample evenly in time ---
+  if (filteredIdx.length > maxCalls) {
+    const resampled = [filteredIdx[0]];
+    const totalTime = accumTime[filteredIdx[filteredIdx.length - 1]] - accumTime[filteredIdx[0]];
+    const step = totalTime / (maxCalls - 1);
+    let targetTime = accumTime[filteredIdx[0]] + step;
+
+    let j = 1;
+    for (let k = 1; k < maxCalls - 1; k++) {
+      while (j < filteredIdx.length && accumTime[filteredIdx[j]] < targetTime) j++;
+      if (j >= filteredIdx.length) break;
+
+      if (j > 0 && Math.abs(accumTime[filteredIdx[j - 1]] - targetTime) < Math.abs(accumTime[filteredIdx[j]] - targetTime)) {
+        resampled.push(filteredIdx[j - 1]);
+      } else {
+        resampled.push(filteredIdx[j]);
+      }
+      targetTime += step;
     }
-    targetTime += step;
+    if (resampled[resampled.length - 1] !== filteredIdx[filteredIdx.length - 1]) {
+      resampled.push(filteredIdx[filteredIdx.length - 1]);
+    }
+    return resampled;
   }
-  if (resampled[resampled.length - 1] !== idx[idx.length - 1]) {
-    resampled.push(idx[idx.length - 1]);
-  }
-  return resampled.slice(0, maxCalls);
+
+  return filteredIdx;
 }
 
 // ---------- Breaks ----------

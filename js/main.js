@@ -189,7 +189,7 @@ processBtn.addEventListener("click", async () => {
 
     const maxCalls = Math.max(5, Math.min(200, parseInt(maxCallsInput.value || "60", 10)));
     const minSpacing = parseInt(sampleMetersSelect.value, 10);
-    const minTimeSpacing = parseInt(sampleMinutesSelect.value, 15);  // minutes
+    const minTimeSpacing = parseInt(sampleMinutesSelect.value, 10);
     const provider = providerSel.value;
     const mbKey = meteoblueKeyInput.value.trim();
 
@@ -278,8 +278,9 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   routeLayerGroup.addLayer(baseLine);
 
   // Sampling
-  const sampleIdx = buildSampleIndices(points, cum, maxCalls, minSpacing, minTimeSpacing, avgSpeedMps, startDate, breaks);
+  const sampleIdx = buildSampleIndices(points, cum, maxCalls, minSpacing, minTimeSpacing, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
   log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacing} m).`);
+  console.log('Sample indices', sampleIdx);
   const segmentSpeeds = [];
 
     for (let s = 0; s < sampleIdx.length - 1; s++) {
