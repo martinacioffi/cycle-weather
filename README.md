@@ -13,7 +13,7 @@ You can choose between two maps:
 * OpenCycleMap
 * OpenTopoMap
 
-The app also allows you to insert breaks along the route, which will be displayed on the map. To insert a new break, you can either insert the km at which the break will start; or click on the map to select the position of the break. Then, insert the break's length in number of minutes.
+The app also allows you to insert breaks along the route, which will be displayed on the map as a pin and on the charts as a grey shaded area. To insert a new break, you can either insert the km at which the break will start; or click on the map to select the position of the break. Then, insert the break's length in number of minutes.
 
-At the bottom of the page, two graphs show, respectively, (i) the temperature and precipitations, and (ii) the wind speed and direction for the route.
+At the bottom of the page, three graphs show, respectively, (i) the actual and the felt temperature, (ii) precipitations, and (iii) the wind speed, gusts and direction for the route. The yellow shade indicates daylight hours.
 
