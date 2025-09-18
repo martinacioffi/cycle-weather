@@ -521,7 +521,7 @@ if (lastEta) {
         <strong>ETA:</strong> ${etaStr}<br/>
         <strong>Forecast:</strong><br/>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
-        🌧️ Precipitation: ${r.precip.toFixed(1)} mm/h<br/>
+        🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
         💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}
       </div>
     `;

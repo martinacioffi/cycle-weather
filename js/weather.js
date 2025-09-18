@@ -19,25 +19,19 @@ async function fetchOpenMeteo(lat, lon) {
   const d = await res.json();
   const times15 = d.minutely_15.time; // "YYYY-MM-DDTHH:MM" in Europe/Rome
   const precip15 = (d.minutely_15.precipitation || []).map(v => Number(v));
-  // console.log('returned 15 minutely precip:', precip15);
 
-  // Build hourly totals labeled at HH:00 using HH:00 + HH-15 + HH-30 + HH-45
-  const hourlyTimes = [];
   const hourlyPrecipMm = [];
 
   for (let i = 0; i < times15.length; i++) {
-    // Label hours exactly at :00 and ensure we have the previous three quarters
-    if (times15[i].endsWith(":00") && i >= 3) {
-      const sum =
-        (isFinite(precip15[i])   ? precip15[i]   : 0) +
-        (isFinite(precip15[i-1]) ? precip15[i-1] : 0) +
-        (isFinite(precip15[i-2]) ? precip15[i-2] : 0) +
-        (isFinite(precip15[i-3]) ? precip15[i-3] : 0);
-
-      hourlyTimes.push(times15[i]);                 // e.g., "2025-08-29T08:00"
-      hourlyPrecipMm.push(+sum.toFixed(3));         // keep a tidy precision
-      // console.log('pushed', +sum.toFixed(3), 'mm/h for', times15[i]);
+    let sum = 0;
+    for (let j = 0; j <= 3; j++) {
+      const idx = i - j;
+      if (idx >= 0 && isFinite(precip15[idx])) {
+        sum += precip15[idx];
+      }
     }
+
+    hourlyPrecipMm.push(+sum.toFixed(3));
   }
 
   return {
