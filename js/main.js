@@ -459,6 +459,11 @@ if (lastEta) {
     `;
   }
 
+  // Add black outline first
+  const fullRoute = points.map(p => [p.lat, p.lon]);
+  const outline = L.polyline(fullRoute, {color: "black", weight: 8, opacity: 0.85});
+  routeLayerGroup.addLayer(outline);
+
   // Colorer + colored segments
   const tempColor = makeTempColorer(minT, maxT);
   let wetPts = 0;
