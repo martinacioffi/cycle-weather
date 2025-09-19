@@ -127,7 +127,7 @@ export function buildTempChartPictograms(series) {
 
   uniquePictoNames.forEach(name => {
     const img = new Image();
-    img.src = `images/meteoblue_pictograms/${name}.svg`;
+    img.src = `images/yr_weather_symbols/${name}.svg`;
     pictogramCache[name] = img; // stored even before load — will draw when ready
   });
 
@@ -235,7 +235,7 @@ export function buildTempChartPictograms(series) {
         }
       }
     },
-    plugins: [ChartDataLabels, WeatherIconPlugin]
+    plugins: [ChartDataLabels, WeatherIconPlugin, BreakShadingPlugin, DaylightShadingPlugin]
   });
 }
 

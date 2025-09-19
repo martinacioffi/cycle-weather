@@ -15,11 +15,11 @@ import {
 } from './weather.js';
 
 import {
-  ensureMap, dirArrow8, getWeatherIcon, windBarbs, routeLayerGroup, getWeatherPictogram
+  ensureMap, dirArrow8, windArrowWithBarbs, getWeatherIcon, windBarbs, routeLayerGroup, getWeatherPictogram
 } from './map.js';
 
 import {
-  buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById
+  buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById, buildTempChartPictograms
 } from './charts.js';
 
 // ---------- Global ----------
@@ -478,31 +478,33 @@ if (lastEta) {
 
   // Sample markers with icons + popups
   for (const r of results) {
-    const weatherIcon = getWeatherIcon(r.tempC, r.precip, r.isDay);
-    // Uncomment to use Meteoblue pictograms instead of simple emojis
-    // const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts)
-    const windGrade = convertWindToGrade(r.windKmH, 'km/h');
+    // const weatherIcon = getWeatherIcon(r.tempC, r.precip, r.isDay);
+    // Comment to use simple emojis instead of Yr weather icons
+    const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts)
+    //const windGrade = convertWindToGrade(r.windKmH, 'km/h');
+    const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
+    // const barbsHTML = `<span style="font-size:14px; line-height:1; vertical-align: top;font-weight:bold; margin-left: 2px;color:black">${windBarbs(r.windKmH)}</span>`;
 
-    /* Uncomment to use Meteoblue pictograms instead of simple emojis
+    // Comment to use simple emojis instead of Yr weather icons
     const icon = L.divIcon({
        html: `
-        <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center;">
-        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-          <img src="images/meteoblue_pictograms/${weatherIcon}.svg"
-             style="width: 100%; height: 100%; object-fit: contain;" />
+        <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center; gap:0px;">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center ;background: white; border-radius: 50%;;">
+          <img src="images/yr_weather_symbols/${weatherIcon}.svg"
+             style="width: 80%; height: 80%; object-fit: contain;" />
         </div>
-        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-          <img src="images/beaufort_scale/wind${windGrade}.svg"
-               style="width: 100%; height: 100%; object-fit: contain; margin-top: -8px;" />
-        </div>
-        </div>`,
+              <div style="margin-top:-6px;">
+        ${windSVG}
+      </div>
+    </div>
+`,
       className: "",
-      iconSize: [20, 22],
-      iconAnchor: [10, 11]
+      iconSize: [42, 42],
+      iconAnchor: [22, 26]
     });
-    */
 
-    const icon = L.divIcon({
+
+    /*const icon = L.divIcon({
        html: `
         <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center;">
             <span style="font-size:16px; vertical-align: middle;">${weatherIcon}</span>
@@ -514,7 +516,7 @@ if (lastEta) {
       className: "",
       iconSize: [20, 22],
       iconAnchor: [10, 11]
-    });
+    });*/
 
     const marker = L.marker([r.lat, r.lon], { icon }).addTo(routeLayerGroup);
     addWeatherMarker(marker);
@@ -544,7 +546,7 @@ if (lastEta) {
     precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
     cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, isBreak: r.isBreak }))
     .sort((a,b) => +a.t - +b.t);
-  buildTempChart(chartSeries);
+  buildTempChartPictograms(chartSeries);
   buildPrecipChart(chartSeries)
   buildWindChart(chartSeries);
 
