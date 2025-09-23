@@ -2,7 +2,7 @@ import {
   haversine, bearing, formatKm, formatDuration, speedToMps, utcHourISO,
   log, lerp, hexToRgb, rgbToHex, lerpColor, PALETTE, colorFromPalette,
   makeTempColorer, updateLegend, getPercentInput, convertWindToGrade,
-  utcQuarterISO
+  utcQuarterISO, roundToNearestQuarter
 } from './utils.js';
 
 import {
@@ -392,7 +392,7 @@ if (p.isBreak) {
     }
 
     const eta = new Date(startDate.getTime() + etaSec * 1000);
-    const etaISOHour = utcQuarterISO(eta);
+    const etaISOHour = roundToNearestQuarter(eta);  //utcQuarterISO(eta); //
     const travelBearing = brngs[idx];
 
     try {
@@ -400,7 +400,7 @@ if (p.isBreak) {
       const k = pickHourAt(fc, etaISOHour);
       if (k === -1) {
         errors.push({ idx, reason: "Time out of forecast range", etaISOHour });
-        log(`No forecast at ${etaISOHour} UTC for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
+        log(`No forecast at ${etaISOHour} for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
         continue;
       }
       results.push({
@@ -413,6 +413,7 @@ if (p.isBreak) {
         windKmH: Number(fc.windSpeedKmH[k]),
         windDeg: Number(fc.windFromDeg[k]),
         precip: Number(fc.precipMmHr[k]),
+        precipProb: Number(fc.precipProb[k]),
         cloudCover: Number(fc.cloudCover[k]),
         cloudCoverLow: Number(fc.cloudCoverLow[k]),
         isDay: Number(fc.isDay[k]),
@@ -543,7 +544,7 @@ if (lastEta) {
   // Charts
   const chartSeries = results
     .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
-    precip: r.precip, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
+    precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
     cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, isBreak: r.isBreak }))
     .sort((a,b) => +a.t - +b.t);
   buildTempChartPictograms(chartSeries);

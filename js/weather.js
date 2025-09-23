@@ -7,6 +7,7 @@ async function fetchOpenMeteo(lat, lon) {
     latitude: lat,
     longitude: lon,
     timezone: "Europe/Rome",
+    hourly: "precipitation_probability",
     minutely_15: ["temperature_2m", "apparent_temperature",
     "wind_gusts_10m", "windspeed_10m","winddirection_10m",
     "precipitation", "cloud_cover", "cloud_cover_low", "is_day"].join(","),
@@ -19,6 +20,12 @@ async function fetchOpenMeteo(lat, lon) {
   const d = await res.json();
   const times15 = d.minutely_15.time; // "YYYY-MM-DDTHH:MM" in Europe/Rome
   const precip15 = (d.minutely_15.precipitation || []).map(v => Number(v));
+  const hourlyProb = d.hourly.precipitation_probability || [];
+  const precipProb15 = times15.map(t => {
+  const hour = t.slice(0, 13) + ":00"; // "YYYY-MM-DDTHH:00"
+  const idx = d.hourly.time.indexOf(hour);
+  return idx >= 0 ? hourlyProb[idx] : null;
+});
 
   const hourlyPrecipMm = [];
 
@@ -42,6 +49,7 @@ async function fetchOpenMeteo(lat, lon) {
     windSpeedKmH: d.minutely_15.windspeed_10m,
     windFromDeg: d.minutely_15.winddirection_10m,
     precipMmHr: hourlyPrecipMm,
+    precipProb: precipProb15,
     cloudCover: d.minutely_15.cloud_cover,
     cloudCoverLow: d.minutely_15.cloud_cover_low,
     isDay: d.minutely_15.is_day
@@ -71,6 +79,7 @@ async function fetchMeteoBlue(lat, lon, apiKey) {
     windSpeedKmH: xmin.windspeed,
     windFromDeg: xmin.winddirection,
     precipMmHr: xmin.precipitation,
+    precipProb: xmin.precipitation_probability,
     cloudCover: [],
     cloudCoverLow: [],
     // return isdaylight if present, else approximate by 06–18h

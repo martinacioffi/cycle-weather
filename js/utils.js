@@ -84,6 +84,30 @@ export function speedToMps(val, unit) {
   return v; // m/s
 }
 
+export function roundToNearestQuarter(date) {
+  const rounded = new Date(date); // clone the original date
+  const minutes = rounded.getMinutes();
+  const remainder = minutes % 15;
+
+  if (remainder < 8) {
+    rounded.setMinutes(minutes - remainder);
+  } else {
+    rounded.setMinutes(minutes + (15 - remainder));
+  }
+
+  rounded.setSeconds(0);
+  rounded.setMilliseconds(0);
+
+  // Format as local time: YYYY-MM-DDTHH:MM
+  const yyyy = rounded.getFullYear();
+  const mm = String(rounded.getMonth() + 1).padStart(2, "0");
+  const dd = String(rounded.getDate()).padStart(2, "0");
+  const hh = String(rounded.getHours()).padStart(2, "0");
+  const min = String(rounded.getMinutes()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+}
+
 export function utcQuarterISO(d) {
   const date = new Date(d.getTime()); // clone so we don’t mutate the original
 

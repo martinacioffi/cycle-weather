@@ -261,7 +261,7 @@ export function buildTempChart(series) {
       datasets: [
         {
           type: "line",
-          label: "Temp (°C)",
+          label: "Temperature (°C)",
           data: series.map(s => s.tempC),
           borderColor: "#f9d349",
           backgroundColor: "rgba(249,211,73,0.15)",
@@ -272,7 +272,7 @@ export function buildTempChart(series) {
         },
         {
           type: "line",
-          label: "Felt Temp (°C)",
+          label: "Felt Temperature (°C)",
           data: series.map(s => s.feltTempC),
           borderColor: "#f96949",
           backgroundColor: "rgba(249,211,73,0.15)",
@@ -363,8 +363,19 @@ export function buildPrecipChart(series) {
       series,
       datasets: [
         {
+          type: "line",
+          label: "Precipitation Probability (%)",
+          data: series.map(s => s.precipProb),
+          borderColor: "#003366",
+          backgroundColor: "#003366",
+          yAxisID: "yProb",
+          tension: 0.3,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+        },
+          {
           type: "bar",
-          label: "Precip (mm/h)",
+          label: "Precipitations (mm/h)",
           data: series.map(s => s.precip),
           backgroundColor: "#66d9ef",
           yAxisID: "yPrecip",
@@ -374,7 +385,7 @@ export function buildPrecipChart(series) {
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      interaction: { mode: 'nearest', intersect: false },
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
           labels: { color: "#e6e8ef" }
@@ -386,7 +397,7 @@ export function buildPrecipChart(series) {
         },
           datalabels: {
     color: "#e6e8ef",
-    display: ctx => ctx.dataset.data[ctx.dataIndex] > 0, // Hide if value is 0
+    // display: ctx => ctx.dataset.data[ctx.dataIndex] > 0, // Hide if value is 0
     anchor: "end",
     align: "top",
     font: {
@@ -417,6 +428,17 @@ export function buildPrecipChart(series) {
           stepSize: 1,
           callback: function(value) {if (value % 1 === 0) {return value;}},
           color: "#e6e8ef" },
+          grid: { drawOnChartArea: false }
+        },
+        yProb: {
+          position: "right",
+          beginAtZero: true,
+          max: 100,
+          title: { display: true, text: "Probability", color: "#a5adba" },
+          ticks: {
+            color: "#e6e8ef",
+            callback: v => `${v}%`
+          },
           grid: { drawOnChartArea: false }
         }
       }
@@ -462,6 +484,7 @@ export function buildWindChart(series) {
           yAxisID: "yWind",
           tension: 0.25,
           pointStyle: false,
+          datalabels: { display: false }
         }
       ]
     },

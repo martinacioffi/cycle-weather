@@ -215,74 +215,77 @@ export function dirArrow8(deg) {
 
 export function windArrowWithBarbs(deg, windKmh) {
   const rotation = (deg + 180) % 360; // meteorological "from" direction
-
   // Geometry
   const arrowStroke = 3;
   const barbStroke = 2;
-  const fullBarbLength = 6;
-  const halfBarbLength = fullBarbLength / 2;
+  const fullBarbLength = 8;
   const barbSpacing = 4;
-  const circleRadius = 8;
+  const circleRadius = 6;
 
   // Shaft coordinates in centered system
-  const shaftY1 = -14; // arrowhead end
-  const shaftY2 =  14; // tail end
+  const shaftY1 = -16; // arrowhead end
+  const shaftY2 =  16; // tail end
   const shaftX  =  0;
 
-  // Build barbs
-  let barbElements = "";
+  // Determine number of barbs
+  let full = 0, half = 0, pennant = false;
   if (windKmh > 50) {
-    barbElements += `<polygon points="${shaftX},${shaftY2} ${shaftX - fullBarbLength},${shaftY2 - fullBarbLength} ${shaftX},${shaftY2 - barbSpacing}"
+    pennant = true;
+  }
+  else if (windKmh <= 10) { full = 1; }
+  else if (windKmh <= 20) { full = 2; }
+  else if (windKmh <= 30) { full = 3; }
+
+  // Build horizontal barbs (always to the right of shaft)
+  let barbElements = "";
+  if (pennant) {
+    barbElements += `<polygon points="${shaftX + 2},${shaftY2} ${shaftX + 2 + fullBarbLength},${shaftY2 - fullBarbLength} ${shaftX + 2},${shaftY2 - barbSpacing}"
       fill="black" />`;
   } else {
-    let full = 0, half = 0;
-    if (windKmh <= 10) { half = 1; }
-    else if (windKmh <= 15) { full = 1; }
-    else if (windKmh <= 20) { full = 1; half = 1; }
-    else if (windKmh <= 25) { full = 2; }
-    else if (windKmh <= 30) { full = 2; half = 1; }
-    else if (windKmh <= 40) { full = 3; }
-    else if (windKmh <= 50) { full = 3; half = 1; }
-
     let yPos = shaftY2;
     for (let i = 0; i < full; i++) {
-      barbElements += `<line x1="${shaftX}" y1="${yPos}" x2="${shaftX - fullBarbLength}" y2="${yPos - fullBarbLength}"
+      barbElements += `<line x1="${shaftX + 2}" y1="${yPos}" x2="${shaftX + 2 + fullBarbLength}" y2="${yPos}"
         stroke="black" stroke-width="${barbStroke}" stroke-linecap="round" />`;
       yPos -= barbSpacing;
     }
     if (half) {
-      barbElements += `<line x1="${shaftX}" y1="${yPos}" x2="${shaftX - halfBarbLength}" y2="${yPos - halfBarbLength}"
+      barbElements += `<line x1="${shaftX + 2}" y1="${yPos}" x2="${shaftX + 2 + halfBarbLength}" y2="${yPos}"
         stroke="black" stroke-width="${barbStroke}" stroke-linecap="round" />`;
     }
   }
+  const speedStr = Math.round(windKmh).toString();
+  const digitCount = speedStr.length;
+  let fontSize;
+    if (digitCount === 1) {
+      fontSize = 9;
+    } else if (digitCount === 2) {
+      fontSize = 8;
+    } else {
+      fontSize = 7;
+    }
 
-  // Circle at tail (rotates with arrow), text inside stays upright
+  // Tail circle + upright text (inside rotating group)
   const speedCircle = `
-    <g>
-      <circle cx="${shaftX}" cy="${shaftY2}" r="${circleRadius}" fill="black" />
-      <g transform="rotate(${-rotation}, ${shaftX}, ${shaftY2})">
-        <text x="${shaftX}" y="${shaftY2 + 2}" text-anchor="middle" font-size="9" font-weight="bold" fill="white">
-          ${Math.round(windKmh)}
-        </text>
-      </g>
+    <circle cx="${shaftX}" cy="${shaftY2}" r="${circleRadius}" fill="black" />
+    <g transform="rotate(${-rotation}, ${shaftX}, ${shaftY2})">
+      <text x="${shaftX}" y="${shaftY2 + 2}" text-anchor="middle" font-size="${fontSize}" font-weight="bold" fill="white">
+        ${Math.round(windKmh)}
+      </text>
     </g>
   `;
 
   return `
     <svg width="40" height="40" viewBox="-22 -22 44 44">
-      <!-- Rotating group: arrow, barbs, and circle -->
+      <!-- Rotating group: arrow + circle -->
       <g transform="rotate(${rotation})">
-        <!-- Shaft -->
         <line x1="${shaftX}" y1="${shaftY1}" x2="${shaftX}" y2="${shaftY2}"
               stroke="black" stroke-width="${arrowStroke}" stroke-linecap="round" />
-        <!-- Arrowhead -->
         <polygon points="${shaftX - 6},${shaftY1 + 4} ${shaftX},${shaftY1 - 4} ${shaftX + 6},${shaftY1 + 4}"
                  fill="black" />
-        <!-- Barbs -->
-        ${barbElements}
-        <!-- Tail circle + upright text -->
         ${speedCircle}
       </g>
+      <!-- Static horizontal barbs to the right -->
+       <!-- ${barbElements} -->
     </svg>
   `;
 }
