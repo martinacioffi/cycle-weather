@@ -3,6 +3,9 @@ export let map = null;
 export let routeLayerGroup = null;
 export let tempLegendControl = null;
 
+let openTopo, openCycle, openStreet;
+let activeBaseLayer; // currently visible base layer
+
 // Returns a weather icon based on temperature and precipitation and day light
 export function getWeatherIcon(tempC, precip, isDay) {
   if (precip >= 4) return "⛈️"; // heavy rain
@@ -54,58 +57,15 @@ export function getWeatherIconCombo(tempC, precip, isDay) {
   return icon;
 }
 
-/**
- * Return a Meteoblue pictogram code (e.g., "01_day", "23_night")
- * based on temp, precip, cloud cover, fog indicator, wind, and time of day.
- */
-export function getWeatherPictogramMeteoBlue(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0) {
-  const suffix = isDay ? "_day" : "_night";
+export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0, pictocode = -1, pictos="yr") {
 
-  // Thresholds
-  const windy = Math.max(windKmH, gusts) >= 40;  // strong wind/gust threshold (km/h)
-  const stormy = Math.max(windKmH, gusts) >= 60; // very strong winds
-
-  // Fog/low stratus
-  if (cloudCoverLow >= 80 && precip < 0.1 && windKmH < 10) {
-    return "16" + suffix; // Fog
+  // --- Use pictocode if provided and selected pictogram provider is MeteoBlue ---
+  if (pictos === "meteoblue" && pictocode !== -1 && Number.isFinite(pictocode)) {
+    const suffix = isDay ? "day" : "night";
+    const padded = pictocode < 10 ? `0${pictocode}` : `${pictocode}`;
+    return `${padded}_${suffix}`;
   }
 
-  // Thunderstorms
-  if (precip >= 8) return "30" + suffix;
-  if (precip >= 4) return "27" + suffix;
-
-  // Snow / mixed / rain
-  if (precip >= 2 && tempC <= 1) return "29" + suffix; // Heavy snowstorm
-  if (precip >= 2) return "25" + suffix; // Heavy rain
-  if (precip >= 1 && tempC <= 1) return "26" + suffix; // Snow
-  if (precip >= 1 && tempC > 0 && tempC < 3) return "35" + suffix; // Mix
-  if (precip >= 1) return "23" + suffix; // Rain
-  if (precip >= 0.5 && tempC <= 1) return "24" + suffix; // Light snow
-  if (precip >= 0.5) return "33" + suffix; // Light rain
-  if (precip >= 0.1 && tempC <= 1) return "34" + suffix; // Very light snow
-
-  // At this point: negligible precip — decide by wind + clouds
-
-  // **Windy variants** — based on Meteoblue's windy pictos
-  if (windy) {
-    if (cloudCover <= 30) return "05" + suffix; // Mostly sunny, windy
-    if (cloudCover <= 60) return "08" + suffix; // Partly cloudy, windy
-    if (cloudCover <= 80) return "20" + suffix; // Mostly cloudy, windy
-    return "21" + suffix; // Overcast, windy
-  }
-
-  // Normal (non-windy) cloud logic
-  if (cloudCover <= 10) return "01" + suffix; // Clear
-  // Clear with cirrus variants
-  if (cloudCover <= 30 && cloudCoverLow <= 10 && cloudCover > 0) return "02" + suffix;
-  if (cloudCover <= 60 && cloudCoverLow <= 10) return "03" + suffix;
-  if (cloudCover <= 30) return "04" + suffix; // Few clouds
-  if (cloudCover <= 60) return "07" + suffix; // Partly cloudy
-  if (cloudCover <= 80) return "19" + suffix; // Mostly cloudy
-  return "22" + suffix; // Overcast
-}
-
-export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0) {
   const suffix = isDay ? "d" : "n";
   const windMax = Math.max(windKmH, gusts);
 
@@ -297,7 +257,7 @@ export function windBarbs(windKmh) {
   return ""; // calm
 }
 
-export function ensureMap(provider) {
+export function ensureMap(provider, pictos) {
       if (map) return;
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
       routeLayerGroup = L.layerGroup().addTo(map);
@@ -316,23 +276,33 @@ export function ensureMap(provider) {
         return div;
       };
 
-      let weatherAttr = provider === "meteoblue" ? ' | Weather data © <a href="https://www.meteoblue.com/" target="_blank">Meteoblue</a>' : ' | Weather data © <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>';
-      weatherAttr += ' | Weather symbols © <a href="https://nrkno.github.io/yr-weather-symbols/" target="_blank">MET Norway</a>';
-      const openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-      maxZoom: 17,
-      attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)' + weatherAttr
-    });
-    const openCycle = L.tileLayer('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=70a9b978ca5f485d82d655fbacc0eee0', {
-      maxZoom: 18,
-      attribution: 'Maps © Thunderforest, Data © OpenStreetMap contributors' + weatherAttr
-    });
-    const openStreet = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: "&copy; OpenStreetMap" + weatherAttr
-      })
+  const topoBase = 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)';
+  const cycleBase = 'Maps © Thunderforest, Data © OpenStreetMap contributors';
+  const streetBase = '&copy; OpenStreetMap';
+
+  const dynamic = buildAttribution(provider, pictos);
+
+  openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: ''
+  });
+  openTopo.baseAttribution = topoBase;
+
+  openCycle = L.tileLayer('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=70a9b978ca5f485d82d655fbacc0eee0', {
+    maxZoom: 18,
+    attribution: ''
+  });
+  openCycle.baseAttribution = cycleBase;
+
+  openStreet = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: ''
+  });
+  openStreet.baseAttribution = streetBase;
 
     // Add OpenTopoMap as default
     openTopo.addTo(map);
+    activeBaseLayer = openTopo;
 
     // Layer control
     const baseLayers = {
@@ -341,19 +311,37 @@ export function ensureMap(provider) {
       "OpenStreetMap": openStreet
     };
     L.control.layers(baseLayers).addTo(map);
+
+    map.on('baselayerchange', function(e) {
+      activeBaseLayer = e.layer;
+    });
       tempLegendControl.addTo(map);
       return map;
     }
 
-function updateMapAttribution(provider) {
-  let attribution = "&copy; OpenStreetMap";
+function buildAttribution(provider, pictos) {
+  const weatherAttr = provider === "meteoblue"
+    ? ' | Weather data © <a href="https://www.meteoblue.com/" target="_blank">Meteoblue</a>'
+    : ' | Weather data © <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>';
 
-  if (provider === "meteoblue") {
-    attribution += ' | Weather data © <a href="https://www.meteoblue.com/" target="_blank">Meteoblue</a>';
-  } else if (provider === "openmeteo") {
-    attribution += ' | Weather data © <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>';
+  const pictoAttr = pictos === "meteoblue"
+    ? ' | Pictograms © <a href="https://docs.meteoblue.com/en/meteo/variables/pictograms" target="_blank">Meteoblue</a>'
+    : ' | Weather symbols © <a href="https://nrkno.github.io/yr-weather-symbols/" target="_blank">MET Norway</a>';
+
+  return weatherAttr + pictoAttr;
+}
+
+export function updateMapAttribution(provider, pictos) {
+  if (!activeBaseLayer || !map) return;
+
+  const dynamic = buildAttribution(provider, pictos);
+  const base = activeBaseLayer.baseAttribution || "";
+  const full = base + dynamic;
+
+  const attributionEl = map._controlContainer?.querySelector(".leaflet-control-attribution");
+  if (attributionEl) {
+    attributionEl.innerHTML = full;
+  } else {
+    console.warn("Attribution element not found");
   }
-  attribution += ' | Weather symbols © <a href="https://nrkno.github.io/yr-weather-symbols/" target="_blank">MET Norway</a>';
-
-  activeBaseLayer.setAttribution(attribution);
 }

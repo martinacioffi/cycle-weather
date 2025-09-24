@@ -52,43 +52,81 @@ async function fetchOpenMeteo(lat, lon) {
     precipProb: precipProb15,
     cloudCover: d.minutely_15.cloud_cover,
     cloudCoverLow: d.minutely_15.cloud_cover_low,
-    isDay: d.minutely_15.is_day
+    isDay: d.minutely_15.is_day,
+    pictocode: [] // Open-Meteo does not provide pictocodes
   };
 }
 
 // MeteoBlue: requires API key. You may need to adjust variable names based on package.
 async function fetchMeteoBlue(lat, lon, apiKey) {
   if (!apiKey) throw new Error("MeteoBlue API key missing.");
-  const base = "https://my.meteoblue.com/packages/basic-15min"; // TODO add _cloud-15min and check result
-  // TODO this returns the pictocode!! can we use it?
+  const base = "https://my.meteoblue.com/packages/basic-15min_basic-1h_clouds-15min_wind-15min";
   const params = new URLSearchParams({
-    lat: lat, lon: lon, apikey: apiKey, format: "json", timezone: "Europe/Rome"
+    lat: lat, lon: lon, apikey: apiKey,
+    format: "json",
+    timezone: "Europe/Rome",
+    windspeed: "kmh",
+    temperature: "C",
+    winddirection: "degree",
+    precipitationamount: "mm",
   });
   const url = `${base}?${params.toString()}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`MeteoBlue HTTP ${res.status}`);
   const d = await res.json();
+  const units = d?.units || {};
   const xmin = d?.data_xmin;
+  const xhour = d?.data_1h;
+  const hourlyIsDayLight = xhour.isdaylight || [];
+  const IsDayLight15 = xmin.time.map(t => {
+  const hour = t.slice(0, 13) + ":00"; // "YYYY-MM-DDTHH:00"
+  const idx = xhour.time.indexOf(hour);
+  return idx >= 0 ? hourlyIsDayLight[idx] : null;
+});
+
+  const precip15 = (xmin.precipitation || []).map(v => Number(v));
+  const hourlyPrecipMm = [];
+
+  for (let i = 0; i < xmin.time.length; i++) {
+    let sum = 0;
+    for (let j = 0; j <= 3; j++) {
+      const idx = i - j;
+      if (idx >= 0 && isFinite(precip15[idx])) {
+        sum += precip15[idx];
+      }
+    }
+
+    hourlyPrecipMm.push(+sum.toFixed(3));
+  }
+
+  const hourlyPictocode = xhour.pictocode || [];
+  const Pictocode15 = xmin.time.map(t => {
+    const hour = t.slice(0, 13) + ":00"; // "YYYY-MM-DDTHH:00"
+    const idx = xhour.time.indexOf(hour);
+    return idx >= 0 ? hourlyPictocode[idx] : null;
+  });
+
+  const HourlyProb = xhour.precipitation_probability || [];
+  const precipProb15 = xmin.time.map(t => {
+    const hour = t.slice(0, 13) + ":00"; // "YYYY-MM-DDTHH:00"
+    const idx = xhour.time.indexOf(hour);
+    return idx >= 0 ? HourlyProb[idx] : null;
+  });
 
   if (!xmin?.time.length) throw new Error("MeteoBlue response missing time series.");
   return {
     times: xmin.time.map(t => t.replace(" ", "T")),
     tempC: xmin.temperature,
     feltTempC: xmin.felttemperature,
-    windGusts: [],
+    windGusts: xmin.gust,
     windSpeedKmH: xmin.windspeed,
     windFromDeg: xmin.winddirection,
-    precipMmHr: xmin.precipitation,
-    precipProb: xmin.precipitation_probability,
-    cloudCover: [],
-    cloudCoverLow: [],
-    // return isdaylight if present, else approximate by 06–18h
-    isDay: xmin.isdaylight && xmin.isdaylight.length === xmin.time.length
-      ? xmin.isdaylight
-      : xmin.time.map(t => {
-        const hour = parseInt(t.slice(11, 13), 10);
-        return hour >= 6 && hour < 18 ? 1 : 0;
-      })
+    precipMmHr: hourlyPrecipMm,
+    precipProb: precipProb15,
+    cloudCover: xmin.totalcloudcover,
+    cloudCoverLow: xmin.lowclouds,
+    isDay: IsDayLight15,
+    pictocode: Pictocode15
   };
 }
 

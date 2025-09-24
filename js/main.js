@@ -15,7 +15,8 @@ import {
 } from './weather.js';
 
 import {
-  ensureMap, dirArrow8, windArrowWithBarbs, getWeatherIcon, windBarbs, routeLayerGroup, getWeatherPictogram
+  ensureMap, dirArrow8, windArrowWithBarbs, getWeatherIcon, windBarbs, routeLayerGroup, getWeatherPictogram,
+  updateMapAttribution
 } from './map.js';
 
 import {
@@ -32,6 +33,8 @@ const fileInput = document.getElementById("gpxFile");
 const providerSel = document.getElementById("provider");
 const meteoblueKeyInput = document.getElementById("meteoblueKey");
 const meteoblueKeyRow = document.getElementById("meteoblueKeyRow");
+const pictogramsProviderRow = document.getElementById("pictogramsProviderRow");
+const pictogramsProvider = document.getElementById("pictogramsProvider");
 const startTimeInput = document.getElementById("startTime");
 const speedInput = document.getElementById("speed");
 const speedUp = document.getElementById("speedUp");
@@ -57,11 +60,33 @@ window.addEventListener("DOMContentLoaded", () => {
   speedInput.value = 14;
 
   // Initialize map
-  map = ensureMap(providerSel.value);
+  const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+  map = ensureMap(providerSel.value, pictos);
+  // Initial attribution sync
+map.on('baselayerchange', function() {
+  const currentProvider = providerSel.value;
+  const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+  updateMapAttribution(currentProvider, currentPictos);
+});
+
+  // When provider changes
+  providerSel.addEventListener("change", () => {
+  const currentProvider = providerSel.value;
+  const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+  updateMapAttribution(currentProvider, currentPictos);
+  });
+
+  // When pictograms provider changes
+  pictogramsProvider.addEventListener("change", () => {
+  const currentProvider = providerSel.value;
+  const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+  updateMapAttribution(currentProvider, currentPictos);
+  });
+
   map.on("zoomend", () => {
   const zoom = map.getZoom();
   // pick a scaling factor relative to zoom
-  const scale = 1 + (zoom - 10) * 0.2; // adjust base zoom and multiplier
+  const scale = Math.max(0.4, 0.9 + (zoom - 10) * 0.15);
 
   document.querySelectorAll(".weather-icon, .break-icon").forEach(el => {
     el.style.transform = `scale(${scale})`;
@@ -89,6 +114,11 @@ function addWeatherMarker(marker) {
 // ---------- UI wiring ----------
 providerSel.addEventListener("change", () => {
   meteoblueKeyRow.style.display = providerSel.value === "meteoblue" ? "block" : "none";
+  validateReady();
+});
+
+providerSel.addEventListener("change", () => {
+  pictogramsProviderRow.style.display = providerSel.value === "meteoblue" ? "block" : "none";
   validateReady();
 });
 
@@ -168,7 +198,7 @@ fileInput.addEventListener("change", async (e) => {
 [
   startTimeInput, speedInput, speedUp, speedDown, speedUnit,
   maxCallsInput, sampleMetersSelect,
-  meteoblueKeyInput, providerSel
+  meteoblueKeyInput, providerSel, pictogramsProvider
 ].forEach(el => {
   el.addEventListener("input", validateReady);
   el.addEventListener("change", validateReady);
@@ -191,10 +221,11 @@ processBtn.addEventListener("click", async () => {
     const minSpacing = parseInt(sampleMetersSelect.value, 10);
     const minTimeSpacing = parseInt(sampleMinutesSelect.value, 10);
     const provider = providerSel.value;
+    const pictos = provider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
     const mbKey = meteoblueKeyInput.value.trim();
 
     processBtn.disabled = true;
-    await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, mbKey);
+    await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey);
   } catch (e) {
     log("Failed: " + e.message);
   } finally {
@@ -203,7 +234,7 @@ processBtn.addEventListener("click", async () => {
 });
 
 // ---------- Core: processRoute ----------
-async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls, minSpacing, minTimeSpacing, provider, mbKey) {
+async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey) {
   // Reset UI
   clearWeatherMarkers();
   routeLayerGroup.clearLayers();
@@ -417,6 +448,7 @@ if (p.isBreak) {
         cloudCover: Number(fc.cloudCover[k]),
         cloudCoverLow: Number(fc.cloudCoverLow[k]),
         isDay: Number(fc.isDay[k]),
+        pictocode: Number(fc.pictocode[k] ?? -1),
         travelBearing
       });
     } catch (e) {
@@ -481,21 +513,22 @@ if (lastEta) {
   for (const r of results) {
     // const weatherIcon = getWeatherIcon(r.tempC, r.precip, r.isDay);
     // Comment to use simple emojis instead of Yr weather icons
-    const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts)
-    //const windGrade = convertWindToGrade(r.windKmH, 'km/h');
+    const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts, r.pictocode, pictos);
+    const imgSrc = pictos === "meteoblue" ? `images/meteoblue_pictograms/${weatherIcon}.svg` : `images/yr_weather_symbols/${weatherIcon}.svg`;
+    const isNight = weatherIcon.endsWith("night");
+    const bgColor = pictos === "meteoblue" ? (isNight ? "#003366" : "#90c8fc") : "white";
     const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
-    // const barbsHTML = `<span style="font-size:14px; line-height:1; vertical-align: top;font-weight:bold; margin-left: 2px;color:black">${windBarbs(r.windKmH)}</span>`;
 
     // Comment to use simple emojis instead of Yr weather icons
     const icon = L.divIcon({
        html: `
         <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center; gap:0px;">
-        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center ;background: white; border-radius: 50%;;">
-          <img src="images/yr_weather_symbols/${weatherIcon}.svg"
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center ;background:  ${bgColor}; border-radius: 50%;;">
+          <img src=${imgSrc}
              style="width: 80%; height: 80%; object-fit: contain;" />
         </div>
-              <div style="margin-top:-6px;">
-        ${windSVG}
+        <div style="margin-top:-6px;">
+            ${windSVG}
       </div>
     </div>
 `,
@@ -545,9 +578,9 @@ if (lastEta) {
   const chartSeries = results
     .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
     precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
-    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, isBreak: r.isBreak }))
+    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, pictocode: r.pictocode, isBreak: r.isBreak }))
     .sort((a,b) => +a.t - +b.t);
-  buildTempChartPictograms(chartSeries);
+  buildTempChartPictograms(chartSeries, pictos);
   buildPrecipChart(chartSeries)
   buildWindChart(chartSeries);
 

@@ -108,7 +108,7 @@ const DaylightShadingPlugin = {
   }
 };
 
-export function buildTempChartPictograms(series) {
+export function buildTempChartPictograms(series, provider) {
   destroyChartById("tempChart");
   const ctx = document.getElementById("tempChart").getContext("2d");
 
@@ -121,13 +121,13 @@ export function buildTempChartPictograms(series) {
   const pictogramCache = {};
   const uniquePictoNames = [
     ...new Set(series.map(s =>
-      getWeatherPictogram(s.tempC, s.precip, s.cloudCover, s.cloudCoverLow, s.isDay, s.windKmH, s.gusts)
+      getWeatherPictogram(s.tempC, s.precip, s.cloudCover, s.cloudCoverLow, s.isDay, s.windKmH, s.gusts, s.pictocode, provider)
     ))
   ];
 
   uniquePictoNames.forEach(name => {
     const img = new Image();
-    img.src = `images/yr_weather_symbols/${name}.svg`;
+    img.src = provider === "meteoblue" ? `images/meteoblue_pictograms/${name}.svg` : `images/yr_weather_symbols/${name}.svg`;
     pictogramCache[name] = img; // stored even before load — will draw when ready
   });
 
@@ -145,7 +145,7 @@ export function buildTempChartPictograms(series) {
         if (!s) return;
 
         const pictoName = getWeatherPictogram(
-          s.tempC, s.precip, s.cloudCover, s.cloudCoverLow, s.isDay, s.windKmH, s.gusts
+          s.tempC, s.precip, s.cloudCover, s.cloudCoverLow, s.isDay, s.windKmH, s.gusts, s.pictocode, provider
         );
 
         const img = pictogramCache[pictoName];
