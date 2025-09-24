@@ -112,6 +112,42 @@ function addWeatherMarker(marker) {
 }
 
 // ---------- UI wiring ----------
+document.getElementById("demoBtn").addEventListener("click", async () => {
+  try {
+    const response = await fetch("assets/DemoOssona.gpx");
+    const blob = await response.blob();
+    const file = new File([blob], "DemoOssona.gpx", { type: "application/gpx+xml" });
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    const gpxInput = document.getElementById("gpxFile");
+    gpxInput.files = dataTransfer.files;
+
+    // Trigger change event if needed
+    gpxInput.dispatchEvent(new Event("change"));
+
+    // Wait a moment for parsing to complete (adjust if needed)
+    setTimeout(() => {
+    // Add a break automatically for the demo
+    const breakRow = document.createElement("div");
+    breakRow.className = "break-row";
+    breakRow.innerHTML = `
+      <input type="number" class="break-km" min="0" step="0.1" placeholder="distance km" value="37" />
+      <input type="number" class="break-min" min="1" step="1" placeholder="duration min" value="50" />
+      <button type="button" title="Remove break">✕</button>
+    `;
+    breakRow.querySelector("button").addEventListener("click", () => breakRow.remove());
+    breaksContainer.appendChild(breakRow);
+    validateReady();
+      document.getElementById("processBtn").click();
+    }, 500); // or longer if needed
+  } catch (err) {
+    console.error("Demo file load failed:", err);
+    alert("Failed to load demo file.");
+  }
+});
+
 providerSel.addEventListener("change", () => {
   meteoblueKeyRow.style.display = providerSel.value === "meteoblue" ? "block" : "none";
   validateReady();

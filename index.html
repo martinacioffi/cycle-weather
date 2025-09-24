@@ -19,10 +19,15 @@
 <body>
 <header>
   <div class="header-content">
-    <img src="images/bike.jpg" alt="Logo" class="logo">
-    <div>
-      <h1>GPX Route Weather Forecast</h1>
-      <div class="sub">Upload GPX → set start time, speed & breaks → see forecast along your route</div>
+    <div class="header-left">
+      <img src="images/bike.jpg" alt="Logo" class="logo">
+      <div>
+        <h1>GPX Route Weather Forecast</h1>
+        <div class="sub">Upload GPX → set start time, speed & breaks → see forecast along your route</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button id="demoBtn" class="demo-button" title="Try it now with a demo file">Demo</button>
     </div>
   </div>
 </header>
@@ -157,6 +162,19 @@
             <div id="log">Load a GPX to begin.</div>
             <footer class="note">Open‑Meteo forecast is free to use. MeteoBlue requires your API key.</footer>
         </div>
+        <div class="group">
+  <h3>About Me</h3>
+  <div class="info">
+    <p>Hi there - I'm Marti, the creator of this tool.<br>I built it to help my uncle plan his outdoor adventures with smarter weather insights. Hopefully you'll find it helpful too!</p>
+    <p>If you have feedback, ideas, or just want to say hello, let's connect!</p>
+    <ul>
+      <li>LinkedIn: <a href="https://www.linkedin.com/in/martina-cioffi/" target="_blank" class="contact-link">Martina Cioffi</a></li>
+        <li>Email: <a href="mailto:martina.cioffi@live.it?subject=Feedback%20on%20GPX%20Tool" class="contact-link">martina.cioffi@live.it</a></li>
+      <li>GitHub: <a href="https://github.com/martinacioffi" target="_blank" class="contact-link">martinacioffi</a></li>
+    </ul>
+  </div>
+  <!-- <footer class="note">Thanks for using the app — your feedback helps make it better!</footer> -->
+</div>
     </aside>
     <div class="main-col">
         <main id="map"></main>
