@@ -306,6 +306,7 @@ footer.note {
     min-height: 0;
     margin-top: 0;
     max-height: 50vh;
+    padding: 10px 16px 20px;
     }
 
     .charts {
@@ -342,8 +343,6 @@ flex: 1 1 auto;
 min-height: 350px;
 width: 100%;
 margin-top: 10px;
-padding: 10px 16px 20px;
-
 }
 .charts h3 {
   margin: 10px 0 8px;
