@@ -68,6 +68,11 @@ map.on('baselayerchange', function() {
   const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
   updateMapAttribution(currentProvider, currentPictos);
 });
+if (window.innerWidth < 768) {
+  map.scrollWheelZoom.disable(); // prevent accidental zoom while scrolling
+  map.touchZoom.enable();        // allow pinch zoom
+  map.doubleClickZoom.disable(); // optional: disable double-tap zoom
+}
 
   // When provider changes
   providerSel.addEventListener("change", () => {
