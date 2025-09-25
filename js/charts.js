@@ -108,7 +108,7 @@ const DaylightShadingPlugin = {
   }
 };
 
-export function buildTempChartPictograms(series, provider) {
+export function buildTempChart(series, provider, isMobile) {
   destroyChartById("tempChart");
   const ctx = document.getElementById("tempChart").getContext("2d");
 
@@ -150,7 +150,8 @@ export function buildTempChartPictograms(series, provider) {
 
         const img = pictogramCache[pictoName];
         if (img && img.complete) {
-          ctx.drawImage(img, point.x - 10, point.y - 30, 20, 20);
+          const size = isMobile ? 12 : 20;
+          ctx.drawImage(img, point.x - size/2, point.y - size - 10, size, size);
         }
       });
     }
@@ -165,9 +166,12 @@ export function buildTempChartPictograms(series, provider) {
       datasets: [
         {
           type: "line",
-          label: "Temp (°C)",
+          label: "Temperature (°C)",
           data: series.map(s => s.tempC),
           borderColor: "#f9d349",
+          borderWidth: isMobile ? 1 : 3,
+          pointRadius: isMobile ? 2 : 4,
+          pointHoverRadius: isMobile ? 3 : 6,
           backgroundColor: "rgba(249,211,73,0.15)",
           yAxisID: "y",
           datalabels: { display: false },
@@ -176,10 +180,13 @@ export function buildTempChartPictograms(series, provider) {
         },
         {
           type: "line",
-          label: "Felt Temp (°C)",
+          label: "Felt Temperature (°C)",
           data: series.map(s => s.feltTempC),
           borderColor: "#f96949",
           backgroundColor: "rgba(249,211,73,0.15)",
+          borderWidth: isMobile ? 1 : 3,
+          pointRadius: isMobile ? 2 : 4,
+          pointHoverRadius: isMobile ? 3 : 6,
           yAxisID: "y",
           datalabels: { display: false },
           tension: 0.25,
@@ -199,11 +206,13 @@ export function buildTempChartPictograms(series, provider) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: isMobile ? false : true,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: "#e6e8ef" } },
+        legend: { labels: { color: "#e6e8ef", font: { size: isMobile ? 9 : 12 } } },
         tooltip: {
+          bodyFont: { size: isMobile ? 8 : 14 },
+          titleFont: { size: isMobile ? 9 : 16 },
           enabled: true,
           callbacks: {
             title: items => new Date(items[0].parsed.x).toLocaleString()
@@ -219,15 +228,16 @@ export function buildTempChartPictograms(series, provider) {
           offset: false,
           ticks: {
             color: "#e6e8ef",
+            font: { size: isMobile ? 9 : 13 },
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           },
           grid: { color: "rgba(255,255,255,0.06)" },
-          title: { display: true, text: "Time", color: "#a5adba" }
+          title: { display: true, text: "Time", color: "#a5adba", font: { size: isMobile ? 8 : 14 }}
         },
         y: {
           position: "left",
-          title: { display: true, text: "°C", color: "#a5adba" },
-          ticks: { color: "#e6e8ef", padding: 8 },
+          title: { display: true, text: "°C", color: "#a5adba", font: { size: isMobile ? 8 : 14 } },
+          ticks: { color: "#e6e8ef", padding: 8, font: { size: isMobile ? 9 : 13 }},
           grid: { color: "rgba(255,255,255,0.06)" },
           beginAtZero: false,
           suggestedMin: overallYMin - 1,
@@ -239,118 +249,7 @@ export function buildTempChartPictograms(series, provider) {
   });
 }
 
-export function buildTempChart(series) {
-  destroyChartById("tempChart");
-  const ctx = document.getElementById("tempChart").getContext("2d");
-  const xMin = Math.min(...series.map(s => +s.t));
-  const xMax = Math.max(...series.map(s => +s.t));
-  const overallYMax = Math.max(
-  ...series.map(s => s.tempC),
-  ...series.map(s => s.feltTempC)
-);
-  const overallYMin = Math.min(
-  ...series.map(s => s.tempC),
-  ...series.map(s => s.feltTempC)
-);
-
-  return new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: series.map(s => s.t),
-      series,
-      datasets: [
-        {
-          type: "line",
-          label: "Temperature (°C)",
-          data: series.map(s => s.tempC),
-          borderColor: "#f9d349",
-          backgroundColor: "rgba(249,211,73,0.15)",
-          yAxisID: "y",
-          datalabels: { display: false },
-          tension: 0.25,
-          pointStyle: false,
-        },
-        {
-          type: "line",
-          label: "Felt Temperature (°C)",
-          data: series.map(s => s.feltTempC),
-          borderColor: "#f96949",
-          backgroundColor: "rgba(249,211,73,0.15)",
-          yAxisID: "y",
-          datalabels: { display: false },
-          tension: 0.25,
-          pointStyle: false,
-        },
-        {
-          type: "line",
-          label: "", // Icons on top
-          data: series.map(s => ({ x: +s.t, y: overallYMax + 1 })), // fixed y-value
-          borderWidth: 0,
-          pointRadius: 0,
-          yAxisID: "y",
-          datalabels: {
-            display: true,
-            align: "top",
-            anchor: "top",
-            clip: false,
-            formatter: (value, ctx) => {
-              const i = ctx.dataIndex;
-              return getWeatherIcon(series[i].tempC, series[i].precip, series[i].isDay);
-            },
-            font: { size: 18 }
-           },
-          tooltip: { enabled: false }
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          labels: { color: "#e6e8ef" }
-        },
-        tooltip: {
-          enabled: true,
-          callbacks: {
-            title: items => new Date(items[0].parsed.x).toLocaleString()
-          },
-            filter: (ctx) => {
-            // Only include datasets with a label (i.e., exclude icons)
-            return ctx.dataset.label !== "";
-          }
-        },
-      },
-      scales: {
-        x: {
-          type: "linear",
-          min: xMin,
-          max: xMax,
-          offset: false,
-          ticks: {
-            color: "#e6e8ef",
-            callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          },
-          grid: { color: "rgba(255,255,255,0.06)" },
-          title: { display: true, text: "Time", color: "#a5adba" }
-        },
-        y: {
-          position: "left",
-          title: { display: true, text: "°C", color: "#a5adba" },
-          ticks: { color: "#e6e8ef" , padding: 8},
-          grid: { color: "rgba(255,255,255,0.06)" },
-          beginAtZero: false, // Let Chart.js auto-scale
-          suggestedMin: overallYMin - 1,
-          suggestedMax: overallYMax + 2
-        },
-      }
-    },
-    plugins: [ChartDataLabels, BreakShadingPlugin, DaylightShadingPlugin]
-  });
-}
-
-export function buildPrecipChart(series) {
+export function buildPrecipChart(series, isMobile) {
   destroyChartById("precipChart");
   const ctx = document.getElementById("precipChart").getContext("2d");
   const xMin = Math.min(...series.map(s => +s.t));
@@ -367,6 +266,9 @@ export function buildPrecipChart(series) {
           label: "Precipitation Probability (%)",
           data: series.map(s => s.precipProb),
           borderColor: "#003366",
+          borderWidth: isMobile ? 1 : 3,
+          pointRadius: isMobile ? 2 : 4,
+          pointHoverRadius: isMobile ? 3 : 6,
           backgroundColor: "#003366",
           yAxisID: "yProb",
           tension: 0.3,
@@ -384,13 +286,15 @@ export function buildPrecipChart(series) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: isMobile ? false : true,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
-          labels: { color: "#e6e8ef" }
+          labels: { color: "#e6e8ef" , font: { size: isMobile ? 9 : 12 }}
         },
         tooltip: {
+          bodyFont: { size: isMobile ? 8 : 14 },
+          titleFont: { size: isMobile ? 9 : 16 },
           callbacks: {
             title: items => new Date(items[0].parsed.x).toLocaleString()
           }
@@ -401,7 +305,7 @@ export function buildPrecipChart(series) {
     anchor: "end",
     align: "top",
     font: {
-      weight: "bold"
+      weight: "bold", size: isMobile ? 9 : 12
     }
   }
       },
@@ -413,18 +317,20 @@ export function buildPrecipChart(series) {
           offset: false,
           ticks: {
             color: "#e6e8ef",
+            font: { size: isMobile ? 9 : 13 },
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           },
           grid: { color: "rgba(255,255,255,0.06)" },
-          title: { display: true, text: "Time", color: "#a5adba" }
+          title: { display: true, text: "Time", color: "#a5adba", font: { size: isMobile ? 8 : 14 } }
         },
         yPrecip: {
           position: "left",
           beginAtZero: true,
           suggestedMax: Math.ceil(Math.max(...series.map(s => s.precip))),
-          title: { display: true, text: "mm/h", color: "#a5adba" },
+          title: { display: true, text: "mm/h", color: "#a5adba", font: { size: isMobile ? 8 : 14 } },
           ticks: {
           padding: 8,
+          font: { size: isMobile ? 9 : 13 },
           stepSize: 1,
           callback: function(value) {if (value % 1 === 0) {return value;}},
           color: "#e6e8ef" },
@@ -434,9 +340,10 @@ export function buildPrecipChart(series) {
           position: "right",
           beginAtZero: true,
           max: 100,
-          title: { display: true, text: "Probability", color: "#a5adba" },
+          title: { display: true, text: "Probability", color: "#a5adba", font: { size: isMobile ? 8 : 14 } },
           ticks: {
             color: "#e6e8ef",
+            font: { size: isMobile ? 9 : 13 },
             callback: v => `${v}%`
           },
           grid: { drawOnChartArea: false }
@@ -447,7 +354,7 @@ export function buildPrecipChart(series) {
   });
 }
 
-export function buildWindChart(series) {
+export function buildWindChart(series, isMobile) {
   destroyChartById("windChart");
   const ctx = document.getElementById("windChart").getContext("2d");
   const xMin = Math.min(...series.map(s => +s.t));
@@ -461,6 +368,28 @@ export function buildWindChart(series) {
   ...series.map(s => s.gusts)
 );
 
+const WindArrowPlugin = {
+  id: 'windArrows',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const dataset = chart.data.datasets[0]; // or whichever dataset has wind
+    const meta = chart.getDatasetMeta(0);
+
+    meta.data.forEach((point, i) => {
+      const angle = (series[i].windDeg + 180) % 360; // +180 so arrow points where wind goes
+      ctx.save();
+      ctx.translate(point.x, point.y - 10);
+      ctx.rotate((angle * Math.PI) / 180);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${isMobile ? 12 : 20}px Courier New`;
+      ctx.fillStyle = '#e6e8ef';
+      ctx.fillText('↑', 0, 0);
+      ctx.restore();
+    });
+  }
+};
+
   return new Chart(ctx, {
     type: "line",
     data: {
@@ -471,15 +400,22 @@ export function buildWindChart(series) {
           label: "Wind (km/h)",
           data: series.map(s => s.windKmh),
           borderColor: "#f975f2",
+            borderWidth: isMobile ? 1 : 3,
+            pointRadius: isMobile ? 2 : 4,
+            pointHoverRadius: isMobile ? 3 : 6,
           backgroundColor: "rgba(249,117,131,0.15)",
           yAxisID: "yWind",
           tension: 0.25,
           pointStyle: false,
+            datalabels: { display: false }
         },
         {
           label: "Wind Gusts (km/h)",
           data: series.map(s => s.gusts),
           borderColor: "#6a06c2",
+            borderWidth: isMobile ? 1 : 3,
+            pointRadius: isMobile ? 2 : 4,
+            pointHoverRadius: isMobile ? 3 : 6,
           backgroundColor: "rgba(255,209,102,0.15)",
           yAxisID: "yWind",
           tension: 0.25,
@@ -490,24 +426,17 @@ export function buildWindChart(series) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: isMobile ? false : true,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: "#e6e8ef" } },
+        legend: { labels: { color: "#e6e8ef" , font: { size: isMobile ? 9 : 12 } } },
         tooltip: {
           callbacks: {
             title: items => new Date(items[0].parsed.x).toLocaleString()
-          }
-        },
-        datalabels: {
-          display: true,
-          align: 'top',
-          formatter: (value, ctx) => {
-            const i = ctx.dataIndex;
-            return dirArrow8(series[i].windDeg);
           },
-          font: { size: 18 }
-        }
+          bodyFont: { size: isMobile ? 8 : 14 },
+          titleFont: { size: isMobile ? 9 : 16 },
+        },
       },
       scales: {
         x: {
@@ -517,15 +446,17 @@ export function buildWindChart(series) {
           offset: false,
           ticks: {
             color: "#e6e8ef",
+            font: { size: isMobile ? 9 : 13 },
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           },
           grid: { color: "rgba(255,255,255,0.06)" },
-          title: { display: true, text: "Time", color: "#a5adba" }
+          title: { display: true, text: "Time", color: "#a5adba", font: { size: isMobile ? 8 : 14 }
+        }
         },
         yWind: {
           position: "left",
-          title: { display: true, text: "km/h", color: "#a5adba" },
-          ticks: { color: "#e6e8ef" , padding: 8},
+          title: { display: true, text: "km/h", color: "#a5adba", font: { size: isMobile ? 8 : 14 } },
+          ticks: { color: "#e6e8ef" , padding: 8, font: { size: isMobile ? 9 : 13 } },
           grid: { color: "rgba(255,255,255,0.06)" },
           beginAtZero: true,
           suggestedMin: overallYMin - 1,
@@ -533,6 +464,6 @@ export function buildWindChart(series) {
         }
       }
     },
-    plugins: [ChartDataLabels, BreakShadingPlugin, DaylightShadingPlugin]
+    plugins: [ChartDataLabels, BreakShadingPlugin, DaylightShadingPlugin, WindArrowPlugin]
   });
 }

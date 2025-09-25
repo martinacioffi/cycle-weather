@@ -19,44 +19,6 @@ export function getWeatherIcon(tempC, precip, isDay) {
   return "❄️"; // cold/snowy
 }
 
-export function getWeatherIconCombo(tempC, precip, isDay) {
-  // Define base icons for day
-  let icon = "";
-  if (precip >= 4) {
-    icon = "⛈️"; // heavy rain
-  } else if (precip >= 1) {
-    icon = "🌧️"; // rain
-  } else if (precip >= 0.1) {
-    icon = "🌦️"; // light rain
-  } else if (tempC >= 28) {
-    icon = "☀️"; // hot/sunny
-  } else if (tempC >= 18) {
-    icon = "🌤️"; // warm/partly sunny
-  } else if (tempC >= 8) {
-    icon = "⛅"; // mild/cloudy
-  } else if (tempC >= 0) {
-    icon = "☁️"; // cool/cloudy
-  } else {
-    icon = "❄️"; // cold/snowy
-  }
-
-  // Adjust for night
-  if (!isDay) {
-    switch (icon) {
-      case "☀️": icon = "🌙"; break;             // clear night
-      case "🌤️": icon = "🌙☁️"; break;          // partly cloudy night
-      case "⛅": icon = "🌙☁️☁️"; break;         // cloudy night
-      case "☁️": icon = "🌙☁️"; break;          // overcast night
-      case "🌦️": icon = "🌙🌧️"; break;         // light rain at night
-      case "🌧️": icon = "🌙🌧️"; break;         // rain at night
-      case "⛈️": icon = "🌙⛈️"; break;         // thunderstorm at night
-      case "❄️": icon = "🌙❄️"; break;         // snow at night
-    }
-  }
-
-  return icon;
-}
-
 export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0, pictocode = -1, pictos="yr") {
 
   // --- Use pictocode if provided and selected pictogram provider is MeteoBlue ---
@@ -153,25 +115,13 @@ export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, is
   return "04"; // heavily clouded
 }
 
-// Returns a directional arrow based on wind degrees (8-point compass)
 export function dirArrow8(deg) {
-      const dirs = [
-        { a: 0, ch: "↓" },   // from N
-        { a: 45, ch: "↙" },  // from NE
-        { a: 90, ch: "←" },  // from E
-        { a: 135, ch: "↖" }, // from SE
-        { a: 180, ch: "↑" }, // from S
-        { a: 225, ch: "↗" }, // from SW
-        { a: 270, ch: "→" }, // from W
-        { a: 315, ch: "↘" }  // from NW
-      ];
-      let nearest = dirs[0], best = 999;
-      for (const d of dirs) {
-        const diff = Math.abs(((deg - d.a + 540) % 360) - 180);
-        if (diff < best) { best = diff; nearest = d; }
-      }
-      return nearest.ch;
-    }
+  // Normalize degrees to 0–360
+  const angle = ((deg % 360) + 360) % 360;
+
+  // Return a span with inline rotation
+  return `<span class="wind-arrow" style="display:inline-block; transform: rotate(${angle + 180}deg)">↑</span>`;
+}
 
 export function windArrowWithBarbs(deg, windKmh) {
   const rotation = (deg + 180) % 360; // meteorological "from" direction
@@ -248,13 +198,6 @@ export function windArrowWithBarbs(deg, windKmh) {
        <!-- ${barbElements} -->
     </svg>
   `;
-}
-
-export function windBarbs(windKmh) {
-  if (windKmh >= 40) return "≡"; // 3 barbs
-  if (windKmh >= 20) return "="; // 2 barbs
-  if (windKmh >= 5)  return "-"; // 1 barb
-  return ""; // calm
 }
 
 export function ensureMap(provider, pictos) {

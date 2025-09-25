@@ -37,8 +37,31 @@
         <div class="group">
             <h3>Inputs</h3>
 
-            <label for="gpxFile">GPX file</label>
+            <label for="gpxFile" class="help-wrapper">GPX file
+             <button id="gpxHelpBtn" type="button" class="help-btn">?</button>
+            </label>
             <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,*/*"/>
+
+            <!-- Hidden pop-out modal -->
+            <div id="gpxHelpPopover" class="help-popover">
+              <div class="help-popover-content">
+                <h2>What is a GPX file?</h2>
+                <p>
+                    GPX (GPS Exchange Format) files contain route, track, and waypoint data.
+                </p>
+                <p>
+                  You can create one using, for instance:
+                  <ul>
+                    <li><a href="https://gpx.studio/" target="_blank">GPX Studio</a>
+                    <span class="link-note">- fully flexible, create a route from scratch</span>
+                    </li>
+                    <li><a href="https://mapstogpx.com/" target="_blank">Maps to GPX</a>
+                    <span class="link-note">- starting from a Google Maps route</span>
+                    </li>
+                  </ul>
+                </p>
+              </div>
+            </div>
 
             <label for="provider">Weather provider</label>
             <select id="provider">

@@ -15,12 +15,12 @@ import {
 } from './weather.js';
 
 import {
-  ensureMap, dirArrow8, windArrowWithBarbs, getWeatherIcon, windBarbs, routeLayerGroup, getWeatherPictogram,
+  ensureMap, dirArrow8, windArrowWithBarbs, getWeatherIcon, routeLayerGroup, getWeatherPictogram,
   updateMapAttribution
 } from './map.js';
 
 import {
-  buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById, buildTempChartPictograms
+  buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById
 } from './charts.js';
 
 // ---------- Global ----------
@@ -171,6 +171,32 @@ providerSel.addEventListener("change", () => {
 providerSel.addEventListener("change", () => {
   pictogramsProviderRow.style.display = providerSel.value === "meteoblue" ? "block" : "none";
   validateReady();
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("gpxHelpBtn");
+  const popover = document.getElementById("gpxHelpPopover");
+
+  btn.addEventListener("click", (e) => {
+    // Toggle visibility
+    if (popover.style.display === "block") {
+      popover.style.display = "none";
+      return;
+    }
+
+    // Position near the button
+    const rect = btn.getBoundingClientRect();
+    popover.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    popover.style.left = `${rect.left + window.scrollX}px`;
+    popover.style.display = "block";
+  });
+
+  // Hide if clicking outside
+  document.addEventListener("click", (e) => {
+    if (!popover.contains(e.target) && e.target !== btn) {
+      popover.style.display = "none";
+    }
+  });
 });
 
 addBreakBtn.addEventListener("click", () => {
@@ -636,9 +662,10 @@ if (lastEta) {
     precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
     cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, pictocode: r.pictocode, isBreak: r.isBreak }))
     .sort((a,b) => +a.t - +b.t);
-  buildTempChartPictograms(chartSeries, pictos);
-  buildPrecipChart(chartSeries)
-  buildWindChart(chartSeries);
+  const isMobile = window.innerWidth <= 768;
+  buildTempChart(chartSeries, pictos, isMobile);
+  buildPrecipChart(chartSeries, isMobile);
+  buildWindChart(chartSeries, isMobile);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
   else log("Completed successfully.");
