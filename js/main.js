@@ -74,6 +74,11 @@ map.on('baselayerchange', function() {
   const currentProvider = providerSel.value;
   const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
   updateMapAttribution(currentProvider, currentPictos);
+  goatcounter.count({
+    path: `/changedWeatherProvider/${currentProvider}`,
+    title: `Weather Provider Changed to ${currentProvider}`,
+    event: true
+  });
   });
 
   // When pictograms provider changes
@@ -81,6 +86,11 @@ map.on('baselayerchange', function() {
   const currentProvider = providerSel.value;
   const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
   updateMapAttribution(currentProvider, currentPictos);
+  goatcounter.count({
+    path: `/changedPictogramsProvider/${currentPictos}`,
+    title: `Pictograms Provider Changed to ${currentPictos}`,
+    event: true
+  });
   });
 
   map.on("zoomend", () => {
@@ -113,6 +123,11 @@ function addWeatherMarker(marker) {
 
 // ---------- UI wiring ----------
 document.getElementById("demoBtn").addEventListener("click", async () => {
+  goatcounter.count({
+    path: `/demo`,
+    title: `Demo Button Clicked`,
+    event: true
+  });
   try {
     const response = await fetch("assets/DemoOssona.gpx");
     const blob = await response.blob();
@@ -159,6 +174,11 @@ providerSel.addEventListener("change", () => {
 });
 
 addBreakBtn.addEventListener("click", () => {
+  goatcounter.count({
+    path: `/breakButtonClicked`,
+    title: `Break Button Clicked`,
+    event: true
+  });
   const row = document.createElement("div");
   row.className = "break-row";
   row.innerHTML = `
