@@ -1,4 +1,4 @@
-import { getWeatherIcon, dirArrow8, getWeatherPictogram } from './map.js';
+import { dirArrow8, getWeatherPictogram } from './map.js';
 
 export function destroyChartById(canvasId) {
   const existing = Chart.getChart(canvasId);
@@ -17,10 +17,10 @@ function getBreakRanges(series) {
 
   for (let i = 0; i < series.length; i++) {
     if (series[i].isBreak) {
-      if (start === null) start = i;
+      if (start === null) start = i - 1;
     } else {
       if (start !== null) {
-        ranges.push([start, i - 1]);
+        ranges.push([start, i]);
         start = null;
       }
     }

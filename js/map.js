@@ -6,18 +6,6 @@ export let tempLegendControl = null;
 let openTopo, openCycle, openStreet;
 let activeBaseLayer; // currently visible base layer
 
-// Returns a weather icon based on temperature and precipitation and day light
-export function getWeatherIcon(tempC, precip, isDay) {
-  if (precip >= 4) return "⛈️"; // heavy rain
-  if (precip >= 1) return "🌧️"; // rain
-  if (precip >= 0.1) return isDay ? "🌦️" : "🌧️"; // light rain
-
-  if (tempC >= 28) return isDay ? "☀️" : "🌙"; // hot/sunny or clear night
-  if (tempC >= 18) return isDay ? "🌤️" : "🌙"; // warm/partly sunny or clear night
-  if (tempC >= 8) return isDay ? "⛅": "☁️"; // mild/cloudy (same for day/night)
-  if (tempC >= 0) return "☁️"; // cool/cloudy
-  return "❄️"; // cold/snowy
-}
 
 export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0, pictocode = -1, pictos="yr") {
 
@@ -118,7 +106,6 @@ export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, is
 export function dirArrow8(deg) {
   // Normalize degrees to 0–360
   const angle = ((deg % 360) + 360) % 360;
-
   // Return a span with inline rotation
   return `<span class="wind-arrow" style="display:inline-block; transform: rotate(${angle + 180}deg)">↑</span>`;
 }

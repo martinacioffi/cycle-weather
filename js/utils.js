@@ -29,38 +29,6 @@ export function bearing(lat1, lon1, lat2, lon2) {
   return (θ * 180 / Math.PI + 360) % 360;
 }
 
-export function convertWindToGrade(speed, unit = 'knots') {
-  // Convert to knots if needed
-  let knots;
-  switch (unit) {
-    case 'knots':
-      knots = speed;
-      break;
-    case 'km/h':
-      knots = speed / 1.852;
-      break;
-    case 'mph':
-      knots = speed / 1.151;
-      break;
-    default:
-      throw new Error(`Unsupported unit: ${unit}`);
-  }
-
-  if (knots <= 1) return 0;
-  if (knots <= 3) return 1;
-  if (knots <= 6) return 2;
-  if (knots <= 10) return 3;
-  if (knots <= 16) return 4;
-  if (knots <= 21) return 5;
-  if (knots <= 27) return 6;
-  if (knots <= 33) return 7;
-  if (knots <= 40) return 8;
-  if (knots <= 47) return 9;
-  if (knots <= 55) return 10;
-  if (knots <= 63) return 11;
-  return 12;
-}
-
 // ---------- Formatting ----------
 export function formatKm(m) {
   return (m / 1000).toFixed(2) + " km";
@@ -106,55 +74,6 @@ export function roundToNearestQuarter(date) {
   const min = String(rounded.getMinutes()).padStart(2, "0");
 
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-}
-
-export function utcQuarterISO(d) {
-  const date = new Date(d.getTime()); // clone so we don’t mutate the original
-
-  const mins = date.getUTCMinutes();
-  const secs = date.getUTCSeconds();
-  const ms = date.getUTCMilliseconds();
-
-  // Convert total minutes (with fractional) for easy rounding
-  const totalMins = mins + secs / 60 + ms / 60000;
-
-  // 15-minute chunks in an hour
-  const chunk = 15;
-
-  // Round to nearest chunk
-  const roundedChunk = Math.round(totalMins / chunk) * chunk;
-
-  // Handle wrap‑around (e.g., 60 → next hour)
-  if (roundedChunk === 60) {
-    date.setUTCHours(date.getUTCHours() + 1);
-    date.setUTCMinutes(0, 0, 0);
-  } else {
-    date.setUTCMinutes(roundedChunk, 0, 0);
-  }
-
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d2 = String(date.getUTCDate()).padStart(2, "0");
-  const h = String(date.getUTCHours()).padStart(2, "0");
-  const mm = String(date.getUTCMinutes()).padStart(2, "0");
-
-  return `${y}-${m}-${d2}T${h}:${mm}`;
-}
-
-export function utcHourISO(d) {
-  const date = new Date(d.getTime());
-  const mins = date.getUTCMinutes();
-  const secs = date.getUTCSeconds();
-  const ms = date.getUTCMilliseconds();
-  if (mins > 30 || (mins === 30 && (secs > 0 || ms > 0))) {
-    date.setUTCHours(date.getUTCHours() + 1);
-  }
-  date.setUTCMinutes(0, 0, 0);
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d2 = String(date.getUTCDate()).padStart(2, "0");
-  const h = String(date.getUTCHours()).padStart(2, "0");
-  return `${y}-${m}-${d2}T${h}:00`;
 }
 
 // ---------- Logging ----------

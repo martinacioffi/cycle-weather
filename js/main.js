@@ -1,13 +1,12 @@
 import {
-  haversine, bearing, formatKm, formatDuration, speedToMps, utcHourISO,
+  haversine, bearing, formatKm, formatDuration, speedToMps,
   log, lerp, hexToRgb, rgbToHex, lerpColor, PALETTE, colorFromPalette,
-  makeTempColorer, updateLegend, getPercentInput, convertWindToGrade,
-  utcQuarterISO, roundToNearestQuarter
+  makeTempColorer, updateLegend, getPercentInput, roundToNearestQuarter
 } from './utils.js';
 
 import {
   parseGPX, cumulDistance, segmentBearings, buildSampleIndices,
-  getBreaks, breakOffsetSeconds, nearestByIdx, getBreakTimeWindows, insertBreaksIntoPoints
+  getBreaks, breakOffsetSeconds, nearestByIdx, insertBreaksIntoPoints
 } from './gpx.js';
 
 import {
@@ -15,7 +14,7 @@ import {
 } from './weather.js';
 
 import {
-  ensureMap, dirArrow8, windArrowWithBarbs, getWeatherIcon, routeLayerGroup, getWeatherPictogram,
+  ensureMap, dirArrow8, windArrowWithBarbs, routeLayerGroup, getWeatherPictogram,
   updateMapAttribution
 } from './map.js';
 
@@ -56,23 +55,21 @@ window.addEventListener("DOMContentLoaded", () => {
   startTimeInput.value =
     `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`;
 
-  // Default speed
-  speedInput.value = 14;
-
   // Initialize map
   const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
   map = ensureMap(providerSel.value, pictos);
   // Initial attribution sync
-map.on('baselayerchange', function() {
-  const currentProvider = providerSel.value;
-  const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
-  updateMapAttribution(currentProvider, currentPictos);
-});
-if (window.innerWidth < 768) {
-  map.scrollWheelZoom.disable(); // prevent accidental zoom while scrolling
-  map.touchZoom.enable();        // allow pinch zoom
-  map.doubleClickZoom.disable(); // optional: disable double-tap zoom
-}
+  map.on('baselayerchange', function() {
+    const currentProvider = providerSel.value;
+    const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+    updateMapAttribution(currentProvider, currentPictos);
+  });
+
+  if (window.innerWidth < 768) {
+    map.scrollWheelZoom.disable(); // prevent accidental zoom while scrolling
+    map.touchZoom.enable();        // allow pinch zoom
+    map.doubleClickZoom.disable(); // optional: disable double-tap zoom
+  }
 
   // When provider changes
   providerSel.addEventListener("change", () => {
@@ -337,11 +334,6 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   const pointsRaw = parseGPX(gpxText);
   const breaks = getBreaks(pointsRaw);
   const points = insertBreaksIntoPoints(pointsRaw, breaks, minTimeSpacing);
-  log(`Route has ${pointsRaw.length} points, ${formatKm(cumulDistance(points).total)} total.`);
-  log(`Expected travel time (no breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps)} at an average speed of ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
-    if (breaks.length) {
-        log(`Expected travel time (with breaks): ${formatDuration(cumulDistance(points).total / avgSpeedMps + breakOffsetSeconds(cumulDistance(points).total, breaks))}.`);
-    }
   const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
   map.fitBounds(bounds.pad(0.1));
 
@@ -372,7 +364,6 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   for (const b of breaks) {
     const breakFlag = L.divIcon({
       html:
-      //'<span class="break-icon" style="font-size:20px; color:orange;">📌</span>',
       `<div class="break-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: right;">
             <span style="font-size:16px; vertical-align: top;">📌</span>`,
       className: "",
@@ -384,147 +375,46 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
       .bindPopup(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
   }
 
-  const travelTimeSec = total / avgSpeedMps;
-  const totalBreaks = breakOffsetSeconds(total, breaks);
-  const durationSec = travelTimeSec + totalBreaks;
-
-  document.getElementById("statDistance").textContent = formatKm(total);
-  document.getElementById("statDuration").textContent = formatDuration(durationSec);
-
   // Grey base line
   const baseLine = L.polyline(points.map(p => [p.lat, p.lon]), { color: "#777", weight: 3, opacity: 0.35 });
   routeLayerGroup.addLayer(baseLine);
 
   // Sampling
-  const sampleIdx = buildSampleIndices(points, cum, maxCalls, minSpacing, minTimeSpacing, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
+  const sampleIdx = buildSampleIndices(points, brngs, cum, maxCalls, minSpacing, minTimeSpacing, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
   log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacing} m).`);
-  console.log('Sample indices', sampleIdx);
-  const segmentSpeeds = [];
-
-    for (let s = 0; s < sampleIdx.length - 1; s++) {
-      const i1 = sampleIdx[s];
-      const i2 = sampleIdx[s + 1];
-
-      const p1 = points[i1];
-      const p2 = points[i2];
-      const dist = cum[i2] - cum[i1];
-      const elev1 = p1.ele ?? 0;
-      const elev2 = p2.ele ?? 0;
-      const slope = (elev2 - elev1) / dist ?? 0;
-
-      let speed;
-      // If both points are break samples from the same break, set speed to 0
-      if (
-        p1.isBreak && p2.isBreak &&
-        p1.breakIdx !== undefined && p1.breakIdx === p2.breakIdx
-      ) {
-        speed = 0;
-      } else {
-        speed = avgSpeedMps;
-        if (slope > 0.05) speed = avgSpeedMpsUp;
-        else if (slope < -0.04) speed = avgSpeedMpsDown;
-      }
-      segmentSpeeds.push({ from: i1, to: i2, speed });
+  const durationSec = sampleIdx[sampleIdx.length - 1].accumTime;
+  const durationMeters = sampleIdx[sampleIdx.length - 1].accumDist;
+  log(`Route has ${pointsRaw.length} points, ${formatKm(cumulDistance(points).total)} total.`);
+  log(`Expected travel time (no breaks): ${formatDuration(durationSec - breakOffsetSeconds(cumulDistance(points).total, breaks))} at an average speed of ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
+    if (breaks.length) {
+        log(`Expected travel time (with breaks): ${formatDuration(durationSec)}.`);
     }
+  document.getElementById("statDistance").textContent = formatKm(durationMeters);
+  document.getElementById("statDuration").textContent = formatDuration(durationSec);
+
   // Fetch forecasts
-  const results = []; // { idx, lat, lon, eta, etaISOHour, tempC, windKmH, windDeg, precip, travelBearing }
+  const results = [];
   const errors = [];
   const CONCURRENCY = 8;
   let i = 0;
 
 async function worker() {
-  let lastBreakEndSec = null;
-  let breakStartSec = null;
-  let lastWasBreak = false;
-  const breakTimes = {}; // { [breakIdx]: { start: sec, end: sec } }
 
   while (i < sampleIdx.length) {
     const my = i++;
-    const idx = sampleIdx[my];
-    const p = points[idx];
-
-    let etaSec = 0;
-    // If this is the first break sample, record break start
-    if (p.isBreak && p.breakSample === 0) {
-      // Find the last normal point before this break
-      let lastNormalIdx = idx - 1;
-      while (lastNormalIdx >= 0 && points[lastNormalIdx].isBreak) lastNormalIdx--;
-      let etaSec = 0;
-      for (const seg of segmentSpeeds) {
-        if (seg.to > lastNormalIdx) break;
-        const segDist = cum[seg.to] - cum[seg.from];
-        if (seg.speed === 0) continue;
-        etaSec += segDist / seg.speed;
-      }
-      etaSec += breakOffsetSeconds(cum[lastNormalIdx], breaks);
-        breakTimes[p.breakIdx] = {
-          start: etaSec,
-          end: etaSec + breaks[p.breakIdx].durSec
-        };
-        breakStartSec = breakTimes[p.breakIdx].start;
-        lastBreakEndSec = breakTimes[p.breakIdx].end;
-        lastWasBreak = true;
-    }
-
-if (p.isBreak) {
-  // If breakTimes for this breakIdx is not set, compute it now
-  if (!breakTimes[p.breakIdx]) {
-    // Find the last normal point before this break
-    let lastNormalIdx = idx - 1;
-    while (lastNormalIdx >= 0 && points[lastNormalIdx].isBreak) lastNormalIdx--;
-    let etaSecTmp = 0;
-    for (const seg of segmentSpeeds) {
-      if (seg.to > lastNormalIdx) break;
-      const segDist = cum[seg.to] - cum[seg.from];
-      if (seg.speed === 0) continue;
-      etaSecTmp += segDist / seg.speed;
-    }
-    etaSecTmp += breakOffsetSeconds(cum[lastNormalIdx], breaks);
-    breakTimes[p.breakIdx] = {
-      start: etaSecTmp,
-      end: etaSecTmp + breaks[p.breakIdx].durSec
-    };
-  }
-  const spacingSec = minTimeSpacing * 60;
-  const bt = breakTimes[p.breakIdx];
-  breakStartSec = bt.start;
-  lastBreakEndSec = bt.end;
-  etaSec = breakStartSec + (p.breakSample ?? 0) * spacingSec;
-  lastWasBreak = true;
-}
-    else if (lastWasBreak && lastBreakEndSec !== null) {
-      etaSec = lastBreakEndSec;
-      lastBreakEndSec = null;
-      breakStartSec = null;
-      lastWasBreak = false;
-    } else {
-      // Normal segment: sum as usual
-      for (const seg of segmentSpeeds) {
-        if (seg.to > idx) break;
-        const segDist = cum[seg.to] - cum[seg.from];
-        if (seg.speed === 0) continue;
-        etaSec += segDist / seg.speed;
-      }
-      etaSec += breakOffsetSeconds(cum[idx], breaks);
-      lastWasBreak = false;
-    }
-
-    const eta = new Date(startDate.getTime() + etaSec * 1000);
-    const etaISOHour = roundToNearestQuarter(eta);  //utcQuarterISO(eta); //
-    const travelBearing = brngs[idx];
+    const p = sampleIdx[my];
 
     try {
       const fc = await getForecast(p.lat, p.lon, provider, mbKey);
-      const k = pickHourAt(fc, etaISOHour);
+      const roundedEta = p.etaQuarter;
+      const k = pickHourAt(fc, roundedEta);
       if (k === -1) {
-        errors.push({ idx, reason: "Time out of forecast range", etaISOHour });
-        log(`No forecast at ${etaISOHour} for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
+        errors.push({ my, reason: "Time out of forecast range", roundedEta });
+        log(`No forecast at ${roundedEta} for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
         continue;
       }
       results.push({
         ...p,
-        eta,
-        etaISOHour,
         tempC: Number(fc.tempC[k]),
         feltTempC: Number(fc.feltTempC[k]),
         gusts: Number(fc.windGusts[k]),
@@ -536,18 +426,19 @@ if (p.isBreak) {
         cloudCoverLow: Number(fc.cloudCoverLow[k]),
         isDay: Number(fc.isDay[k]),
         pictocode: Number(fc.pictocode[k] ?? -1),
-        travelBearing
       });
     } catch (e) {
-      errors.push({ idx, reason: e.message });
-      log(`Forecast error @${idx}: ${e.message}`);
+      errors.push({ my, reason: e.message });
+      log(`Forecast error @${my}: ${e.message}`);
     }
   }
 }
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
 
-  results.sort((a,b) => a.eta - b.eta);
+  // results.sort((a,b) => a.eta - b.eta);
+  // sort by distMeters
+  results.sort((a, b) => a.distMeters - b.distMeters);
   console.log('sorted results', results);
   if (!results.length) { log("No forecast results to render."); return; }
   const lastEta = results[results.length - 1]?.eta;
@@ -598,15 +489,12 @@ if (lastEta) {
 
   // Sample markers with icons + popups
   for (const r of results) {
-    // const weatherIcon = getWeatherIcon(r.tempC, r.precip, r.isDay);
-    // Comment to use simple emojis instead of Yr weather icons
     const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts, r.pictocode, pictos);
     const imgSrc = pictos === "meteoblue" ? `images/meteoblue_pictograms/${weatherIcon}.svg` : `images/yr_weather_symbols/${weatherIcon}.svg`;
     const isNight = weatherIcon.endsWith("night");
     const bgColor = pictos === "meteoblue" ? (isNight ? "#003366" : "#90c8fc") : "white";
     const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
 
-    // Comment to use simple emojis instead of Yr weather icons
     const icon = L.divIcon({
        html: `
         <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center; gap:0px;">
@@ -623,21 +511,6 @@ if (lastEta) {
       iconSize: [42, 42],
       iconAnchor: [22, 26]
     });
-
-
-    /*const icon = L.divIcon({
-       html: `
-        <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center;">
-            <span style="font-size:16px; vertical-align: middle;">${weatherIcon}</span>
-        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-          <img src="images/beaufort_scale/wind${windGrade}.svg"
-               style="width: 100%; height: 100%; object-fit: contain; margin-top: -8px;" />
-        </div>
-        </div>`,
-      className: "",
-      iconSize: [20, 22],
-      iconAnchor: [10, 11]
-    });*/
 
     const marker = L.marker([r.lat, r.lon], { icon }).addTo(routeLayerGroup);
     addWeatherMarker(marker);

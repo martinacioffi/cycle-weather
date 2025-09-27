@@ -1,4 +1,4 @@
-import { haversine, bearing } from './utils.js';
+import { haversine, bearing, roundToNearestQuarter } from './utils.js';
 
 // ---------- GPX Parsing ----------
 export function parseGPX(xmlText) {
@@ -43,10 +43,15 @@ export function cumulDistance(points) {
 
 export function segmentBearings(points) {
   const br = [];
+  /*  Use this instead to have bearing point to next segment (i.e. the first point has bearing to second point)
   for (let i = 0; i < points.length - 1; i++) {
-    br.push(bearing(points[i].lat, points[i].lon, points[i + 1].lat, points[i + 1].lon));
+  br.push(bearing(points[i].lat, points[i].lon, points[i + 1].lat, points[i + 1].lon));
   }
-  br.push(br[br.length - 1]);
+  br.push(br[br.length - 1]);*/
+  br[0] = null;
+  for (let i = 1; i < points.length; i++) {
+    br.push(bearing(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon));
+  }
   return br;
 }
 
@@ -76,7 +81,7 @@ export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 15) {
       const ele = p1.ele != null && p2.ele != null ? p1.ele + frac * (p2.ele - p1.ele) : null;
 
       // Insert all break samples at this location
-      const numBreakSamples = Math.max(1, Math.ceil(b.durSec / spacingSec));
+      const numBreakSamples = Math.max(2, Math.ceil(b.durSec / spacingSec));
       for (let j = 0; j < numBreakSamples; j++) {
         newPoints.push({
           lat, lon, ele,
@@ -114,7 +119,7 @@ function normalizeBreaks(breaks) {
   return Object.values(breaks);
 }
 
-export function buildSampleIndices(points, cum, maxCalls, minSpacingMeters, minSpacingMinutes, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaksRaw = []) {
+export function buildSampleIndices(points, brngs, cum, maxCalls, minSpacingMeters, minSpacingMinutes, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaksRaw = []) {
   const n = points.length;
   if (!avgSpeedMpsUp) avgSpeedMpsUp = avgSpeedMps;
   if (!avgSpeedMpsDown) avgSpeedMpsDown = avgSpeedMps;
@@ -122,11 +127,12 @@ export function buildSampleIndices(points, cum, maxCalls, minSpacingMeters, minS
   const breaks = normalizeBreaks(breaksRaw);
   const accumDist = [0];
   const accumTime = [0];
+  const slopes = [0];
+  const speeds = [0];
   let inBreak = false;
   let breakStartTime = 0;
   let breakStartAccumTime = 0;
   let breakDurSec = 0;
-
 
   // --- Phase A: Precompute ---
 for (let i = 1; i < n; i++) {
@@ -135,27 +141,42 @@ for (let i = 1; i < n; i++) {
   const dist = curDist - prevDist;
 
   let segTime = 0;
+  let slope = 0;
+  let speed = avgSpeedMps;
 
   if (points[i].isBreak) {
     // If this is the first break point, record break start
     if (!inBreak) {
-      inBreak = true;
-      breakStartTime = accumTime[i - 1];
-      // Find the break object for this location
-      const br = breaks.find(b => Math.abs(b.distMeters - curDist) < 1);
-      breakDurSec = br ? br.durSec : 0;
-      // breakStartAccumTime = breakStartTime;
+        const elev1 = points[i - 1].ele ?? 0;
+        const elev2 = points[i].ele ?? 0;
+        const slope = dist > 0 ? (elev2 - elev1) / dist : 0;
+        let speed = avgSpeedMps;
+        if (slope > 0.05) speed = avgSpeedMpsUp;
+        else if (slope < -0.04) speed = avgSpeedMpsDown;
+        // Time to reach this break point from previous real point
+        segTime = dist / speed;
+        inBreak = true;
+        breakStartTime = accumTime[i - 1] + segTime;
+        // Find the break object for this location
+        const br = breaks.find(b => Math.abs(b.distMeters - curDist) < 1);
+        breakDurSec = br ? br.durSec : 0;
+        slopes[i] = slope;
+        speeds[i] = speed;
     }
-    // During break: space points by minTimeSpacing
-    segTime = minSpacingMinutes * 60;
+    else {
+        // During break: space points by minTimeSpacing
+        segTime = minSpacingMinutes * 60;
+        slopes[i] = 0;
+        speeds[i] = 0;
+    }
   } else {
     if (inBreak) {
-      // This is the first real point after the break
-      inBreak = false;
-      // Force the time jump to match the full break duration
-      const alreadyAdded = accumTime[i - 1] - breakStartTime;
-      const remaining = breakDurSec - alreadyAdded;
-      if (remaining > 0) segTime += remaining;
+        // This is the first real point after the break
+        inBreak = false;
+        // Force the time jump to match the full break duration
+        const alreadyAdded = accumTime[i - 1] - breakStartTime;
+        const remaining = breakDurSec - alreadyAdded;
+        if (remaining > 0) segTime += remaining;
     }
     // Add normal travel time
     const elev1 = points[i - 1].ele ?? 0;
@@ -165,6 +186,8 @@ for (let i = 1; i < n; i++) {
     if (slope > 0.05) speed = avgSpeedMpsUp;
     else if (slope < -0.04) speed = avgSpeedMpsDown;
     segTime += speed > 0 ? dist / speed : 0;
+    slopes[i] = slope;
+    speeds[i] = speed;
   }
 
   accumDist[i] = accumDist[i - 1] + dist;
@@ -177,7 +200,6 @@ for (let i = 1; i < n; i++) {
     const lastIdx = filteredIdx[filteredIdx.length - 1];
     const distSinceLast = accumDist[i] - accumDist[lastIdx];
     const timeSinceLast = accumTime[i] - accumTime[lastIdx];
-
     if (distSinceLast >= minSpacingMeters || timeSinceLast >= minSpacingMinutes * 60) {
       filteredIdx.push(i);
     }
@@ -186,6 +208,20 @@ for (let i = 1; i < n; i++) {
     filteredIdx.push(n - 1);
   }
 
+const mapToPoints = (indices) =>
+  indices.map(i => {
+    const eta = new Date(startDate.getTime() + accumTime[i] * 1000);
+    return {
+      ...points[i],
+      travelBearing: brngs[i],
+      accumDist: accumDist[i],
+      accumTime: accumTime[i],
+      slope: slopes[i],
+      speedMps: speeds[i],
+      eta,                        // raw ETA
+      etaQuarter: roundToNearestQuarter(eta) // rounded to nearest 15 min
+    };
+  });
 
   // --- Phase C: Resample evenly in time ---
   if (filteredIdx.length > maxCalls) {
@@ -209,10 +245,10 @@ for (let i = 1; i < n; i++) {
     if (resampled[resampled.length - 1] !== filteredIdx[filteredIdx.length - 1]) {
       resampled.push(filteredIdx[filteredIdx.length - 1]);
     }
-    return resampled;
+    return mapToPoints(resampled);
   }
 
-  return filteredIdx;
+  return mapToPoints(filteredIdx);
 }
 
 // ---------- Breaks ----------
@@ -253,14 +289,6 @@ export function breakOffsetSeconds(distanceMeters, breaks) {
     if (distanceMeters >= b.distMeters) sum += b.durSec;
   }
   return sum;
-}
-
-export function getBreakTimeWindows(breaks, getTimeForDistance) {
-  return breaks.map(b => {
-    const startTime = getTimeForDistance(b.distMeters);
-    const endTime = startTime + b.durSec;
-    return { startTime, endTime };
-  });
 }
 
 // ---------- Utility ----------
