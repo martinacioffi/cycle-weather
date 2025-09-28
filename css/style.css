@@ -87,8 +87,6 @@ display: none !important;
   min-height: calc(100vh - 60px);
 }
 .side {
-  border-right: 1px solid var(--line);
-  background: var(--panel);
   padding: 16px;
   display: flex;
   flex-direction: column;
