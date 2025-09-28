@@ -84,11 +84,11 @@ export function log(msg) {
 }
 
 // ---------- Color Interpolation ----------
-export function lerp(a, b, t) {
+function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-export function hexToRgb(hex) {
+function hexToRgb(hex) {
   return {
     r: parseInt(hex.slice(1, 3), 16),
     g: parseInt(hex.slice(3, 5), 16),
@@ -96,12 +96,12 @@ export function hexToRgb(hex) {
   };
 }
 
-export function rgbToHex({ r, g, b }) {
+function rgbToHex({ r, g, b }) {
   const c = x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0");
   return "#" + c(r) + c(g) + c(b);
 }
 
-export function lerpColor(c1, c2, t) {
+function lerpColor(c1, c2, t) {
   const a = hexToRgb(c1), b = hexToRgb(c2);
   return rgbToHex({
     r: lerp(a.r, b.r, t),
@@ -110,46 +110,70 @@ export function lerpColor(c1, c2, t) {
   });
 }
 
-export const PALETTE = ["#2c7bb6", "#abd9e9", "#ffffbf", "#fdae61", "#d7191c"];
+const TEMP_PALETTE = ["#2c7bb6", "#abd9e9", "#ffffbf", "#fdae61", "#d7191c"];
+const WIND_PALETTE = ["#d7191c", "#fdae61", "#cccccc", "#a6d96a", "#1a9641"];
 
-export function colorFromPalette(t01) {
-  const n = PALETTE.length - 1;
-  if (t01 <= 0) return PALETTE[0];
-  if (t01 >= 1) return PALETTE[n];
+function colorFromPalette(t01, type = "temp") {
+  const palette = (type === "wind") ? WIND_PALETTE : TEMP_PALETTE;
+  const n = palette.length - 1;
+  if (t01 <= 0) return palette[0];
+  if (t01 >= 1) return palette[n];
   const pos = t01 * n;
   const i = Math.floor(pos);
   const frac = pos - i;
-  return lerpColor(PALETTE[i], PALETTE[i + 1], frac);
+  return lerpColor(palette[i], palette[i + 1], frac);
 }
 
-export function makeTempColorer(minTemp, maxTemp) {
-  const span = Math.max(0.1, maxTemp - minTemp);
-  return function tempToColorDynamic(tempC) {
-    const t = Math.max(minTemp, Math.min(maxTemp, tempC));
-    const pct = (t - minTemp) / span;
-    return colorFromPalette(pct);
+export function makeColorer(min, max, type = "temp") {
+  const span = Math.max(0.1, max - min);
+
+  return function toColor(value) {
+    const clamped = Math.max(min, Math.min(max, value));
+    const pct = (clamped - min) / span;
+    return colorFromPalette(pct, type);
   };
 }
 
-export function updateLegend(minTemp, maxTemp) {
-  const bar = document.getElementById("legendBar");
-  const ticks = document.getElementById("legendTicks");
-  const stops = PALETTE.map((c, i, arr) => {
-    const pct = Math.round((i / (arr.length - 1)) * 100);
-    return `${c} ${pct}%`;
-  }).join(", ");
+function angleDiff(a, b) {
+  let d = (a - b + 540) % 360 - 180;
+  return d;
+}
+
+export function effectiveWind(bearingDeg, windFromDeg, windSpeed) {
+  if (windSpeed == null) return 0;
+  const rel = angleDiff(bearingDeg, windFromDeg);
+  const factor = - Math.cos((rel * Math.PI) / 180); // in radians
+  return windSpeed * factor; // - = headwind, + = tailwind
+}
+
+export function updateLegendRange(minVal, maxVal, barId, ticksId, type = "temp") {
+  const palette = (type === "wind") ? WIND_PALETTE : TEMP_PALETTE;
+  const bar = document.getElementById(barId);
+  const ticks = document.getElementById(ticksId);
+  if (!bar || !ticks) return;
+
+  const stops = palette.map((c, i, arr) => `${c} ${Math.round((i/(arr.length-1))*100)}%`).join(", ");
   bar.style.background = `linear-gradient(90deg, ${stops})`;
 
-  const t0 = minTemp;
-  const t1 = minTemp + (maxTemp - minTemp) * 0.25;
-  const t2 = minTemp + (maxTemp - minTemp) * 0.5;
-  const t3 = minTemp + (maxTemp - minTemp) * 0.75;
-  const t4 = maxTemp;
+  const t0 = minVal,
+        t1 = minVal + (maxVal - minVal) * 0.25,
+        t2 = minVal + (maxVal - minVal) * 0.5,
+        t3 = minVal + (maxVal - minVal) * 0.75,
+        t4 = maxVal;
+
+  // Format numbers differently for wind
+  function fmt(val) {
+    if (type === "wind") {
+      return Math.abs(val).toFixed(0); // show magnitude only
+    }
+    return val.toFixed(0);
+  }
+
   ticks.innerHTML = `
-    <span>${t0.toFixed(0)}</span>
-    <span>${t1.toFixed(0)}</span>
-    <span>${t2.toFixed(0)}</span>
-    <span>${t3.toFixed(0)}</span>
-    <span>${t4.toFixed(0)}</span>
+    <span>${fmt(t0)}</span>
+    <span>${fmt(t1)}</span>
+    <span>${fmt(t2)}</span>
+    <span>${fmt(t3)}</span>
+    <span>${fmt(t4)}</span>
   `;
 }

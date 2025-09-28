@@ -2,6 +2,7 @@
 export let map = null;
 export let routeLayerGroup = null;
 export let tempLegendControl = null;
+export let windLegendControl = null;
 
 let openTopo, openCycle, openStreet;
 let activeBaseLayer; // currently visible base layer
@@ -188,18 +189,35 @@ export function windArrowWithBarbs(deg, windKmh) {
 }
 
 export function ensureMap(provider, pictos) {
-      if (map) return;
+      if (map) return { map, layerControl: null, baseLayers: null, overlays: null, weatherLayerGroup: null };
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
       routeLayerGroup = L.layerGroup().addTo(map);
 
       // Also add floating legend on map
       tempLegendControl = L.control({ position: "bottomright" });
       tempLegendControl.onAdd = function() {
-        const div = L.DomUtil.create("div", "legend-temp");
+        const div = L.DomUtil.create("div", "legend");
         div.innerHTML = `
           <div><strong>Temperature (°C)</strong></div>
           <div class="legend-bar" id="legendBarMap"></div>
           <div class="legend-ticks" id="legendTicksMap">
+            <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
+          </div>
+        `;
+        return div;
+      };
+
+        // Wind legend control
+      windLegendControl = L.control({ position: "bottomright" });
+      windLegendControl.onAdd = function() {
+        const div = L.DomUtil.create("div", "legend");
+        div.innerHTML = `
+          <div class="legend-labels">
+          <span>Head wind</span>
+          <span>Tail wind</span>
+        </div>
+          <div class="legend-bar" id="legendBarMapWind"></div>
+          <div class="legend-ticks" id="legendTicksMapWind">
             <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
           </div>
         `;
@@ -240,14 +258,79 @@ export function ensureMap(provider, pictos) {
       "OpenCycleMap": openCycle,
       "OpenStreetMap": openStreet
     };
-    L.control.layers(baseLayers).addTo(map);
 
     map.on('baselayerchange', function(e) {
       activeBaseLayer = e.layer;
     });
-      tempLegendControl.addTo(map);
-      return map;
+
+    map.on('overlayadd', function(e) {
+      if (e.name === "Temperature") {
+        document.getElementById("legendTempBox").style.display = "block";
+        document.getElementById("legendWindBox").style.display = "none";
+        map.removeControl(windLegendControl);
+        tempLegendControl.addTo(map);
+      }
+      if (e.name === "Wind") {
+        document.getElementById("legendTempBox").style.display = "none";
+        document.getElementById("legendWindBox").style.display = "block";
+        map.removeControl(tempLegendControl);
+        windLegendControl.addTo(map);
+      }
+    });
+
+    tempLegendControl.addTo(map);
+
+    const tempLayerGroup = L.layerGroup().addTo(map);
+    const windLayerGroup = L.layerGroup();
+    const overlays = {
+       "Temperature": tempLayerGroup,
+       "Wind": windLayerGroup
+     };
+
+    // Create a dedicated group for weather markers
+    const weatherLayerGroup = L.layerGroup().addTo(map);
+    const weatherToggle = new WeatherToggleControl(weatherLayerGroup, { position: "topright" }).addTo(map);
+    const layerControl = L.control.layers(baseLayers, overlays, { collapsed: true }).addTo(map);
+
+    return { map, layerControl, baseLayers, overlays, weatherLayerGroup };
     }
+
+const WeatherToggleControl = L.Control.extend({
+  initialize: function(layerGroup, options) {
+    this._layerGroup = layerGroup;
+    L.setOptions(this, options);
+  },
+  onAdd: function(map) {
+    const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+    const btn = L.DomUtil.create("a", "", container);
+    btn.innerHTML = " ☀️ ";
+    btn.href = "#";
+    btn.title = "Hide weather markers";
+    btn.style.width = "44px";
+    btn.style.display = "block";
+    btn.style.textAlign = "center";
+
+    let visible = true;
+
+    L.DomEvent.on(btn, "click", (e) => {
+      L.DomEvent.stopPropagation(e);
+      L.DomEvent.preventDefault(e);
+
+      if (visible) {
+        map.removeLayer(this._layerGroup);
+        btn.style.opacity = "0.5";
+        btn.title = "Show weather markers";
+      } else {
+        map.addLayer(this._layerGroup);
+        btn.style.opacity = "1";
+        btn.title = "Hide weather markers";
+      }
+      visible = !visible;
+    });
+
+    return container;
+  }
+});
 
 function buildAttribution(provider, pictos) {
   const weatherAttr = provider === "meteoblue"

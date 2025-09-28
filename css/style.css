@@ -81,6 +81,15 @@ header .sub {
 #legendTempBox {
 display: none !important;
 }
+#legendWindBox {
+display: none !important;
+}
+.legend-labels {
+  display: flex;
+  justify-content: space-between; /* pushes one left, one right */
+  font-weight: bold;
+  margin-bottom: 4px;
+}
 .wrap {
   display: grid;
   grid-template-columns: 380px 1fr;
@@ -214,7 +223,7 @@ button:disabled { opacity: 0.6; cursor: default; }
 .leaflet-container {
 touch-action: auto;
 }
-.legend-temp {
+.legend {
   padding: 8px 10px;
   background: #11151c;
   border: 1px solid var(--line);
@@ -276,7 +285,7 @@ html, body {
     width: 100%;
     top: 0;
     }
-    .legend-temp {
+    .legend {
     font-size: 10px;
     padding: 4px 6px;
     }

@@ -1,7 +1,7 @@
 import {
-  haversine, bearing, formatKm, formatDuration, speedToMps,
-  log, lerp, hexToRgb, rgbToHex, lerpColor, PALETTE, colorFromPalette,
-  makeTempColorer, updateLegend, getPercentInput, roundToNearestQuarter
+  haversine, formatKm, formatDuration, speedToMps, log,
+  makeColorer, effectiveWind,
+  updateLegendRange, getPercentInput, roundToNearestQuarter
 } from './utils.js';
 
 import {
@@ -25,7 +25,12 @@ import {
 // ---------- Global ----------
 let gpxText = null;
 let map;
+let layerControl;
+let baseLayers;
+let overlays;
+let weatherLayerGroup;
 let weatherMarkers = [];
+let mapClickBreakHandler = null;
 
 // ---------- DOM Elements (match your HTML) ----------
 const fileInput = document.getElementById("gpxFile");
@@ -57,7 +62,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Initialize map
   const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
-  map = ensureMap(providerSel.value, pictos);
+  ({ map, layerControl, baseLayers, overlays, weatherLayerGroup } = ensureMap(providerSel.value, pictos));
   // Initial attribution sync
   map.on('baselayerchange', function() {
     const currentProvider = providerSel.value;
@@ -232,12 +237,12 @@ fileInput.addEventListener("change", async (e) => {
   validateReady();
 
   // Remove previous map click handler if any
-  if (window.mapClickBreakHandler) {
-    map.off("click", window.mapClickBreakHandler);
+  if (mapClickBreakHandler) {
+    map.off("click", mapClickBreakHandler);
   }
 
   // Add new map click handler for adding breaks at nearest route point
-  window.mapClickBreakHandler = function(e) {
+  mapClickBreakHandler = function(e) {
     if (!gpxText) {
       log("Load a GPX file first.");
       return;
@@ -276,7 +281,7 @@ fileInput.addEventListener("change", async (e) => {
   validateReady();
   log(`Break added at ${distKm} km (map click, ${minDist.toFixed(1)} m from route).`);
 };
-  map.on("click", window.mapClickBreakHandler);
+  map.on("click", mapClickBreakHandler);
 });
 
 [
@@ -420,6 +425,7 @@ async function worker() {
         gusts: Number(fc.windGusts[k]),
         windKmH: Number(fc.windSpeedKmH[k]),
         windDeg: Number(fc.windFromDeg[k]),
+        windEffectiveKmH: effectiveWind(p.travelBearing, Number(fc.windFromDeg[k]), Number(fc.windSpeedKmH[k])),
         precip: Number(fc.precipMmHr[k]),
         precipProb: Number(fc.precipProb[k]),
         cloudCover: Number(fc.cloudCover[k]),
@@ -454,29 +460,14 @@ if (lastEta) {
   if (!isFinite(minT) || !isFinite(maxT)) { minT = 0; maxT = 1; }
   if (maxT - minT < 0.1) { maxT = minT + 0.1; }
 
-  updateLegend(minT, maxT);
-  const barMap = document.getElementById("legendBarMap");
-  const ticksMap = document.getElementById("legendTicksMap");
-  if (barMap && ticksMap) {
-    const stops = PALETTE.map((c, i, arr) => `${c} ${Math.round((i/(arr.length-1))*100)}%`).join(", ");
-    barMap.style.background = `linear-gradient(90deg, ${stops})`;
-    const t0 = minT, t1 = minT + (maxT - minT) * 0.25, t2 = minT + (maxT - minT) * 0.5, t3 = minT + (maxT - minT) * 0.75, t4 = maxT;
-    ticksMap.innerHTML = `
-      <span>${t0.toFixed(0)}</span>
-      <span>${t1.toFixed(0)}</span>
-      <span>${t2.toFixed(0)}</span>
-      <span>${t3.toFixed(0)}</span>
-      <span>${t4.toFixed(0)}</span>
-    `;
-  }
-
   // Add black outline first
   const fullRoute = points.map(p => [p.lat, p.lon]);
   const outline = L.polyline(fullRoute, {color: "black", weight: 8, opacity: 0.85});
   routeLayerGroup.addLayer(outline);
 
   // Colorer + colored segments
-  const tempColor = makeTempColorer(minT, maxT);
+  const tempColor = makeColorer(minT, maxT, "temp");
+  const tempLayerGroup = overlays["Temperature"];
   let wetPts = 0;
 
   for (let s = 0; s < points.length - 1; s++) {
@@ -484,8 +475,59 @@ if (lastEta) {
     const t = nearest ? nearest.tempC : null;
     const color = (t == null) ? "#cccccc" : tempColor(t);
     const seg = L.polyline([[points[s].lat, points[s].lon],[points[s+1].lat, points[s+1].lon]], { color, weight: 5, opacity: 0.95 });
-    routeLayerGroup.addLayer(seg);
+    tempLayerGroup.addLayer(seg);
   }
+
+  // Wind range + legend (sidebar + map)
+  const winds = results.map(r => r.windEffectiveKmH).filter(w => isFinite(w));
+  let minW = Math.min(...winds);
+  let maxW = Math.max(...winds);
+  if (!isFinite(minW) || !isFinite(maxW)) { minW = -1; maxW = 1; }
+  if (maxW - minW < 0.1) { maxW = minW + 0.1; }
+
+  const windColor = makeColorer(minW, maxW, "wind");
+  const windLayerGroup = overlays["Wind"];
+
+  for (let s = 0; s < points.length - 1; s++) {
+    const nearest = nearestByIdx(results, s);
+    const eff = nearest ? nearest.windEffectiveKmH : 0;
+    const color = (eff == null) ? "#cccccc" : windColor(eff);
+    const seg = L.polyline([[points[s].lat, points[s].lon], [points[s+1].lat, points[s+1].lon]],{ color, weight: 5, opacity: 0.95 });
+    windLayerGroup.addLayer(seg);
+  }
+
+  map.on("overlayadd", e => {
+  if (e.layer === tempLayerGroup) {
+    if (map.hasLayer(windLayerGroup)) {
+      setTimeout(() => map.removeLayer(windLayerGroup), 0);
+      // Uncheck Wind box
+      layerControl._layerControlInputs.forEach(input => {
+        if (input.nextSibling && input.nextSibling.textContent.trim() === "Wind") {
+          input.checked = false;
+        }
+      });
+          }
+      updateLegendRange(minT, maxT, "legendBarMap", "legendTicksMap", "temp");
+      updateLegendRange(minT, maxT, "legendBarTemp", "legendTicksTemp", "temp");
+  }
+  if (e.layer === windLayerGroup) {
+    if (map.hasLayer(tempLayerGroup)) {
+        setTimeout(() => map.removeLayer(tempLayerGroup), 0);
+      // Uncheck Temp box
+      layerControl._layerControlInputs.forEach(input => {
+        if (input.nextSibling && input.nextSibling.textContent.trim() === "Temperature") {
+          input.checked = false;
+        }
+      });
+     }
+     updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
+     updateLegendRange(minW, maxW, "legendBarMapWind", "legendTicksMapWind", "wind");
+    }
+  });
+
+    // Add one by default
+  updateLegendRange(minT, maxT, "legendBarMap", "legendTicksMap", "temp");
+  updateLegendRange(minT, maxT, "legendBarTemp", "legendTicksTemp", "temp");
 
   // Sample markers with icons + popups
   for (const r of results) {
@@ -512,18 +554,30 @@ if (lastEta) {
       iconAnchor: [22, 26]
     });
 
-    const marker = L.marker([r.lat, r.lon], { icon }).addTo(routeLayerGroup);
+    const marker = L.marker([r.lat, r.lon], { icon }).addTo(weatherLayerGroup);
     addWeatherMarker(marker);
 
     const windKmh = (r.windKmH).toFixed(1);
     const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+    // Decide headwind/tailwind
+    let windLabel;
+    const eff = r.windEffectiveKmH;
+    const effRounded = Math.round(eff * 10) / 10;
+    if (effRounded > 0) {
+      windLabel = `Headwind: ${effRounded.toFixed(1)} km/h`;
+    } else if (effRounded < 0) {
+      windLabel = `Tailwind: ${Math.abs(effRounded).toFixed(1)} km/h`;
+    } else {
+      windLabel = "No head/tailwind (pure crosswind)";
+    }
     const popupHtml = `
       <div style="min-width:200px">
         <strong>ETA:</strong> ${etaStr}<br/>
         <strong>Forecast:</strong><br/>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
         🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
-        💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}
+        💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}<br/>
+        💨 ${windLabel}<br/>
       </div>
     `;
     marker.bindPopup(popupHtml);
