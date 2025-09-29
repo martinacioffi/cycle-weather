@@ -15,7 +15,8 @@ import {
 
 import {
   ensureMap, dirArrow8, windArrowWithBarbs, routeLayerGroup, getWeatherPictogram,
-  updateMapAttribution, arrowIcon
+  updateMapAttribution, arrowIcon, weatherMarkersLayerGroup, windMarkersLayerGroup, breakMarkersLayerGroup,
+  weatherLayerVisible, windLayerVisible, breakLayerVisible
 } from './map.js';
 
 import {
@@ -28,8 +29,8 @@ let map;
 let layerControl;
 let baseLayers;
 let overlays;
-let marker_layers;
 let weatherMarkers = [];
+let windMarkers = [];
 let mapClickBreakHandler = null;
 
 // ---------- DOM Elements (match your HTML) ----------
@@ -63,7 +64,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Initialize map
   const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
-  ({ map, layerControl, baseLayers, overlays, marker_layers } = ensureMap(providerSel.value, pictos));
+  ({ map, layerControl, baseLayers, overlays } = ensureMap(providerSel.value, pictos));
   // Initial attribution sync
   map.on('baselayerchange', function() {
     const currentProvider = providerSel.value;
@@ -121,12 +122,21 @@ function validateReady() {
 }
 
 function clearWeatherMarkers() {
-  weatherMarkers.forEach(m => routeLayerGroup.removeLayer(m));
+  weatherMarkers.forEach(m => weatherMarkersLayerGroup.removeLayer(m));
   weatherMarkers = [];
 }
 
 function addWeatherMarker(marker) {
   weatherMarkers.push(marker);
+}
+
+function clearWindMarkers() {
+  windMarkers.forEach(m => windMarkersLayerGroup.removeLayer(m));
+  windMarkers = [];
+}
+
+function addWindMarker(marker) {
+  windMarkers.push(marker);
 }
 
 // ---------- UI wiring ----------
@@ -327,6 +337,7 @@ processBtn.addEventListener("click", async () => {
 async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey) {
   // Reset UI
   clearWeatherMarkers();
+  clearWindMarkers();
   routeLayerGroup.clearLayers();
   document.getElementById("statDistance").textContent = "–";
   document.getElementById("statDuration").textContent = "–";
@@ -365,9 +376,6 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
 
   const { cum, total } = cumulDistance(points);
   const brngs = segmentBearings(points);
-  const weatherMarkersLayerGroup = marker_layers["WeatherMarker"]
-  const windMarkersLayerGroup = marker_layers["WindMarker"]
-  const breakMarkersLayerGroup = marker_layers["BreakMarker"]
 
   // Break markers (orange pins)
   for (const b of breaks) {
@@ -379,7 +387,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
       iconSize: [25, 25],
       iconAnchor: [5, 20]
     });
-    L.marker([b.lat, b.lon], { icon: breakFlag })
+    L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
       .addTo(breakMarkersLayerGroup)
       .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
   }
@@ -529,12 +537,14 @@ if (lastEta) {
     }
   });
 
-    // Add one by default
   updateLegendRange(minT, maxT, "legendBarMap", "legendTicksMap", "temp");
   updateLegendRange(minT, maxT, "legendBarTemp", "legendTicksTemp", "temp");
+  updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
+  updateLegendRange(minW, maxW, "legendBarMapWind", "legendTicksMapWind", "wind");
 
   // Sample markers with icons + popups
   for (const r of results) {
+    const isBreak = r.isBreak
     const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts, r.pictocode, pictos);
     const imgSrc = pictos === "meteoblue" ? `images/meteoblue_pictograms/${weatherIcon}.svg` : `images/yr_weather_symbols/${weatherIcon}.svg`;
     const isNight = weatherIcon.endsWith("night");
@@ -553,40 +563,41 @@ if (lastEta) {
       iconAnchor: [22, 26]
     });
 
-    const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv }).addTo(weatherMarkersLayerGroup);
+    const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv, opacity: (!isBreak && weatherLayerVisible) ? 1 : 0 }).addTo(weatherMarkersLayerGroup);
     addWeatherMarker(weatherMarker);
 
       // Wind barb marker
-  const windDiv = L.divIcon({
-    html: `<div class="weather-icon" style="margin-top:-6px;">${windSVG}</div>`,
-    className: "",
-    iconSize: [24, 24],
-    iconAnchor: [12, 0]
-  });
-  const windMarker = L.marker([r.lat, r.lon], { icon: windDiv }).addTo(windMarkersLayerGroup);
-  addWeatherMarker(windMarker);
+    const windDiv = L.divIcon({
+       html: `<div class="weather-icon" style="margin-top:-6px;">${windSVG}</div>`,
+       className: "",
+       iconSize: [24, 24],
+       iconAnchor: [12, 0]
+    });
+    const windMarker = L.marker([r.lat, r.lon], { icon: windDiv, opacity: (!isBreak && windLayerVisible) ? 1 : 0 }).addTo(windMarkersLayerGroup);
+    addWindMarker(windMarker);
 
     const windKmh = (r.windKmH).toFixed(1);
     const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+    const etaLabel = isBreak ? `During Break: ${etaStr}` : `ETA: ${etaStr}`;
     // Decide headwind/tailwind
     let windLabel;
     const eff = r.windEffectiveKmH;
     const effRounded = Math.round(eff * 10) / 10;
     if (effRounded > 0) {
-      windLabel = `Tailwind: ${effRounded.toFixed(1)} km/h`;
+      windLabel = `<br/>💨 Tailwind: ${effRounded.toFixed(1)} km/h`;
     } else if (effRounded < 0) {
-      windLabel = `Headwind: ${Math.abs(effRounded).toFixed(1)} km/h`;
+      windLabel = `<br/>💨 Headwind: ${Math.abs(effRounded).toFixed(1)} km/h`;
     } else {
-      windLabel = "No head/tailwind (pure crosswind)";
+      windLabel = "<br/>No head/tailwind (pure crosswind)";
     }
+    const windLabelBreak = isBreak ? "" : windLabel
     const popupHtml = `
       <div style="min-width:200px">
-        <div>ETA: ${etaStr}</div>
+        <div>${etaLabel}</div>
         <div><strong>Forecast:</strong></div>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
         🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
-        💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}<br/>
-        💨 ${windLabel}<br/>
+        💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}${windLabelBreak}<br/>
       </div>
     `;
 
@@ -605,16 +616,15 @@ if (lastEta) {
     windMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
 
 
-      const arrowMarker = L.marker([r.lat, r.lon], {
-        icon: arrowIcon(r.travelBearing)
-      }).addTo(routeLayerGroup);
+    const arrowMarker = L.marker([r.lat, r.lon], {
+        icon: arrowIcon(r.travelBearing), opacity: (!isBreak) ? 1 : 0
+    }).addTo(routeLayerGroup);
 
-      // Bind forecast tooltip
-      arrowMarker.bindTooltip(popupHtml, {
+    arrowMarker.bindTooltip(popupHtml, {
         direction: "top",
         sticky: true,
         className: "forecast-tooltip"
-      });
+    });
 
     if ((r.precip || 0) >= 0.1) wetPts++;
   }
@@ -628,9 +638,9 @@ if (lastEta) {
     precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
     cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, pictocode: r.pictocode, isBreak: r.isBreak }))
     .sort((a,b) => +a.t - +b.t);
-  buildTempChart(chartSeries, pictos, isMobile);
-  buildPrecipChart(chartSeries, isMobile);
-  buildWindChart(chartSeries, isMobile);
+  buildTempChart(chartSeries, weatherMarkers, pictos, isMobile);
+  buildPrecipChart(chartSeries, weatherMarkers, isMobile);
+  buildWindChart(chartSeries, windMarkers, isMobile);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
   else log("Completed successfully.");

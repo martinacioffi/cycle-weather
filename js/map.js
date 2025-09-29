@@ -1,11 +1,33 @@
 
 export let map = null;
 export let routeLayerGroup = null;
+export let weatherMarkersLayerGroup = null;
+export let windMarkersLayerGroup = null;
+export let breakMarkersLayerGroup = null;
 export let tempLegendControl = null;
 export let windLegendControl = null;
+export let weatherLayerVisible = true;
+export let windLayerVisible = true;
+export let breakLayerVisible = true;
 
 let openTopo, openCycle, openStreet;
 let activeBaseLayer; // currently visible base layer
+let activeTooltipMarker = null;
+
+export function highlightMapPoint(weatherMarkers, index) {
+  // Close previous tooltip
+  if (activeTooltipMarker) {
+    activeTooltipMarker.closeTooltip();
+    activeTooltipMarker = null;
+  }
+
+  const marker = weatherMarkers[index];
+  if (marker) {
+    marker.openTooltip();
+    // map.setView(marker.getLatLng(), map.getZoom()); // optional: pan to marker
+    activeTooltipMarker = marker;
+  }
+}
 
 
 export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0, pictocode = -1, pictos="yr") {
@@ -303,14 +325,10 @@ export function ensureMap(provider, pictos) {
      };
 
     // Create a dedicated group for weather markers
-    const weatherMarkersLayerGroup = L.layerGroup().addTo(map);
-    const windMarkersLayerGroup = L.layerGroup().addTo(map);
-    const breakMarkersLayerGroup = L.layerGroup().addTo(map);
-    const marker_layers = {
-       "WeatherMarker": weatherMarkersLayerGroup,
-       "WindMarker": windMarkersLayerGroup,
-       "BreakMarker": breakMarkersLayerGroup
-    };
+    weatherMarkersLayerGroup = L.layerGroup().addTo(map);
+    windMarkersLayerGroup = L.layerGroup().addTo(map);
+    breakMarkersLayerGroup = L.layerGroup().addTo(map);
+
     const weatherToggle = new LayerToggleControl(weatherMarkersLayerGroup, {
       position: "topright",
       icon: "☀️",
@@ -334,7 +352,7 @@ export function ensureMap(provider, pictos) {
 
     const layerControl = L.control.layers(baseLayers, overlays, { collapsed: true }).addTo(map);
 
-    return { map, layerControl, baseLayers, overlays, marker_layers };
+    return { map, layerControl, baseLayers, overlays };
     }
 
 const LayerToggleControl = L.Control.extend({
@@ -358,7 +376,7 @@ const LayerToggleControl = L.Control.extend({
       L.DomEvent.stopPropagation(e);
       L.DomEvent.preventDefault(e);
 
-      if (visible) {
+      /*if (visible) {
         map.removeLayer(this._layerGroup);
         btn.style.opacity = "0.5";
         btn.title = this.options.showTitle || "Show layer";
@@ -366,6 +384,40 @@ const LayerToggleControl = L.Control.extend({
         map.addLayer(this._layerGroup);
         btn.style.opacity = "1";
         btn.title = this.options.hideTitle || "Hide layer";
+      }*/
+      // The above removes the layer. We instead make the icons transparent so that tooltips still work
+      if (visible) {
+          // fade out all markers in the group
+          this._layerGroup.eachLayer(layer => {
+            if (layer.setOpacity) {
+              layer.setOpacity(0);   // fully transparent
+            }
+          });
+          btn.style.opacity = "0.5";
+          btn.title = this.options.showTitle || "Show layer";
+          if (this._layerGroup === weatherMarkersLayerGroup) {
+                weatherLayerVisible = false;
+              } else if (this._layerGroup === windMarkersLayerGroup) {
+                windLayerVisible = false;
+              } else if (this._layerGroup === breakMarkersLayerGroup) {
+                breakLayerVisible = false;
+              }
+        } else {
+          // fade them back in
+          this._layerGroup.eachLayer(layer => {
+            if (layer.setOpacity) {
+              layer.setOpacity(1);   // fully visible
+            }
+          });
+          btn.style.opacity = "1";
+          btn.title = this.options.hideTitle || "Hide layer";
+            if (this._layerGroup === weatherMarkersLayerGroup) {
+                weatherLayerVisible = true;
+              } else if (this._layerGroup === windMarkersLayerGroup) {
+                windLayerVisible = true;
+              } else if (this._layerGroup === breakMarkersLayerGroup) {
+                breakLayerVisible = true;
+              }
       }
       visible = !visible;
     });

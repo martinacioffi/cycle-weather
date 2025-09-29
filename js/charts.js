@@ -1,4 +1,4 @@
-import { dirArrow8, getWeatherPictogram } from './map.js';
+import { dirArrow8, getWeatherPictogram, highlightMapPoint } from './map.js';
 
 export function destroyChartById(canvasId) {
   const existing = Chart.getChart(canvasId);
@@ -108,7 +108,7 @@ const DaylightShadingPlugin = {
   }
 };
 
-export function buildTempChart(series, provider, isMobile) {
+export function buildTempChart(series, weatherMarkers, provider, isMobile) {
   destroyChartById("tempChart");
   const ctx = document.getElementById("tempChart").getContext("2d");
 
@@ -208,6 +208,12 @@ export function buildTempChart(series, provider, isMobile) {
       responsive: true,
       maintainAspectRatio: isMobile ? false : true,
       interaction: { mode: 'index', intersect: false },
+      onHover: function(event, activeElements) {
+        if (activeElements.length > 0) {
+          const index = activeElements[0].index;
+          highlightMapPoint(weatherMarkers, index);
+        }
+      },
       plugins: {
         legend: { labels: { color: "#e6e8ef", font: { size: isMobile ? 9 : 12 } } },
         tooltip: {
@@ -249,7 +255,7 @@ export function buildTempChart(series, provider, isMobile) {
   });
 }
 
-export function buildPrecipChart(series, isMobile) {
+export function buildPrecipChart(series, weatherMarkers, isMobile) {
   destroyChartById("precipChart");
   const ctx = document.getElementById("precipChart").getContext("2d");
   const xMin = Math.min(...series.map(s => +s.t));
@@ -288,6 +294,12 @@ export function buildPrecipChart(series, isMobile) {
       responsive: true,
       maintainAspectRatio: isMobile ? false : true,
       interaction: { mode: 'index', intersect: false },
+      onHover: function(event, activeElements) {
+        if (activeElements.length > 0) {
+          const index = activeElements[0].index;
+          highlightMapPoint(weatherMarkers, index);
+        }
+      },
       plugins: {
         legend: {
           labels: { color: "#e6e8ef" , font: { size: isMobile ? 9 : 12 }}
@@ -354,7 +366,7 @@ export function buildPrecipChart(series, isMobile) {
   });
 }
 
-export function buildWindChart(series, isMobile) {
+export function buildWindChart(series, windMarkers, isMobile) {
   destroyChartById("windChart");
   const ctx = document.getElementById("windChart").getContext("2d");
   const xMin = Math.min(...series.map(s => +s.t));
@@ -428,6 +440,12 @@ const WindArrowPlugin = {
       responsive: true,
       maintainAspectRatio: isMobile ? false : true,
       interaction: { mode: 'index', intersect: false },
+      onHover: function(event, activeElements) {
+        if (activeElements.length > 0) {
+          const index = activeElements[0].index;
+          highlightMapPoint(windMarkers, index);
+        }
+      },
       plugins: {
         legend: { labels: { color: "#e6e8ef" , font: { size: isMobile ? 9 : 12 } } },
         tooltip: {
