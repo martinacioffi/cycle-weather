@@ -9,7 +9,9 @@
 *, *::before, *::after {
   box-sizing: border-box;
 }
-
+html {
+  scroll-padding-top: 80px; /* same value as header height */
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -62,7 +64,17 @@ header {
 .demo-button:hover {
   background-color: #005ea2;
 }
-
+.help-button {
+  display: inline-block;
+  padding: 8px 16px;
+  font-size: 14px;
+  margin-left: 8px;
+  background: none; /* #0078d7; /* same style as demo button */
+  color: #fff;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
 
 .logo {
   width: 40px;
@@ -468,4 +480,88 @@ min-height: 300px;
 
 .leaflet-tooltip.forecast-tooltip:before {
   border-top-color: #333; /* arrow color */
+}
+.help-wrap {
+  display: flex;
+  gap: 40px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  padding-top: 0px;
+  margin-left: calc(40px + 16px);
+}
+
+.help-content {
+  line-height: 1.4;
+  text-align: justify;
+  flex: 1;
+    max-width: 900px;
+}
+
+.help-content h2, .help-content h3 {
+  margin-top: 1em;
+  margin-bottom: 0.1em;
+}
+.help-content p {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
+
+.help-content ul {
+  padding-left: 30px;
+}
+
+.on-this-page {
+  position: sticky;
+  top: 100px;              /* stays visible below header */
+  align-self: start;
+  margin-left: auto;      /* push to right */
+  width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+}
+
+.on-this-page h4 {
+  margin-top: 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.on-this-page ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.on-this-page li {
+  margin: 4px 0;
+}
+
+.on-this-page a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.on-this-page a:hover {
+  color: var(--accent);
+}
+
+/* Indentation levels */
+.on-this-page > ul > li > a {
+  font-weight: 600; /* h2-level */
+}
+
+.on-this-page ul ul > li > a {
+  margin-left: 12px; /* h3-level */
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.on-this-page ul ul ul > li > a {
+  margin-left: 24px; /* h4-level */
+  font-weight: 400;
+  font-size: 12px;
 }

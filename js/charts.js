@@ -238,7 +238,7 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           },
           grid: { color: "rgba(255,255,255,0.06)" },
-          title: { display: true, text: "Time", color: "#a5adba", font: { size: isMobile ? 8 : 14 }}
+          title: { display: true, color: "#a5adba", font: { size: isMobile ? 8 : 14 }}
         },
         y: {
           position: "left",
@@ -333,7 +333,7 @@ export function buildPrecipChart(series, weatherMarkers, isMobile) {
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           },
           grid: { color: "rgba(255,255,255,0.06)" },
-          title: { display: true, text: "Time", color: "#a5adba", font: { size: isMobile ? 8 : 14 } }
+          title: { display: true, color: "#a5adba", font: { size: isMobile ? 8 : 14 } }
         },
         yPrecip: {
           position: "left",
@@ -468,7 +468,7 @@ const WindArrowPlugin = {
             callback: v => new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           },
           grid: { color: "rgba(255,255,255,0.06)" },
-          title: { display: true, text: "Time", color: "#a5adba", font: { size: isMobile ? 8 : 14 }
+          title: { display: true, color: "#a5adba", font: { size: isMobile ? 8 : 14 }
         }
         },
         yWind: {
