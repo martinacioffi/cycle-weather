@@ -188,6 +188,21 @@ export function windArrowWithBarbs(deg, windKmh) {
   `;
 }
 
+export function arrowIcon(bearingDeg) {
+  return L.divIcon({
+    html: `<div class="route-arrow" style="
+              width: 0; height: 0;
+              border-left: 4px solid transparent;
+              border-right: 4px solid transparent;
+              border-bottom: 8px solid rgba(0,0,0,0.35);
+              transform: rotate(${bearingDeg}deg);
+            "></div>`,
+    className: "",
+    iconSize: [8, 8],
+    iconAnchor: [4, 4]
+  });
+}
+
 export function ensureMap(provider, pictos) {
       if (map) return { map, layerControl: null, baseLayers: null, overlays: null, weatherLayerGroup: null };
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
@@ -288,14 +303,41 @@ export function ensureMap(provider, pictos) {
      };
 
     // Create a dedicated group for weather markers
-    const weatherLayerGroup = L.layerGroup().addTo(map);
-    const weatherToggle = new WeatherToggleControl(weatherLayerGroup, { position: "topright" }).addTo(map);
+    const weatherMarkersLayerGroup = L.layerGroup().addTo(map);
+    const windMarkersLayerGroup = L.layerGroup().addTo(map);
+    const breakMarkersLayerGroup = L.layerGroup().addTo(map);
+    const marker_layers = {
+       "WeatherMarker": weatherMarkersLayerGroup,
+       "WindMarker": windMarkersLayerGroup,
+       "BreakMarker": breakMarkersLayerGroup
+    };
+    const weatherToggle = new LayerToggleControl(weatherMarkersLayerGroup, {
+      position: "topright",
+      icon: "☀️",
+      hideTitle: "Hide weather markers",
+      showTitle: "Show weather markers",
+    }).addTo(map);
+
+    const windToggle = new LayerToggleControl(windMarkersLayerGroup, {
+      position: "topright",
+      icon: "➤", // - use ➤ or ▶.
+      hideTitle: "Hide wind markers",
+      showTitle: "Show wind markers",
+    }).addTo(map);
+
+    const breakToggle = new LayerToggleControl(breakMarkersLayerGroup, {
+      position: "topright",
+      icon: "📌",
+      hideTitle: "Hide break markers",
+      showTitle: "Show break markers",
+    }).addTo(map);
+
     const layerControl = L.control.layers(baseLayers, overlays, { collapsed: true }).addTo(map);
 
-    return { map, layerControl, baseLayers, overlays, weatherLayerGroup };
+    return { map, layerControl, baseLayers, overlays, marker_layers };
     }
 
-const WeatherToggleControl = L.Control.extend({
+const LayerToggleControl = L.Control.extend({
   initialize: function(layerGroup, options) {
     this._layerGroup = layerGroup;
     L.setOptions(this, options);
@@ -303,9 +345,9 @@ const WeatherToggleControl = L.Control.extend({
   onAdd: function(map) {
     const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
     const btn = L.DomUtil.create("a", "", container);
-    btn.innerHTML = " ☀️ ";
+    btn.innerHTML = this.options.icon || "❓";
     btn.href = "#";
-    btn.title = "Hide weather markers";
+    btn.title = this.options.hideTitle || "Hide layer";
     btn.style.width = "44px";
     btn.style.display = "block";
     btn.style.textAlign = "center";
@@ -319,11 +361,11 @@ const WeatherToggleControl = L.Control.extend({
       if (visible) {
         map.removeLayer(this._layerGroup);
         btn.style.opacity = "0.5";
-        btn.title = "Show weather markers";
+        btn.title = this.options.showTitle || "Show layer";
       } else {
         map.addLayer(this._layerGroup);
         btn.style.opacity = "1";
-        btn.title = "Hide weather markers";
+        btn.title = this.options.hideTitle || "Hide layer";
       }
       visible = !visible;
     });

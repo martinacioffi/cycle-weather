@@ -15,7 +15,7 @@ import {
 
 import {
   ensureMap, dirArrow8, windArrowWithBarbs, routeLayerGroup, getWeatherPictogram,
-  updateMapAttribution
+  updateMapAttribution, arrowIcon
 } from './map.js';
 
 import {
@@ -28,7 +28,7 @@ let map;
 let layerControl;
 let baseLayers;
 let overlays;
-let weatherLayerGroup;
+let marker_layers;
 let weatherMarkers = [];
 let mapClickBreakHandler = null;
 
@@ -50,6 +50,7 @@ const sampleMetersSelect = document.getElementById("sampleMeters");
 const sampleMinutesSelect = document.getElementById("sampleMinutes");
 const breaksContainer = document.getElementById("breaksContainer");
 const addBreakBtn = document.getElementById("addBreakBtn");
+const isMobile = window.innerWidth <= 768;
 
 // ---------- Init ----------
 window.addEventListener("DOMContentLoaded", () => {
@@ -62,7 +63,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Initialize map
   const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
-  ({ map, layerControl, baseLayers, overlays, weatherLayerGroup } = ensureMap(providerSel.value, pictos));
+  ({ map, layerControl, baseLayers, overlays, marker_layers } = ensureMap(providerSel.value, pictos));
   // Initial attribution sync
   map.on('baselayerchange', function() {
     const currentProvider = providerSel.value;
@@ -364,20 +365,23 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
 
   const { cum, total } = cumulDistance(points);
   const brngs = segmentBearings(points);
+  const weatherMarkersLayerGroup = marker_layers["WeatherMarker"]
+  const windMarkersLayerGroup = marker_layers["WindMarker"]
+  const breakMarkersLayerGroup = marker_layers["BreakMarker"]
 
   // Break markers (orange pins)
   for (const b of breaks) {
     const breakFlag = L.divIcon({
       html:
       `<div class="break-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: right;">
-            <span style="font-size:16px; vertical-align: top;">📌</span>`,
+            <span style="font-size:20px; vertical-align: top;">📌</span>`,
       className: "",
-      iconSize: [20, 20],
-      iconAnchor: [11, 20]
+      iconSize: [25, 25],
+      iconAnchor: [5, 20]
     });
-    L.marker([b.lat, b.lon], { icon: breakFlag, title: `Break at ${Math.round(b.distMeters/1000)} km` })
-      .addTo(routeLayerGroup)
-      .bindPopup(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
+    L.marker([b.lat, b.lon], { icon: breakFlag })
+      .addTo(breakMarkersLayerGroup)
+      .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
   }
 
   // Grey base line
@@ -537,25 +541,30 @@ if (lastEta) {
     const bgColor = pictos === "meteoblue" ? (isNight ? "#003366" : "#90c8fc") : "white";
     const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
 
-    const icon = L.divIcon({
+    const weatherIconDiv = L.divIcon({
        html: `
-        <div class="weather-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: center; gap:0px;">
+       <div class="weather-icon">
         <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center ;background:  ${bgColor}; border-radius: 50%;;">
-          <img src=${imgSrc}
-             style="width: 80%; height: 80%; object-fit: contain;" />
-        </div>
-        <div style="margin-top:-6px;">
-            ${windSVG}
-      </div>
-    </div>
-`,
+          <img src=${imgSrc} style="width: 80%; height: 80%; object-fit: contain;" />
+          </div>
+       </div>`,
       className: "",
       iconSize: [42, 42],
       iconAnchor: [22, 26]
     });
 
-    const marker = L.marker([r.lat, r.lon], { icon }).addTo(weatherLayerGroup);
-    addWeatherMarker(marker);
+    const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv }).addTo(weatherMarkersLayerGroup);
+    addWeatherMarker(weatherMarker);
+
+      // Wind barb marker
+  const windDiv = L.divIcon({
+    html: `<div class="weather-icon" style="margin-top:-6px;">${windSVG}</div>`,
+    className: "",
+    iconSize: [24, 24],
+    iconAnchor: [12, 0]
+  });
+  const windMarker = L.marker([r.lat, r.lon], { icon: windDiv }).addTo(windMarkersLayerGroup);
+  addWeatherMarker(windMarker);
 
     const windKmh = (r.windKmH).toFixed(1);
     const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
@@ -564,23 +573,48 @@ if (lastEta) {
     const eff = r.windEffectiveKmH;
     const effRounded = Math.round(eff * 10) / 10;
     if (effRounded > 0) {
-      windLabel = `Headwind: ${effRounded.toFixed(1)} km/h`;
+      windLabel = `Tailwind: ${effRounded.toFixed(1)} km/h`;
     } else if (effRounded < 0) {
-      windLabel = `Tailwind: ${Math.abs(effRounded).toFixed(1)} km/h`;
+      windLabel = `Headwind: ${Math.abs(effRounded).toFixed(1)} km/h`;
     } else {
       windLabel = "No head/tailwind (pure crosswind)";
     }
     const popupHtml = `
       <div style="min-width:200px">
-        <strong>ETA:</strong> ${etaStr}<br/>
-        <strong>Forecast:</strong><br/>
+        <div>ETA: ${etaStr}</div>
+        <div><strong>Forecast:</strong></div>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
         🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
         💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}<br/>
         💨 ${windLabel}<br/>
       </div>
     `;
-    marker.bindPopup(popupHtml);
+
+    if (isMobile) {
+        weatherMarker.bindPopup(popupHtml);
+        windMarker.bindPopup(popupHtml);
+    }
+
+    // Show popup on hover
+   /* weatherMarker.on("mouseover", function () { this.openPopup(); });
+    weatherMarker.on("mouseout", function () { this.closePopup(); });
+    windMarker.on("mouseover", function () { this.openPopup(); });
+    windMarker.on("mouseout", function () { this.closePopup(); });*/
+
+    weatherMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
+    windMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
+
+
+      const arrowMarker = L.marker([r.lat, r.lon], {
+        icon: arrowIcon(r.travelBearing)
+      }).addTo(routeLayerGroup);
+
+      // Bind forecast tooltip
+      arrowMarker.bindTooltip(popupHtml, {
+        direction: "top",
+        sticky: true,
+        className: "forecast-tooltip"
+      });
 
     if ((r.precip || 0) >= 0.1) wetPts++;
   }
@@ -594,7 +628,6 @@ if (lastEta) {
     precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
     cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, pictocode: r.pictocode, isBreak: r.isBreak }))
     .sort((a,b) => +a.t - +b.t);
-  const isMobile = window.innerWidth <= 768;
   buildTempChart(chartSeries, pictos, isMobile);
   buildPrecipChart(chartSeries, isMobile);
   buildWindChart(chartSeries, isMobile);

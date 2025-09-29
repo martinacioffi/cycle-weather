@@ -152,6 +152,13 @@ export function updateLegendRange(minVal, maxVal, barId, ticksId, type = "temp")
   const ticks = document.getElementById(ticksId);
   if (!bar || !ticks) return;
 
+  // For wind: force symmetric range around 0
+  if (type === "wind") {
+    const maxAbs = Math.max(Math.abs(minVal), Math.abs(maxVal));
+    minVal = -maxAbs;
+    maxVal = +maxAbs;
+  }
+
   const stops = palette.map((c, i, arr) => `${c} ${Math.round((i/(arr.length-1))*100)}%`).join(", ");
   bar.style.background = `linear-gradient(90deg, ${stops})`;
 
