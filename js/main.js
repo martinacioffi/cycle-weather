@@ -5,7 +5,7 @@ import {
 } from './utils.js';
 
 import {
-  parseGPX, cumulDistance, segmentBearings, buildSampleIndices,
+  parseGPX, cumulDistance, segmentBearings, buildSampleIndices, setupBreakValidation,
   getBreaks, breakOffsetSeconds, nearestByIdx, insertBreaksIntoPoints
 } from './gpx.js';
 
@@ -31,6 +31,7 @@ let baseLayers;
 let overlays;
 let weatherMarkers = [];
 let windMarkers = [];
+let breakMarkers = [];
 let mapClickBreakHandler = null;
 
 // ---------- DOM Elements (match your HTML) ----------
@@ -71,6 +72,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
     updateMapAttribution(currentProvider, currentPictos);
   });
+
+  map.whenReady(() => {
+  const ctrl = document.querySelector('.leaflet-control-layers');
+  if (ctrl) {
+    ctrl.style.pointerEvents = 'auto';
+    ctrl.style.opacity = '1';
+  }
+});
 
   if (window.innerWidth < 768) {
     map.scrollWheelZoom.disable(); // prevent accidental zoom while scrolling
@@ -137,6 +146,15 @@ function clearWindMarkers() {
 
 function addWindMarker(marker) {
   windMarkers.push(marker);
+}
+
+function clearBreakMarkers() {
+  breakMarkers.forEach(m => breakMarkersLayerGroup.removeLayer(m));
+  breakMarkers = [];
+}
+
+function addBreakMarker(marker) {
+  breakMarkers.push(marker);
 }
 
 // ---------- UI wiring ----------
@@ -338,6 +356,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   // Reset UI
   clearWeatherMarkers();
   clearWindMarkers();
+  clearBreakMarkers();
   routeLayerGroup.clearLayers();
   document.getElementById("statDistance").textContent = "–";
   document.getElementById("statDuration").textContent = "–";
@@ -349,6 +368,7 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   log("Parsing GPX...");
 
   const pointsRaw = parseGPX(gpxText);
+  setupBreakValidation(pointsRaw);
   const breaks = getBreaks(pointsRaw);
   const points = insertBreaksIntoPoints(pointsRaw, breaks, minTimeSpacing);
   const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
@@ -387,9 +407,10 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
       iconSize: [25, 25],
       iconAnchor: [5, 20]
     });
-    L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
+    const breakMarker = L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
       .addTo(breakMarkersLayerGroup)
       .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
+    addBreakMarker(breakMarker);
   }
 
   // Grey base line
@@ -605,12 +626,6 @@ if (lastEta) {
         weatherMarker.bindPopup(popupHtml);
         windMarker.bindPopup(popupHtml);
     }
-
-    // Show popup on hover
-   /* weatherMarker.on("mouseover", function () { this.openPopup(); });
-    weatherMarker.on("mouseout", function () { this.closePopup(); });
-    windMarker.on("mouseover", function () { this.openPopup(); });
-    windMarker.on("mouseout", function () { this.closePopup(); });*/
 
     weatherMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
     windMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });

@@ -235,6 +235,15 @@ button:disabled { opacity: 0.6; cursor: default; }
 .leaflet-container {
 touch-action: auto;
 }
+.leaflet-control-layers {
+  z-index: 1100; /* or higher than your legend */
+  position: relative;
+  pointer-events: none;   /* ignore clicks */
+  opacity: 0.5;           /* optional: show it’s disabled */
+}
+.leaflet-top.leaflet-right {
+  z-index: 1100; /* higher than legend’s container */
+}
 .legend {
   padding: 8px 10px;
   background: #11151c;
@@ -242,6 +251,8 @@ touch-action: auto;
   border-radius: 8px;
   color: var(--muted);
   font-size: 12px;
+  position: relative;
+  z-index: 1000;
 }
 .legend-bar {
   height: 10px;
@@ -268,6 +279,32 @@ touch-action: auto;
   margin-top: 0;
   padding: 6px 10px;
 }
+.break-km.invalid {
+  border: 2px solid #e74c3c;   /* red border */
+  background-color: rgba(231, 76, 60, 0.05); /* optional subtle background */
+}
+
+.break-km.invalid::after {
+  content: "Break beyond route length";
+  position: absolute;
+  top: 100%;       /* below the input */
+  left: 0;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  margin-top: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.break-km.invalid:hover::after {
+  opacity: 1; /* show tooltip on hover */
+}
+
 canvas {
   background: #11151c;
   border: 1px solid var(--line);
@@ -288,7 +325,13 @@ html, body {
   padding: 0;
   overflow-x: hidden; /* prevents accidental horizontal scroll */
 }
-
+   .on-this-page {
+    display:none;
+    }
+    .help-wrap {
+    margin-left: 0 !important;
+    font-size: 85%;
+    }
     .wrap {
     display: flex;
     flex-direction: column;
@@ -341,17 +384,6 @@ html, body {
     padding: 10px 16px 20px;
     }
 
-    .charts {
-    flex: none;
-    width: 100% !important;
-    height: 300px;
-    position: relative;
-    }
-
-    canvas {
-    width: 100% !important;
-    height: auto !important;
-    }
     .wind-arrow {
   font-family: "Courier New", monospace; /* or another non-emoji font */
   font-size: 8px; /* adjust as needed */
@@ -391,9 +423,9 @@ background: #0f1115;
 }
 .charts canvas {
 flex: 1 1 0;
-width: 100% !important;
-height: auto !important;
-min-height: 300px;
+width: auto !important;
+height: 100% !important;
+max-height: 300px;
 }
 .help-btn {
   margin-left: 6px;

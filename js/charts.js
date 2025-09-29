@@ -195,7 +195,7 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
         {
           type: "line",
           label: "", // Icons dataset
-          data: series.map(s => ({ x: +s.t, y: overallYMax + 1 })),
+          data: series.map(s => ({ x: +s.t, y: overallYMax + 2 })),
           borderWidth: 0,
           pointRadius: 0,
           yAxisID: "y",
@@ -206,7 +206,7 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: isMobile ? false : true,
+      maintainAspectRatio: true,
       interaction: { mode: 'index', intersect: false },
       onHover: function(event, activeElements) {
         if (activeElements.length > 0) {
@@ -217,8 +217,8 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
       plugins: {
         legend: { labels: { color: "#e6e8ef", font: { size: isMobile ? 9 : 12 } } },
         tooltip: {
-          bodyFont: { size: isMobile ? 8 : 14 },
-          titleFont: { size: isMobile ? 9 : 16 },
+          bodyFont: { size: isMobile ? 8 : 12 },
+          titleFont: { size: isMobile ? 9 : 14 },
           enabled: true,
           callbacks: {
             title: items => new Date(items[0].parsed.x).toLocaleString()
@@ -247,7 +247,7 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
           grid: { color: "rgba(255,255,255,0.06)" },
           beginAtZero: false,
           suggestedMin: overallYMin - 1,
-          suggestedMax: overallYMax + 2
+          suggestedMax: overallYMax + 3
         }
       }
     },
@@ -292,7 +292,7 @@ export function buildPrecipChart(series, weatherMarkers, isMobile) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: isMobile ? false : true,
+      maintainAspectRatio: true,
       interaction: { mode: 'index', intersect: false },
       onHover: function(event, activeElements) {
         if (activeElements.length > 0) {
@@ -305,8 +305,8 @@ export function buildPrecipChart(series, weatherMarkers, isMobile) {
           labels: { color: "#e6e8ef" , font: { size: isMobile ? 9 : 12 }}
         },
         tooltip: {
-          bodyFont: { size: isMobile ? 8 : 14 },
-          titleFont: { size: isMobile ? 9 : 16 },
+          bodyFont: { size: isMobile ? 8 : 12 },
+          titleFont: { size: isMobile ? 9 : 14 },
           callbacks: {
             title: items => new Date(items[0].parsed.x).toLocaleString()
           }
@@ -352,7 +352,8 @@ export function buildPrecipChart(series, weatherMarkers, isMobile) {
           position: "right",
           beginAtZero: true,
           max: 100,
-          title: { display: true, text: "Probability", color: "#a5adba", font: { size: isMobile ? 8 : 14 } },
+          display: false,
+          title: { display: false, text: "Probability", color: "#a5adba", font: { size: isMobile ? 8 : 14 } },
           ticks: {
             color: "#e6e8ef",
             font: { size: isMobile ? 9 : 13 },
@@ -438,7 +439,7 @@ const WindArrowPlugin = {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: isMobile ? false : true,
+      maintainAspectRatio: true,
       interaction: { mode: 'index', intersect: false },
       onHover: function(event, activeElements) {
         if (activeElements.length > 0) {
@@ -452,8 +453,8 @@ const WindArrowPlugin = {
           callbacks: {
             title: items => new Date(items[0].parsed.x).toLocaleString()
           },
-          bodyFont: { size: isMobile ? 8 : 14 },
-          titleFont: { size: isMobile ? 9 : 16 },
+          bodyFont: { size: isMobile ? 8 : 12 },
+          titleFont: { size: isMobile ? 9 : 14 },
         },
       },
       scales: {

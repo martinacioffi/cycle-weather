@@ -1,4 +1,4 @@
-import { haversine, bearing, roundToNearestQuarter } from './utils.js';
+import { haversine, bearing, roundToNearestQuarter, log, formatKm } from './utils.js';
 
 // ---------- GPX Parsing ----------
 export function parseGPX(xmlText) {
@@ -252,7 +252,30 @@ const mapToPoints = (indices) =>
 }
 
 // ---------- Breaks ----------
+
+export function setupBreakValidation(trackPoints) {
+  const totalDistance = trackPoints[trackPoints.length - 1].distMeters;
+  const rows = document.querySelectorAll("#breaksContainer .break-row");
+
+  rows.forEach(row => {
+    const kmInput = row.querySelector(".break-km");
+
+    kmInput.addEventListener("input", () => {
+      const km = parseFloat(kmInput.value);
+      const distMeters = km * 1000;
+
+      // reset state
+      kmInput.classList.remove("invalid");
+
+      if (isFinite(km) && km > totalDistance / 1000) {
+        kmInput.classList.add("invalid");
+      }
+    });
+  });
+}
+
 export function getBreaks(trackPoints) {
+  const totalDistance = trackPoints[trackPoints.length - 1].distMeters;
   const container = document.getElementById("breaksContainer");
   const rows = Array.from(container.children);
   const brngs = segmentBearings(trackPoints);
@@ -269,7 +292,7 @@ export function getBreaks(trackPoints) {
         Math.abs(curr.distMeters - distMeters) < Math.abs(prev.distMeters - distMeters) ? curr : prev
       );
       const bearing = brngs[closest];
-
+      if (distMeters <= totalDistance) {
       list.push({
         distMeters,
         durSec,
@@ -277,6 +300,7 @@ export function getBreaks(trackPoints) {
         lon: closest.lon,
         bearing
       });
+      } else log(`Break at ${km} km not added as the route is only ${formatKm(totalDistance)} km long.`);
     }
   }
   list.sort((a, b) => a.distMeters - b.distMeters);
