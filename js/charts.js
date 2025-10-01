@@ -1,4 +1,5 @@
-import { dirArrow8, getWeatherPictogram, highlightMapPoint } from './map.js';
+import { dirArrow8, getWeatherPictogram } from './icons.js';
+import { highlightMapPoint } from './map.js';
 
 export function destroyChartById(canvasId) {
   const existing = Chart.getChart(canvasId);

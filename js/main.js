@@ -14,10 +14,15 @@ import {
 } from './weather.js';
 
 import {
-  ensureMap, dirArrow8, windArrowWithBarbs, routeLayerGroup, getWeatherPictogram,
-  updateMapAttribution, arrowIcon, weatherMarkersLayerGroup, windMarkersLayerGroup, breakMarkersLayerGroup,
+  ensureMap, routeLayerGroup, updateMapAttribution, weatherMarkersLayerGroup,
+  windMarkersLayerGroup, breakMarkersLayerGroup, resetAllArrows,
   weatherLayerVisible, windLayerVisible, breakLayerVisible, flagIconPoints
 } from './map.js';
+
+import {
+  getWeatherPictogram, dirArrow8, windArrowWithBarbs, arrowIcon, flagIcon,
+  breakIcon, createWeatherIcon, createWindIcon
+} from './icons.js'
 
 import {
   buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById
@@ -75,6 +80,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
     updateMapAttribution(currentProvider, currentPictos);
   });
+    map.on("click", () => {
+      // Reset all arrow markers
+      visibleWeatherMarkers.forEach(m => {
+        if (m._arrowBearing !== undefined) {
+          m.setIcon(arrowIcon(m._arrowBearing, { scale: 1, opacity: 0.45 }));
+        }
+      });
+    });
 
   map.whenReady(() => {
   const ctrl = document.querySelector('.leaflet-control-layers');
@@ -566,36 +579,18 @@ if (lastEta) {
   updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
   updateLegendRange(minW, maxW, "legendBarMapWind", "legendTicksMapWind", "wind");
 
-  const startFlag = L.divIcon({
-    html: '<div class="flag-icon"><span style="font-size:22px;">🚩</span></div>',
-    className: "",
-    iconSize: [24, 24],
-    iconAnchor: [12, 22]
-  });
+  const startFlag = flagIcon("🚩");
   const startMarker = L.marker([results[0].lat, results[0].lon], { icon: startFlag, title: "Start" }).addTo(breakMarkersLayerGroup);
   startMarker._baseVisible = true;
   addBreakMarker(startMarker);
 
-  const endFlag = L.divIcon({
-    html: '<div class="flag-icon"> <span style="font-size:22px; color:#e74c3c;">🏁</span></div>',
-    className: "",
-    iconSize: [24, 24],
-    iconAnchor: [12, 22]
-  });
+  const endFlag = flagIcon("🏁");
   const endMarker = L.marker([results[results.length - 1].lat, results[results.length - 1].lon], { icon: endFlag, title: "End" }).addTo(breakMarkersLayerGroup);
   endMarker._baseVisible = true;
   addBreakMarker(endMarker);
 
   for (const b of breaks) {
-    const breakFlag = L.divIcon({
-      html:
-      `<div class="break-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: right;">
-            <span style="font-size:20px; vertical-align: top;">📌</span>
-            </div>`,
-      className: "",
-      iconSize: [25, 25],
-      iconAnchor: [5, 20]
-    });
+    const breakFlag = breakIcon();
     const breakMarker = L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
       .addTo(breakMarkersLayerGroup)
       .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
@@ -614,29 +609,13 @@ if (lastEta) {
     const bgColor = pictos === "meteoblue" ? (isNight ? "#003366" : "#90c8fc") : "white";
     const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
 
-    const weatherIconDiv = L.divIcon({
-       html: `
-       <div class="weather-icon">
-        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center ;background:  ${bgColor}; border-radius: 50%;;">
-          <img src=${imgSrc} style="width: 80%; height: 80%; object-fit: contain;" />
-          </div>
-       </div>`,
-      className: "",
-      iconSize: [42, 42],
-      iconAnchor: [22, 26]
-    });
-
+    const weatherIconDiv = createWeatherIcon(imgSrc, bgColor);
     const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv, opacity: (!isBreak && weatherLayerVisible && r.showIcon) ? 1 : 0 }).addTo(weatherMarkersLayerGroup);
     weatherMarker._baseVisible = (!isBreak && r.showIcon);
     addWeatherMarker(weatherMarker);
 
       // Wind barb marker
-    const windDiv = L.divIcon({
-       html: `<div class="weather-icon" style="margin-top:-6px;">${windSVG}</div>`,
-       className: "",
-       iconSize: [24, 24],
-       iconAnchor: [12, 0]
-    });
+    const windDiv = createWindIcon(windSVG);
     const windMarker = L.marker([r.lat, r.lon], { icon: windDiv, opacity: (!isBreak && windLayerVisible && r.showIcon) ? 1 : 0 }).addTo(windMarkersLayerGroup);
     windMarker._baseVisible = (!isBreak && r.showIcon);
     addWindMarker(windMarker);
