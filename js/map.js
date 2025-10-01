@@ -29,6 +29,33 @@ export function highlightMapPoint(weatherMarkers, index) {
   }
 }
 
+export function flagIconPoints(results, iconSpacingMeters, iconSpacingMinutes) {
+  const flagged = [];
+  let lastIdx = 0;
+  flagged.push(results[0]); // always keep the first
+
+  for (let i = 1; i < results.length; i++) {
+    const distSinceLast = results[i].accumDist - results[lastIdx].accumDist;
+    const timeSinceLast = results[i].accumTime - results[lastIdx].accumTime;
+
+    if (distSinceLast >= iconSpacingMeters || timeSinceLast >= iconSpacingMinutes * 60) {
+      flagged.push(results[i]);
+      lastIdx = i;
+    }
+  }
+
+  // always keep the last
+  if (flagged[flagged.length - 1] !== results[results.length - 1]) {
+    flagged.push(results[results.length - 1]);
+  }
+
+  // mark showIcon flag
+  const iconSet = new Set(flagged.map(r => r.accumTime)); // or use index
+  return results.map(r => ({
+    ...r,
+    showIcon: iconSet.has(r.accumTime)
+  }));
+}
 
 export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, isDay, windKmH = 0, gusts = 0, pictocode = -1, pictos="yr") {
 
@@ -216,7 +243,7 @@ export function arrowIcon(bearingDeg) {
               width: 0; height: 0;
               border-left: 4px solid transparent;
               border-right: 4px solid transparent;
-              border-bottom: 8px solid rgba(0,0,0,0.35);
+              border-bottom: 8px solid rgba(0,0,0,0.45);
               transform: rotate(${bearingDeg}deg);
             "></div>`,
     className: "",
@@ -346,8 +373,8 @@ export function ensureMap(provider, pictos) {
     const breakToggle = new LayerToggleControl(breakMarkersLayerGroup, {
       position: "topright",
       icon: "📌",
-      hideTitle: "Hide break markers",
-      showTitle: "Show break markers",
+      hideTitle: "Hide start/end and break markers",
+      showTitle: "Show start/end and break markers",
     }).addTo(map);
 
     const layerControl = L.control.layers(baseLayers, overlays, { collapsed: true }).addTo(map);
@@ -406,7 +433,7 @@ const LayerToggleControl = L.Control.extend({
           // fade them back in
           this._layerGroup.eachLayer(layer => {
             if (layer.setOpacity) {
-              layer.setOpacity(1);   // fully visible
+              layer.setOpacity(layer._baseVisible ? 1 : 0);   // fully visible
             }
           });
           btn.style.opacity = "1";

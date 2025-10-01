@@ -151,7 +151,8 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
         const img = pictogramCache[pictoName];
         if (img && img.complete) {
           const size = isMobile ? 12 : 20;
-          ctx.drawImage(img, point.x - size/2, point.y - size - 10, size, size);
+          const padding = Math.round(size * 0.5);
+          ctx.drawImage(img, point.x - size/2, point.y - size + padding, size, size);
         }
       });
     }

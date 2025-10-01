@@ -16,7 +16,7 @@ import {
 import {
   ensureMap, dirArrow8, windArrowWithBarbs, routeLayerGroup, getWeatherPictogram,
   updateMapAttribution, arrowIcon, weatherMarkersLayerGroup, windMarkersLayerGroup, breakMarkersLayerGroup,
-  weatherLayerVisible, windLayerVisible, breakLayerVisible
+  weatherLayerVisible, windLayerVisible, breakLayerVisible, flagIconPoints
 } from './map.js';
 
 import {
@@ -30,6 +30,7 @@ let layerControl;
 let baseLayers;
 let overlays;
 let weatherMarkers = [];
+let visibleWeatherMarkers = [];
 let windMarkers = [];
 let breakMarkers = [];
 let mapClickBreakHandler = null;
@@ -50,6 +51,8 @@ const processBtn = document.getElementById("processBtn");
 const maxCallsInput = document.getElementById("maxCalls");
 const sampleMetersSelect = document.getElementById("sampleMeters");
 const sampleMinutesSelect = document.getElementById("sampleMinutes");
+const sampleMetersSelectDense = document.getElementById("sampleMetersDense");
+const sampleMinutesSelectDense = document.getElementById("sampleMinutesDense");
 const breaksContainer = document.getElementById("breaksContainer");
 const addBreakBtn = document.getElementById("addBreakBtn");
 const isMobile = window.innerWidth <= 768;
@@ -116,7 +119,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // pick a scaling factor relative to zoom
   const scale = Math.max(0.4, 0.9 + (zoom - 10) * 0.15);
 
-  document.querySelectorAll(".weather-icon, .break-icon").forEach(el => {
+  document.querySelectorAll(".weather-icon, .break-icon, .flag-icon").forEach(el => {
     el.style.transform = `scale(${scale})`;
     el.style.transformOrigin = "center center";
   });
@@ -137,6 +140,14 @@ function clearWeatherMarkers() {
 
 function addWeatherMarker(marker) {
   weatherMarkers.push(marker);
+}
+
+function clearVisibleWeatherMarkers() {
+  visibleWeatherMarkers = [];
+}
+
+function addVisibleWeatherMarker(marker) {
+  visibleWeatherMarkers.push(marker);
 }
 
 function clearWindMarkers() {
@@ -315,7 +326,8 @@ fileInput.addEventListener("change", async (e) => {
 
 [
   startTimeInput, speedInput, speedUp, speedDown, speedUnit,
-  maxCallsInput, sampleMetersSelect,
+  maxCallsInput, sampleMetersSelect, sampleMinutesSelect,
+  sampleMetersSelectDense, sampleMinutesSelectDense,
   meteoblueKeyInput, providerSel, pictogramsProvider
 ].forEach(el => {
   el.addEventListener("input", validateReady);
@@ -335,15 +347,18 @@ processBtn.addEventListener("click", async () => {
     const mpsDown = speedToMps(speedVal * (1 + speedValDown ?? 0), speedUnit.value);
     if (!mps) return log("Invalid average speed.");
 
-    const maxCalls = Math.max(5, Math.min(200, parseInt(maxCallsInput.value || "60", 10)));
+    const maxCalls = Math.max(5, Math.min(1000, parseInt(maxCallsInput.value || "60", 10)));
     const minSpacing = parseInt(sampleMetersSelect.value, 10);
     const minTimeSpacing = parseInt(sampleMinutesSelect.value, 10);
+    const minSpacingDense = parseInt(sampleMetersSelectDense.value, 10);
+    const minTimeSpacingDense = parseInt(sampleMinutesSelectDense.value, 10);
     const provider = providerSel.value;
     const pictos = provider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
     const mbKey = meteoblueKeyInput.value.trim();
 
     processBtn.disabled = true;
-    await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey);
+    await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey,
+    minSpacingDense, minTimeSpacingDense);
   } catch (e) {
     log("Failed: " + e.message);
   } finally {
@@ -352,9 +367,11 @@ processBtn.addEventListener("click", async () => {
 });
 
 // ---------- Core: processRoute ----------
-async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey) {
+async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls,
+minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpacingDense) {
   // Reset UI
   clearWeatherMarkers();
+  clearVisibleWeatherMarkers();
   clearWindMarkers();
   clearBreakMarkers();
   routeLayerGroup.clearLayers();
@@ -370,56 +387,20 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   const pointsRaw = parseGPX(gpxText);
   setupBreakValidation(pointsRaw);
   const breaks = getBreaks(pointsRaw);
-  const points = insertBreaksIntoPoints(pointsRaw, breaks, minTimeSpacing);
-  const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
-  map.fitBounds(bounds.pad(0.1));
-
-  // Start/End flags
-  const start = points[0];
-  const end = points[points.length - 1];
-
-  const startFlag = L.divIcon({
-    html: '<span style="font-size:22px;">🏁</span>',
-    className: "",
-    iconSize: [24, 24],
-    iconAnchor: [12, 22]
-  });
-  L.marker([start.lat, start.lon], { icon: startFlag, title: "Start" }).addTo(routeLayerGroup);
-
-  const endFlag = L.divIcon({
-    html: '<span style="font-size:22px; color:#e74c3c;">🏁</span>',
-    className: "",
-    iconSize: [24, 24],
-    iconAnchor: [12, 22]
-  });
-  L.marker([end.lat, end.lon], { icon: endFlag, title: "End" }).addTo(routeLayerGroup);
-
+  const points = insertBreaksIntoPoints(pointsRaw, breaks, minTimeSpacingDense);
   const { cum, total } = cumulDistance(points);
   const brngs = segmentBearings(points);
-
-  // Break markers (orange pins)
-  for (const b of breaks) {
-    const breakFlag = L.divIcon({
-      html:
-      `<div class="break-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: right;">
-            <span style="font-size:20px; vertical-align: top;">📌</span>`,
-      className: "",
-      iconSize: [25, 25],
-      iconAnchor: [5, 20]
-    });
-    const breakMarker = L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
-      .addTo(breakMarkersLayerGroup)
-      .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
-    addBreakMarker(breakMarker);
-  }
+  const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
+  map.fitBounds(bounds.pad(0.1));
 
   // Grey base line
   const baseLine = L.polyline(points.map(p => [p.lat, p.lon]), { color: "#777", weight: 3, opacity: 0.35 });
   routeLayerGroup.addLayer(baseLine);
 
   // Sampling
-  const sampleIdx = buildSampleIndices(points, brngs, cum, maxCalls, minSpacing, minTimeSpacing, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
-  log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacing} m).`);
+  const sampleIdx = buildSampleIndices(points, brngs, cum, maxCalls, minSpacingDense, minTimeSpacingDense, avgSpeedMps,
+  avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
+  log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacingDense} meters and ≥ ${minTimeSpacingDense} minutes).`);
   const durationSec = sampleIdx[sampleIdx.length - 1].accumTime;
   const durationMeters = sampleIdx[sampleIdx.length - 1].accumDist;
   log(`Route has ${pointsRaw.length} points, ${formatKm(cumulDistance(points).total)} total.`);
@@ -435,6 +416,28 @@ async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgS
   const errors = [];
   const CONCURRENCY = 8;
   let i = 0;
+    let completed = 0;
+    const totalProgress = sampleIdx.length;
+    const modal = document.getElementById("progressOverlay");
+    const bar = document.getElementById("progressBar");
+    const text = document.getElementById("progressText");
+
+    // Show modal before starting
+    modal.style.display = "flex";
+
+    function updateProgress() {
+      completed++;
+      const pct = Math.round((completed / totalProgress) * 100);
+      bar.style.width = pct + "%";
+      text.textContent = pct + "%";
+
+      if (completed === totalProgress) {
+        text.textContent = "Done ✔";
+        setTimeout(() => {
+          modal.style.display = "none";
+        }, 1500);
+      }
+    }
 
 async function worker() {
 
@@ -469,16 +472,16 @@ async function worker() {
     } catch (e) {
       errors.push({ my, reason: e.message });
       log(`Forecast error @${my}: ${e.message}`);
+    } finally {
+  updateProgress();
     }
   }
 }
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
 
-  // results.sort((a,b) => a.eta - b.eta);
-  // sort by distMeters
-  results.sort((a, b) => a.distMeters - b.distMeters);
-  console.log('sorted results', results);
+  results.sort((a,b) => a.eta - b.eta);
+  console.log('Sorted results', results);
   if (!results.length) { log("No forecast results to render."); return; }
   const lastEta = results[results.length - 1]?.eta;
 if (lastEta) {
@@ -563,8 +566,47 @@ if (lastEta) {
   updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
   updateLegendRange(minW, maxW, "legendBarMapWind", "legendTicksMapWind", "wind");
 
+  const startFlag = L.divIcon({
+    html: '<div class="flag-icon"><span style="font-size:22px;">🚩</span></div>',
+    className: "",
+    iconSize: [24, 24],
+    iconAnchor: [12, 22]
+  });
+  const startMarker = L.marker([results[0].lat, results[0].lon], { icon: startFlag, title: "Start" }).addTo(breakMarkersLayerGroup);
+  startMarker._baseVisible = true;
+  addBreakMarker(startMarker);
+
+  const endFlag = L.divIcon({
+    html: '<div class="flag-icon"> <span style="font-size:22px; color:#e74c3c;">🏁</span></div>',
+    className: "",
+    iconSize: [24, 24],
+    iconAnchor: [12, 22]
+  });
+  const endMarker = L.marker([results[results.length - 1].lat, results[results.length - 1].lon], { icon: endFlag, title: "End" }).addTo(breakMarkersLayerGroup);
+  endMarker._baseVisible = true;
+  addBreakMarker(endMarker);
+
+  for (const b of breaks) {
+    const breakFlag = L.divIcon({
+      html:
+      `<div class="break-icon" style="display:flex; flex-direction:column; align-items:center; line-height:1; justify-content: right;">
+            <span style="font-size:20px; vertical-align: top;">📌</span>
+            </div>`,
+      className: "",
+      iconSize: [25, 25],
+      iconAnchor: [5, 20]
+    });
+    const breakMarker = L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
+      .addTo(breakMarkersLayerGroup)
+      .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
+    breakMarker._baseVisible = true;
+    addBreakMarker(breakMarker);
+  }
+
+  const resultsWithFlags = flagIconPoints(results, minSpacing, minTimeSpacing);
+
   // Sample markers with icons + popups
-  for (const r of results) {
+  for (const r of resultsWithFlags) {
     const isBreak = r.isBreak
     const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts, r.pictocode, pictos);
     const imgSrc = pictos === "meteoblue" ? `images/meteoblue_pictograms/${weatherIcon}.svg` : `images/yr_weather_symbols/${weatherIcon}.svg`;
@@ -584,8 +626,10 @@ if (lastEta) {
       iconAnchor: [22, 26]
     });
 
-    const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv, opacity: (!isBreak && weatherLayerVisible) ? 1 : 0 }).addTo(weatherMarkersLayerGroup);
+    const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv, opacity: (!isBreak && weatherLayerVisible && r.showIcon) ? 1 : 0 }).addTo(weatherMarkersLayerGroup);
+    weatherMarker._baseVisible = (!isBreak && r.showIcon);
     addWeatherMarker(weatherMarker);
+    if (r.showIcon) visibleWeatherMarkers.push(weatherMarker);
 
       // Wind barb marker
     const windDiv = L.divIcon({
@@ -594,7 +638,8 @@ if (lastEta) {
        iconSize: [24, 24],
        iconAnchor: [12, 0]
     });
-    const windMarker = L.marker([r.lat, r.lon], { icon: windDiv, opacity: (!isBreak && windLayerVisible) ? 1 : 0 }).addTo(windMarkersLayerGroup);
+    const windMarker = L.marker([r.lat, r.lon], { icon: windDiv, opacity: (!isBreak && windLayerVisible && r.showIcon) ? 1 : 0 }).addTo(windMarkersLayerGroup);
+    windMarker._baseVisible = (!isBreak && r.showIcon);
     addWindMarker(windMarker);
 
     const windKmh = (r.windKmH).toFixed(1);
@@ -615,6 +660,7 @@ if (lastEta) {
     const popupHtml = `
       <div style="min-width:200px">
         <div>${etaLabel}</div>
+        <div>Km from start: ${formatKm(r.accumDist)}</div><br>
         <div><strong>Forecast:</strong></div>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
         🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
@@ -630,9 +676,8 @@ if (lastEta) {
     weatherMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
     windMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
 
-
     const arrowMarker = L.marker([r.lat, r.lon], {
-        icon: arrowIcon(r.travelBearing), opacity: (!isBreak) ? 1 : 0
+        icon: arrowIcon(r.travelBearing), opacity: (!isBreak && r.showIcon) ? 1 : 0
     }).addTo(routeLayerGroup);
 
     arrowMarker.bindTooltip(popupHtml, {
@@ -648,14 +693,15 @@ if (lastEta) {
   document.getElementById("statWetShare").textContent = Math.round(100 * wetPts / results.length) + "%";
 
   // Charts
-  const chartSeries = results
+  const chartSeries = resultsWithFlags
     .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
     precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
-    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, pictocode: r.pictocode, isBreak: r.isBreak }))
+    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, pictocode: r.pictocode, isBreak: r.isBreak, showIcon: r.showIcon }))
+    .filter(r => r.showIcon)
     .sort((a,b) => +a.t - +b.t);
-  buildTempChart(chartSeries, weatherMarkers, pictos, isMobile);
-  buildPrecipChart(chartSeries, weatherMarkers, isMobile);
-  buildWindChart(chartSeries, windMarkers, isMobile);
+  buildTempChart(chartSeries, visibleWeatherMarkers, pictos, isMobile);
+  buildPrecipChart(chartSeries, visibleWeatherMarkers, isMobile);
+  buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
   else log("Completed successfully.");
