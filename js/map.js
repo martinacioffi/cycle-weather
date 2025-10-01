@@ -18,13 +18,26 @@ export function highlightMapPoint(weatherMarkers, index) {
   // Close previous tooltip
   if (activeTooltipMarker) {
     activeTooltipMarker.closeTooltip();
+
+    // Reset its arrow back to normal size/opacity
+    if (activeTooltipMarker._arrowBearing !== undefined) {
+      activeTooltipMarker.setIcon(
+        arrowIcon(activeTooltipMarker._arrowBearing, { scale: 1, opacity: 0.45 })
+      );
+    }
+
     activeTooltipMarker = null;
   }
 
   const marker = weatherMarkers[index];
   if (marker) {
     marker.openTooltip();
-    // map.setView(marker.getLatLng(), map.getZoom()); // optional: pan to marker
+
+    // Enlarge + brighten arrow
+    if (marker._arrowBearing !== undefined) {
+      marker.setIcon(arrowIcon(marker._arrowBearing, { scale: 1.5, opacity: 0.9 }));
+    }
+
     activeTooltipMarker = marker;
   }
 }
@@ -237,18 +250,21 @@ export function windArrowWithBarbs(deg, windKmh) {
   `;
 }
 
-export function arrowIcon(bearingDeg) {
+export function arrowIcon(bearingDeg, { scale = 1, opacity = 0.45 } = {}) {
+  const size = 8 * scale;
+  const half = size / 2;
+
   return L.divIcon({
     html: `<div class="route-arrow" style="
               width: 0; height: 0;
-              border-left: 4px solid transparent;
-              border-right: 4px solid transparent;
-              border-bottom: 8px solid rgba(0,0,0,0.45);
+              border-left: ${half}px solid transparent;
+              border-right: ${half}px solid transparent;
+              border-bottom: ${size}px solid rgba(0,0,0,${opacity});
               transform: rotate(${bearingDeg}deg);
             "></div>`,
     className: "",
-    iconSize: [8, 8],
-    iconAnchor: [4, 4]
+    iconSize: [size, size],
+    iconAnchor: [half, half]
   });
 }
 

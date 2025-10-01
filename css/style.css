@@ -306,7 +306,6 @@ touch-action: auto;
 }
 
 canvas {
-  background: #11151c;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px;
@@ -657,4 +656,10 @@ max-height: 300px;
   width: 0%;
   background: #4caf50;
   transition: width 0.2s ease;
+}
+.leaflet-hotline-layer canvas,
+.shademap-canvas {
+  pointer-events: none;
+  z-index: 200; /* lower than tile layer */
+  opacity: 1;   /* make sure it's not 0 or >1 */
 }

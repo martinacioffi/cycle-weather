@@ -629,7 +629,6 @@ if (lastEta) {
     const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv, opacity: (!isBreak && weatherLayerVisible && r.showIcon) ? 1 : 0 }).addTo(weatherMarkersLayerGroup);
     weatherMarker._baseVisible = (!isBreak && r.showIcon);
     addWeatherMarker(weatherMarker);
-    if (r.showIcon) visibleWeatherMarkers.push(weatherMarker);
 
       // Wind barb marker
     const windDiv = L.divIcon({
@@ -679,6 +678,8 @@ if (lastEta) {
     const arrowMarker = L.marker([r.lat, r.lon], {
         icon: arrowIcon(r.travelBearing), opacity: (!isBreak && r.showIcon) ? 1 : 0
     }).addTo(routeLayerGroup);
+    arrowMarker._arrowBearing = r.travelBearing;
+    if (r.showIcon) visibleWeatherMarkers.push(arrowMarker);
 
     arrowMarker.bindTooltip(popupHtml, {
         direction: "top",
