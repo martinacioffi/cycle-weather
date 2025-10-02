@@ -51,7 +51,7 @@ header {
   justify-content: flex-end;
 }
 
-.demo-button {
+.std-button {
   padding: 8px 16px;
   font-size: 14px;
   background-color: #0078D4;
@@ -61,7 +61,7 @@ header {
   cursor: pointer;
   align-self: left;
 }
-.demo-button:hover {
+.std-button:hover {
   background-color: #005ea2;
 }
 .help-button {
@@ -350,7 +350,7 @@ html, body {
     header h1 {
     font-size: 0.9em;
     }
-    .demo-button {
+    .std-button {
     font-size: 0.7em;
     padding: 4px 8px;
     margin-right: 0px;
@@ -408,7 +408,23 @@ html, body {
   font-family: "Courier New", monospace; /* or another non-emoji font */
   font-size: 8px; /* adjust as needed */
   line-height: 1;
-}
+  }
+  #timeSliderContainer {
+    flex-direction: column;   /* stack vertically */
+    align-items: flex-start;  /* left-align contents */
+  }
+
+  #timeSlider {
+    max-width: 100%;          /* let slider span full width */
+  }
+
+  .step-controls {
+    margin-left: 0;           /* reset auto margin */
+    width: 100%;              /* take full width */
+    justify-content: space-between; /* spread groups evenly */
+    gap: 1rem;
+  }
+
 }
 
 .main-col {
@@ -662,4 +678,56 @@ max-height: 300px;
   pointer-events: none;
   z-index: 200; /* lower than tile layer */
   opacity: 1;   /* make sure it's not 0 or >1 */
+}
+
+#timeSliderContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;          /* small gap between label, slider, and label span */
+  margin-right: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+#timeSliderContainer label.control-label {
+  white-space: nowrap;  /* keep label on one line */
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+  flex: 0 0 auto;       /* fixed size, don’t stretch */
+}
+
+#timeSlider {
+  flex: 0 0 auto;       /* don’t grow to fill everything */
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 40%;       /* cap slider width relative to container */
+}
+
+#timeSliderLabel {
+  margin-left: 0.5rem;
+  flex: 0 0 auto;       /* keep it snug next to slider */
+}
+
+.step-controls {
+  margin-left: auto;    /* push step controls all the way to the right */
+  display: flex;
+  gap: 2rem;            /* spacing between groups */
+}
+
+.step-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;  /* keep text on one line */
+}
+
+.step-group button {
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  margin-left: 0.2em;
+  margin-right: 0.2em;
+  font-size: 0.9rem;
+  line-height: 1;
+  text-align: center;
 }

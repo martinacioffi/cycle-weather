@@ -12,7 +12,7 @@ async function fetchOpenMeteo(lat, lon) {
     "wind_gusts_10m", "windspeed_10m","winddirection_10m",
     "precipitation", "cloud_cover", "cloud_cover_low", "is_day"].join(","),
     past_days: "0",
-    forecast_days: "16"
+    forecast_days: "7"
   });
   const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
   const res = await fetch(url);

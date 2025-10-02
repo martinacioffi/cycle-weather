@@ -1,6 +1,6 @@
 import {
   haversine, formatKm, formatDuration, speedToMps, log,
-  makeColorer, effectiveWind,
+  makeColorer, effectiveWind, pickForecastAtETAs,
   updateLegendRange, getPercentInput, roundToNearestQuarter
 } from './utils.js';
 
@@ -33,12 +33,16 @@ let gpxText = null;
 let map;
 let layerControl;
 let baseLayers;
-let overlays;
+let overlays, tempLayerGroup, windLayerGroup;
 let weatherMarkers = [];
 let visibleWeatherMarkers = [];
 let windMarkers = [];
 let breakMarkers = [];
 let mapClickBreakHandler = null;
+let currentMinT = 0;
+let currentMaxT = 20;
+let currentMinW = -15;
+let currentMaxW = 15;
 
 // ---------- DOM Elements (match your HTML) ----------
 const fileInput = document.getElementById("gpxFile");
@@ -60,6 +64,14 @@ const sampleMetersSelectDense = document.getElementById("sampleMetersDense");
 const sampleMinutesSelectDense = document.getElementById("sampleMinutesDense");
 const breaksContainer = document.getElementById("breaksContainer");
 const addBreakBtn = document.getElementById("addBreakBtn");
+const slider = document.getElementById("timeSlider");
+const timeSliderLabel = document.getElementById("timeSliderLabel");
+const minus15 = document.getElementById("minus15");
+const plus15  = document.getElementById("plus15");
+const minus60 = document.getElementById("minus60");
+const plus60  = document.getElementById("plus60");
+const minus1440 = document.getElementById("minus1440");
+const plus1440  = document.getElementById("plus1440");
 const isMobile = window.innerWidth <= 768;
 
 // ---------- Init ----------
@@ -70,24 +82,58 @@ window.addEventListener("DOMContentLoaded", () => {
   const pad = n => n.toString().padStart(2, "0");
   startTimeInput.value =
     `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`;
-
+  /*timeSliderLabel.textContent = tomorrow.toLocaleString([], {
+      dateStyle: "short",
+      timeStyle: "short"
+    });*/
+  slider.value = 124
   // Initialize map
   const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
   ({ map, layerControl, baseLayers, overlays } = ensureMap(providerSel.value, pictos));
+  tempLayerGroup = overlays["Temperature"];
+  windLayerGroup = overlays["Wind"];
   // Initial attribution sync
   map.on('baselayerchange', function() {
     const currentProvider = providerSel.value;
     const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
     updateMapAttribution(currentProvider, currentPictos);
   });
-    map.on("click", () => {
+  map.on("click", () => {
       // Reset all arrow markers
       visibleWeatherMarkers.forEach(m => {
         if (m._arrowBearing !== undefined) {
           m.setIcon(arrowIcon(m._arrowBearing, { scale: 1, opacity: 0.45 }));
         }
       });
-    });
+  });
+  map.on("overlayadd", e => {
+  if (e.layer === tempLayerGroup) {
+    if (map.hasLayer(windLayerGroup)) {
+      setTimeout(() => map.removeLayer(windLayerGroup), 0);
+      // Uncheck Wind box
+      layerControl._layerControlInputs.forEach(input => {
+        if (input.nextSibling && input.nextSibling.textContent.trim() === "Wind") {
+          input.checked = false;
+        }
+      });
+          }
+      updateLegendRange(currentMinT, currentMaxT, "legendBarMap", "legendTicksMap", "temp");
+      updateLegendRange(currentMinT, currentMaxT, "legendBarTemp", "legendTicksTemp", "temp");
+  }
+  if (e.layer === windLayerGroup) {
+    if (map.hasLayer(tempLayerGroup)) {
+        setTimeout(() => map.removeLayer(tempLayerGroup), 0);
+      // Uncheck Temp box
+      layerControl._layerControlInputs.forEach(input => {
+        if (input.nextSibling && input.nextSibling.textContent.trim() === "Temperature") {
+          input.checked = false;
+        }
+      });
+     }
+     updateLegendRange(currentMinW, currentMaxW, "legendBarWind", "legendTicksWind", "wind");
+     updateLegendRange(currentMinW, currentMaxW, "legendBarMapWind", "legendTicksMapWind", "wind");
+    }
+  });
 
   map.whenReady(() => {
   const ctrl = document.querySelector('.leaflet-control-layers');
@@ -141,6 +187,32 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 // ---------- Helpers ----------
+function adjustSlider(steps) {
+  let newVal = parseInt(slider.value, 10) + steps;
+  newVal = Math.max(slider.min, Math.min(slider.max, newVal));
+  slider.value = newVal;
+  slider.dispatchEvent(new Event("input")); // trigger existing handler
+  updateStepButtons(); // refresh button states
+}
+
+function updateStepButtons() {
+  const val = parseInt(slider.value, 10);
+  const min = parseInt(slider.min, 10);
+  const max = parseInt(slider.max, 10);
+
+  // 15 min
+  minus15.disabled = (val <= min);
+  plus15.disabled  = (val >= max);
+
+  // 1 hour (4 steps)
+  minus60.disabled = (val - 4 < min);
+  plus60.disabled  = (val + 4 > max);
+
+  // 1 day (96 steps)
+  minus1440.disabled = (val - 96 < min);
+  plus1440.disabled  = (val + 96 > max);
+}
+
 function validateReady() {
   const ok = !!gpxText && startTimeInput.value && parseFloat(speedInput.value) > 0;
   processBtn.disabled = !ok;
@@ -179,6 +251,198 @@ function clearBreakMarkers() {
 
 function addBreakMarker(marker) {
   breakMarkers.push(marker);
+}
+
+function updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing,
+minSpacingDense, minTimeSpacingDense, pictos) {
+  // Clear old layers
+  overlays["Temperature"].clearLayers();
+  overlays["Wind"].clearLayers();
+  clearWeatherMarkers();
+  clearVisibleWeatherMarkers();
+  clearWindMarkers();
+  clearBreakMarkers();
+  routeLayerGroup.clearLayers();
+
+  // Sort by ETA
+  aligned.sort((a, b) => a.eta - b.eta);
+  if (!aligned.length) {
+    log("No forecast results to render.");
+    return;
+  }
+
+  // Duration
+  const lastEta = aligned[aligned.length - 1]?.eta;
+  if (lastEta) {
+    const durationMs = lastEta.getTime() - aligned[0].eta.getTime();
+    const durationSec = durationMs / 1000;
+    document.getElementById("statDuration").textContent = formatDuration(durationSec);
+  }
+
+  // Outline
+  const fullRoute = points.map(p => [p.lat, p.lon]);
+  const outline = L.polyline(fullRoute, { color: "black", weight: 8, opacity: 0.85 });
+  routeLayerGroup.addLayer(outline);
+
+  // Temperature
+  const temps = aligned.map(r => r.tempC).filter(t => isFinite(t));
+  let minT = Math.min(...temps);
+  let maxT = Math.max(...temps);
+  if (!isFinite(minT) || !isFinite(maxT)) { minT = 0; maxT = 1; }
+  if (maxT - minT < 0.1) { maxT = minT + 0.1; }
+
+  const tempColor = makeColorer(minT, maxT, "temp");
+  for (let s = 0; s < points.length - 1; s++) {
+    const nearest = nearestByIdx(aligned, s);
+    const t = nearest ? nearest.tempC : null;
+    const color = (t == null) ? "#cccccc" : tempColor(t);
+    const seg = L.polyline(
+      [[points[s].lat, points[s].lon], [points[s+1].lat, points[s+1].lon]],
+      { color, weight: 5, opacity: 0.95 }
+    );
+    tempLayerGroup.addLayer(seg);
+  }
+
+  // Wind
+  const winds = aligned.map(r => r.windEffectiveKmH).filter(w => isFinite(w));
+  let minW = Math.min(...winds);
+  let maxW = Math.max(...winds);
+  if (!isFinite(minW) || !isFinite(maxW)) { minW = -1; maxW = 1; }
+  if (maxW - minW < 0.1) { maxW = minW + 0.1; }
+
+  const windColor = makeColorer(minW, maxW, "wind");
+  for (let s = 0; s < points.length - 1; s++) {
+    const nearest = nearestByIdx(aligned, s);
+    const eff = nearest ? nearest.windEffectiveKmH : 0;
+    const color = (eff == null) ? "#cccccc" : windColor(eff);
+    const seg = L.polyline(
+      [[points[s].lat, points[s].lon], [points[s+1].lat, points[s+1].lon]],
+      { color, weight: 5, opacity: 0.95 }
+    );
+    windLayerGroup.addLayer(seg);
+  }
+
+  // Legends
+  updateLegendRange(minT, maxT, "legendBarMap", "legendTicksMap", "temp");
+  updateLegendRange(minT, maxT, "legendBarTemp", "legendTicksTemp", "temp");
+  updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
+  updateLegendRange(minW, maxW, "legendBarMapWind", "legendTicksMapWind", "wind");
+
+  currentMinT = minT;
+  currentMaxT = maxT;
+  currentMinW = minW;
+  currentMaxW = maxW;
+
+  // Start/end/break markers
+  const startFlag = flagIcon("🚩");
+  const startMarker = L.marker([aligned[0].lat, aligned[0].lon], { icon: startFlag, title: "Start" })
+    .addTo(breakMarkersLayerGroup);
+  startMarker._baseVisible = true;
+  addBreakMarker(startMarker);
+
+  const endFlag = flagIcon("🏁");
+  const endMarker = L.marker([aligned[aligned.length - 1].lat, aligned[aligned.length - 1].lon],
+    { icon: endFlag, title: "End" })
+    .addTo(breakMarkersLayerGroup);
+  endMarker._baseVisible = true;
+  addBreakMarker(endMarker);
+
+  for (const b of breaks) {
+    const breakFlag = breakIcon();
+    const breakMarker = L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
+      .addTo(breakMarkersLayerGroup)
+      .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
+    breakMarker._baseVisible = true;
+    addBreakMarker(breakMarker);
+  }
+
+  // Weather/wind markers + popups
+  const resultsWithFlags = flagIconPoints(aligned, minSpacing, minTimeSpacing);
+  let wetPts = 0;
+  for (const r of resultsWithFlags) {
+        const isBreak = r.isBreak
+    const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts, r.pictocode, pictos);
+    const imgSrc = pictos === "meteoblue" ? `images/meteoblue_pictograms/${weatherIcon}.svg` : `images/yr_weather_symbols/${weatherIcon}.svg`;
+    const isNight = weatherIcon.endsWith("night");
+    const bgColor = pictos === "meteoblue" ? (isNight ? "#003366" : "#90c8fc") : "white";
+    const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
+
+    const weatherIconDiv = createWeatherIcon(imgSrc, bgColor);
+    const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv, opacity: (!isBreak && weatherLayerVisible && r.showIcon) ? 1 : 0 }).addTo(weatherMarkersLayerGroup);
+    weatherMarker._baseVisible = (!isBreak && r.showIcon);
+    addWeatherMarker(weatherMarker);
+
+      // Wind barb marker
+    const windDiv = createWindIcon(windSVG);
+    const windMarker = L.marker([r.lat, r.lon], { icon: windDiv, opacity: (!isBreak && windLayerVisible && r.showIcon) ? 1 : 0 }).addTo(windMarkersLayerGroup);
+    windMarker._baseVisible = (!isBreak && r.showIcon);
+    addWindMarker(windMarker);
+
+    const windKmh = (r.windKmH).toFixed(1);
+    const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+    const etaLabel = isBreak ? `During Break: ${etaStr}` : `ETA: ${etaStr}`;
+    // Decide headwind/tailwind
+    let windLabel;
+    const eff = r.windEffectiveKmH;
+    const effRounded = Math.round(eff * 10) / 10;
+    if (effRounded > 0) {
+      windLabel = `<br/>💨 Tailwind: ${effRounded.toFixed(1)} km/h`;
+    } else if (effRounded < 0) {
+      windLabel = `<br/>💨 Headwind: ${Math.abs(effRounded).toFixed(1)} km/h`;
+    } else {
+      windLabel = "<br/>No head/tailwind (pure crosswind)";
+    }
+    const windLabelBreak = isBreak ? "" : windLabel
+    const popupHtml = `
+      <div style="min-width:200px">
+        <div>${etaLabel}</div>
+        <div>Km from start: ${formatKm(r.accumDist)}</div><br>
+        <div><strong>Forecast:</strong></div>
+        ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
+        🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
+        💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}${windLabelBreak}<br/>
+      </div>
+    `;
+
+    if (isMobile) {
+        weatherMarker.bindPopup(popupHtml);
+        windMarker.bindPopup(popupHtml);
+    }
+
+    weatherMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
+    windMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
+
+    const arrowMarker = L.marker([r.lat, r.lon], {
+        icon: arrowIcon(r.travelBearing), opacity: (!isBreak && r.showIcon) ? 1 : 0
+    }).addTo(routeLayerGroup);
+    arrowMarker._arrowBearing = r.travelBearing;
+    if (r.showIcon) visibleWeatherMarkers.push(arrowMarker);
+
+    arrowMarker.bindTooltip(popupHtml, {
+        direction: "top",
+        sticky: true,
+        className: "forecast-tooltip"
+    });
+    if ((r.precip || 0) >= 0.1) wetPts++;
+  }
+
+  document.getElementById("statTempRange").textContent = `${minT.toFixed(1)}°C → ${maxT.toFixed(1)}°C`;
+  document.getElementById("statWetShare").textContent = Math.round(100 * wetPts / aligned.length) + "%";
+
+  // Charts
+  const chartSeries = resultsWithFlags
+    .map(r => ({
+      t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
+      precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg,
+      cloudCover: r.cloudCover, cloudCoverLow: r.cloudCoverLow, isDay: r.isDay,
+      pictocode: r.pictocode, isBreak: r.isBreak, showIcon: r.showIcon
+    }))
+    .filter(r => r.showIcon)
+    .sort((a, b) => +a.t - +b.t);
+
+  buildTempChart(chartSeries, visibleWeatherMarkers, pictos, isMobile);
+  buildPrecipChart(chartSeries, visibleWeatherMarkers, isMobile);
+  buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
 }
 
 // ---------- UI wiring ----------
@@ -276,6 +540,14 @@ addBreakBtn.addEventListener("click", () => {
   breaksContainer.appendChild(row);
   validateReady();
 });
+
+minus15.addEventListener("click", () => adjustSlider(-1));
+plus15.addEventListener("click", () => adjustSlider(1));
+minus60.addEventListener("click", () => adjustSlider(-4));
+plus60.addEventListener("click", () => adjustSlider(4));
+minus1440.addEventListener("click", () => adjustSlider(-96));
+plus1440.addEventListener("click", () => adjustSlider(96));
+slider.addEventListener("input", updateStepButtons);
 
 fileInput.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
@@ -460,228 +732,87 @@ async function worker() {
 
     try {
       const fc = await getForecast(p.lat, p.lon, provider, mbKey);
-      const roundedEta = p.etaQuarter;
-      const k = pickHourAt(fc, roundedEta);
-      if (k === -1) {
-        errors.push({ my, reason: "Time out of forecast range", roundedEta });
-        log(`No forecast at ${roundedEta} for (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}).`);
-        continue;
-      }
+
       results.push({
         ...p,
-        tempC: Number(fc.tempC[k]),
-        feltTempC: Number(fc.feltTempC[k]),
-        gusts: Number(fc.windGusts[k]),
-        windKmH: Number(fc.windSpeedKmH[k]),
-        windDeg: Number(fc.windFromDeg[k]),
-        windEffectiveKmH: effectiveWind(p.travelBearing, Number(fc.windFromDeg[k]), Number(fc.windSpeedKmH[k])),
-        precip: Number(fc.precipMmHr[k]),
-        precipProb: Number(fc.precipProb[k]),
-        cloudCover: Number(fc.cloudCover[k]),
-        cloudCoverLow: Number(fc.cloudCoverLow[k]),
-        isDay: Number(fc.isDay[k]),
-        pictocode: Number(fc.pictocode[k] ?? -1),
+        times: fc.times.map(t => new Date(t)),   // keep the full time array
+        tempC: fc.tempC.map(Number),
+        feltTempC: fc.feltTempC.map(Number),
+        gusts: fc.windGusts.map(Number),
+        windKmH: fc.windSpeedKmH.map(Number),
+        windDeg: fc.windFromDeg.map(Number),
+        windEffectiveKmH: fc.windSpeedKmH.map((spd, i) =>
+          effectiveWind(p.travelBearing, fc.windFromDeg[i], spd)
+        ),
+        precip: fc.precipMmHr.map(Number),
+        precipProb: fc.precipProb.map(Number),
+        cloudCover: fc.cloudCover.map(Number),
+        cloudCoverLow: fc.cloudCoverLow.map(Number),
+        isDay: fc.isDay.map(Number),
+        pictocode: fc.pictocode.map(v => Number(v ?? -1)),
       });
     } catch (e) {
       errors.push({ my, reason: e.message });
       log(`Forecast error @${my}: ${e.message}`);
     } finally {
-  updateProgress();
+      updateProgress();
     }
   }
 }
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
+  // Now compute global time range across all results
+  const allTimes = results.flatMap(r => r.times);
+  const allAccumTime = results.flatMap(r => r.accumTime);
+  const globalMinTime = new Date(Math.min(...allTimes));
+  const globalMaxTime = new Date(Math.max(...allTimes));
+  const tripDurationMs = Math.max(...allAccumTime) * 1000;
+  const latestStartTime = new Date(globalMaxTime.getTime() - tripDurationMs);
 
-  results.sort((a,b) => a.eta - b.eta);
-  console.log('Sorted results', results);
-  if (!results.length) { log("No forecast results to render."); return; }
-  const lastEta = results[results.length - 1]?.eta;
-if (lastEta) {
-  const durationMs = lastEta.getTime() - startDate.getTime();
-  const durationSec = durationMs / 1000;
-  document.getElementById("statDuration").textContent = formatDuration(durationSec);
-}
-  // Temp range + legend (sidebar + map)
-  const temps = results.map(r => r.tempC).filter(t => isFinite(t));
-  let minT = Math.min(...temps);
-  let maxT = Math.max(...temps);
-  if (!isFinite(minT) || !isFinite(maxT)) { minT = 0; maxT = 1; }
-  if (maxT - minT < 0.1) { maxT = minT + 0.1; }
-
-  // Add black outline first
-  const fullRoute = points.map(p => [p.lat, p.lon]);
-  const outline = L.polyline(fullRoute, {color: "black", weight: 8, opacity: 0.85});
-  routeLayerGroup.addLayer(outline);
-
-  // Colorer + colored segments
-  const tempColor = makeColorer(minT, maxT, "temp");
-  const tempLayerGroup = overlays["Temperature"];
-  let wetPts = 0;
-
-  for (let s = 0; s < points.length - 1; s++) {
-    const nearest = nearestByIdx(results, s);
-    const t = nearest ? nearest.tempC : null;
-    const color = (t == null) ? "#cccccc" : tempColor(t);
-    const seg = L.polyline([[points[s].lat, points[s].lon],[points[s+1].lat, points[s+1].lon]], { color, weight: 5, opacity: 0.95 });
-    tempLayerGroup.addLayer(seg);
+  // Build time steps
+  const timeSteps = [];
+  const stepMinutes = 15;
+  for (let t = new Date(globalMinTime); t <= latestStartTime; t.setMinutes(t.getMinutes() + stepMinutes)) {
+    timeSteps.push(new Date(t));
   }
 
-  // Wind range + legend (sidebar + map)
-  const winds = results.map(r => r.windEffectiveKmH).filter(w => isFinite(w));
-  let minW = Math.min(...winds);
-  let maxW = Math.max(...winds);
-  if (!isFinite(minW) || !isFinite(maxW)) { minW = -1; maxW = 1; }
-  if (maxW - minW < 0.1) { maxW = minW + 0.1; }
-
-  const windColor = makeColorer(minW, maxW, "wind");
-  const windLayerGroup = overlays["Wind"];
-
-  for (let s = 0; s < points.length - 1; s++) {
-    const nearest = nearestByIdx(results, s);
-    const eff = nearest ? nearest.windEffectiveKmH : 0;
-    const color = (eff == null) ? "#cccccc" : windColor(eff);
-    const seg = L.polyline([[points[s].lat, points[s].lon], [points[s+1].lat, points[s+1].lon]],{ color, weight: 5, opacity: 0.95 });
-    windLayerGroup.addLayer(seg);
-  }
-
-  map.on("overlayadd", e => {
-  if (e.layer === tempLayerGroup) {
-    if (map.hasLayer(windLayerGroup)) {
-      setTimeout(() => map.removeLayer(windLayerGroup), 0);
-      // Uncheck Wind box
-      layerControl._layerControlInputs.forEach(input => {
-        if (input.nextSibling && input.nextSibling.textContent.trim() === "Wind") {
-          input.checked = false;
-        }
-      });
-          }
-      updateLegendRange(minT, maxT, "legendBarMap", "legendTicksMap", "temp");
-      updateLegendRange(minT, maxT, "legendBarTemp", "legendTicksTemp", "temp");
-  }
-  if (e.layer === windLayerGroup) {
-    if (map.hasLayer(tempLayerGroup)) {
-        setTimeout(() => map.removeLayer(tempLayerGroup), 0);
-      // Uncheck Temp box
-      layerControl._layerControlInputs.forEach(input => {
-        if (input.nextSibling && input.nextSibling.textContent.trim() === "Temperature") {
-          input.checked = false;
-        }
-      });
-     }
-     updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
-     updateLegendRange(minW, maxW, "legendBarMapWind", "legendTicksMapWind", "wind");
+  // Setup slider once
+  slider.max = timeSteps.length - 1;
+  // Find index of startDate in timeSteps (nearest)
+  let startIdx = 0;
+  let minDiff = Infinity;
+  for (let i = 0; i < timeSteps.length; i++) {
+    const diff = Math.abs(timeSteps[i] - startDate);
+    if (diff < minDiff) {
+    minDiff = diff;
+    startIdx = i;
     }
+  }
+
+  // Set slider thumb to startDate position
+  slider.value = startIdx;
+
+  timeSliderLabel.textContent = timeSteps[startIdx].toLocaleString([], {
+    dateStyle: "short",
+    timeStyle: "short"
   });
 
-  updateLegendRange(minT, maxT, "legendBarMap", "legendTicksMap", "temp");
-  updateLegendRange(minT, maxT, "legendBarTemp", "legendTicksTemp", "temp");
-  updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
-  updateLegendRange(minW, maxW, "legendBarMapWind", "legendTicksMapWind", "wind");
-
-  const startFlag = flagIcon("🚩");
-  const startMarker = L.marker([results[0].lat, results[0].lon], { icon: startFlag, title: "Start" }).addTo(breakMarkersLayerGroup);
-  startMarker._baseVisible = true;
-  addBreakMarker(startMarker);
-
-  const endFlag = flagIcon("🏁");
-  const endMarker = L.marker([results[results.length - 1].lat, results[results.length - 1].lon], { icon: endFlag, title: "End" }).addTo(breakMarkersLayerGroup);
-  endMarker._baseVisible = true;
-  addBreakMarker(endMarker);
-
-  for (const b of breaks) {
-    const breakFlag = breakIcon();
-    const breakMarker = L.marker([b.lat, b.lon], { icon: breakFlag, opacity: breakLayerVisible ? 1 : 0 })
-      .addTo(breakMarkersLayerGroup)
-      .bindTooltip(`<strong>Break</strong><br>Distance: ${(b.distMeters/1000).toFixed(1)} km<br>Duration: ${Math.round(b.durSec/60)} min`);
-    breakMarker._baseVisible = true;
-    addBreakMarker(breakMarker);
-  }
-
-  const resultsWithFlags = flagIconPoints(results, minSpacing, minTimeSpacing);
-
-  // Sample markers with icons + popups
-  for (const r of resultsWithFlags) {
-    const isBreak = r.isBreak
-    const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts, r.pictocode, pictos);
-    const imgSrc = pictos === "meteoblue" ? `images/meteoblue_pictograms/${weatherIcon}.svg` : `images/yr_weather_symbols/${weatherIcon}.svg`;
-    const isNight = weatherIcon.endsWith("night");
-    const bgColor = pictos === "meteoblue" ? (isNight ? "#003366" : "#90c8fc") : "white";
-    const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
-
-    const weatherIconDiv = createWeatherIcon(imgSrc, bgColor);
-    const weatherMarker = L.marker([r.lat, r.lon], { icon: weatherIconDiv, opacity: (!isBreak && weatherLayerVisible && r.showIcon) ? 1 : 0 }).addTo(weatherMarkersLayerGroup);
-    weatherMarker._baseVisible = (!isBreak && r.showIcon);
-    addWeatherMarker(weatherMarker);
-
-      // Wind barb marker
-    const windDiv = createWindIcon(windSVG);
-    const windMarker = L.marker([r.lat, r.lon], { icon: windDiv, opacity: (!isBreak && windLayerVisible && r.showIcon) ? 1 : 0 }).addTo(windMarkersLayerGroup);
-    windMarker._baseVisible = (!isBreak && r.showIcon);
-    addWindMarker(windMarker);
-
-    const windKmh = (r.windKmH).toFixed(1);
-    const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
-    const etaLabel = isBreak ? `During Break: ${etaStr}` : `ETA: ${etaStr}`;
-    // Decide headwind/tailwind
-    let windLabel;
-    const eff = r.windEffectiveKmH;
-    const effRounded = Math.round(eff * 10) / 10;
-    if (effRounded > 0) {
-      windLabel = `<br/>💨 Tailwind: ${effRounded.toFixed(1)} km/h`;
-    } else if (effRounded < 0) {
-      windLabel = `<br/>💨 Headwind: ${Math.abs(effRounded).toFixed(1)} km/h`;
-    } else {
-      windLabel = "<br/>No head/tailwind (pure crosswind)";
-    }
-    const windLabelBreak = isBreak ? "" : windLabel
-    const popupHtml = `
-      <div style="min-width:200px">
-        <div>${etaLabel}</div>
-        <div>Km from start: ${formatKm(r.accumDist)}</div><br>
-        <div><strong>Forecast:</strong></div>
-        ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
-        🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
-        💨 Wind: ${windKmh} km/h from ${Math.round(r.windDeg)}° ${dirArrow8(r.windDeg)}${windLabelBreak}<br/>
-      </div>
-    `;
-
-    if (isMobile) {
-        weatherMarker.bindPopup(popupHtml);
-        windMarker.bindPopup(popupHtml);
-    }
-
-    weatherMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
-    windMarker.bindTooltip(popupHtml, { direction: "top", sticky: true, className: "forecast-tooltip" });
-
-    const arrowMarker = L.marker([r.lat, r.lon], {
-        icon: arrowIcon(r.travelBearing), opacity: (!isBreak && r.showIcon) ? 1 : 0
-    }).addTo(routeLayerGroup);
-    arrowMarker._arrowBearing = r.travelBearing;
-    if (r.showIcon) visibleWeatherMarkers.push(arrowMarker);
-
-    arrowMarker.bindTooltip(popupHtml, {
-        direction: "top",
-        sticky: true,
-        className: "forecast-tooltip"
+  slider.addEventListener("input", () => {
+    const newStart = timeSteps[slider.value];
+    timeSliderLabel.textContent = newStart.toLocaleString([], {
+      dateStyle: "short",
+      timeStyle: "short"
     });
 
-    if ((r.precip || 0) >= 0.1) wetPts++;
-  }
+    const aligned = pickForecastAtETAs(results, newStart);
+    const pad = n => n.toString().padStart(2, "0");
+    startTimeInput.value =
+    `${newStart.getFullYear()}-${pad(newStart.getMonth() + 1)}-${pad(newStart.getDate())}T${pad(newStart.getHours())}:${pad(newStart.getMinutes())}`;
+    updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
+  });
 
-  document.getElementById("statTempRange").textContent = `${minT.toFixed(1)}°C → ${maxT.toFixed(1)}°C`;
-  document.getElementById("statWetShare").textContent = Math.round(100 * wetPts / results.length) + "%";
-
-  // Charts
-  const chartSeries = resultsWithFlags
-    .map(r => ({ t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
-    precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg, cloudCover: r.cloudCover,
-    cloudCoverLow: r.cloudCoverLow, isDay: r.isDay, pictocode: r.pictocode, isBreak: r.isBreak, showIcon: r.showIcon }))
-    .filter(r => r.showIcon)
-    .sort((a,b) => +a.t - +b.t);
-  buildTempChart(chartSeries, visibleWeatherMarkers, pictos, isMobile);
-  buildPrecipChart(chartSeries, visibleWeatherMarkers, isMobile);
-  buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
+  const resultsInitialStartDate = pickForecastAtETAs(results, startDate);
+  updateMapAndCharts(points, resultsInitialStartDate, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
   else log("Completed successfully.");

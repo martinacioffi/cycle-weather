@@ -76,6 +76,48 @@ export function roundToNearestQuarter(date) {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
+/**
+ * Given full-array forecasts per point and a new startDate,
+ * return a snapshot where each point is sampled at (startDate + accumTime).
+ *
+ * @param {Array} results - array of route points with full forecast arrays
+ * @param {Date} startDate - new chosen start date
+ */
+export function pickForecastAtETAs(results, startDate) {
+  return results.map(r => {
+    // compute shifted ETA for this point
+    const shiftedEta = new Date(startDate.getTime() + r.accumTime * 1000);
+
+    // find nearest forecast index for this point
+    let idx = 0;
+    let minDiff = Infinity;
+    for (let i = 0; i < r.times.length; i++) {
+      const diff = Math.abs(r.times[i] - shiftedEta);
+      if (diff < minDiff) {
+        minDiff = diff;
+        idx = i;
+      }
+    }
+
+    return {
+      ...r,
+      eta: r.times[idx], // actual forecast timestamp used
+      tempC: r.tempC[idx],
+      feltTempC: r.feltTempC[idx],
+      gusts: r.gusts[idx],
+      windKmH: r.windKmH[idx],
+      windDeg: r.windDeg[idx],
+      windEffectiveKmH: r.windEffectiveKmH[idx],
+      precip: r.precip[idx],
+      precipProb: r.precipProb[idx],
+      cloudCover: r.cloudCover[idx],
+      cloudCoverLow: r.cloudCoverLow[idx],
+      isDay: r.isDay[idx],
+      pictocode: r.pictocode[idx],
+    };
+  });
+}
+
 // ---------- Logging ----------
 export function log(msg) {
   const el = document.getElementById("log");

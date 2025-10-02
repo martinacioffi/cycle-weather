@@ -27,7 +27,7 @@
       </div>
     </div>
     <div class="header-right">
-      <button id="demoBtn" class="demo-button" title="Try it now with a demo file">Demo</button>
+      <button id="demoBtn" class="std-button" title="Try it now with a demo file">Demo</button>
         <a href="help.html" class="help-button" title="Learn about the inputs">Help</a>
     </div>
   </div>
@@ -238,6 +238,40 @@
       </div>
     </div>
         </main>
+    <div id="timeSliderContainer">
+      <!-- Label -->
+      <label for="timeSlider">
+        Update Start Time:
+      </label>
+
+      <!-- Slider -->
+      <input type="range" id="timeSlider" min="0" max="672" step="1">
+      <label id="timeSliderLabel"></label>
+
+      <!-- Step controls -->
+      <div class="step-controls">
+        <!-- 15 minutes -->
+        <div class="step-group">
+          <button id="minus15" class="std-button">-</button>
+          <label class="step-label">15 minutes</label>
+          <button id="plus15" class="std-button">+</button>
+        </div>
+
+        <!-- 1 hour -->
+        <div class="step-group">
+          <button id="minus60" class="std-button">-</button>
+          <label class="step-label">1 hour</label>
+          <button id="plus60" class="std-button">+</button>
+        </div>
+
+        <!-- 1 day -->
+        <div class="step-group">
+          <button id="minus1440" class="std-button">-</button>
+          <label class="step-label">1 day</label>
+          <button id="plus1440" class="std-button">+</button>
+        </div>
+      </div>
+    </div>
         <div class="charts">
             <h3>Trip forecast</h3>
                 <canvas id="tempChart"></canvas>
