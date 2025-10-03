@@ -1,6 +1,6 @@
 import {
   haversine, formatKm, formatDuration, speedToMps, log,
-  makeColorer, effectiveWind, pickForecastAtETAs,
+  makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates,
   updateLegendRange, getPercentInput, roundToNearestQuarter
 } from './utils.js';
 
@@ -9,9 +9,7 @@ import {
   getBreaks, breakOffsetSeconds, nearestByIdx, insertBreaksIntoPoints
 } from './gpx.js';
 
-import {
-  getForecast, pickHourAt
-} from './weather.js';
+import { getForecast, pickHourAt } from './weather.js';
 
 import {
   ensureMap, routeLayerGroup, updateMapAttribution, weatherMarkersLayerGroup,
@@ -43,6 +41,9 @@ let currentMinT = 0;
 let currentMaxT = 20;
 let currentMinW = -15;
 let currentMaxW = 15;
+let latestResults = null;
+let latestTimeSteps = null;
+let initialMetrics;
 
 // ---------- DOM Elements (match your HTML) ----------
 const fileInput = document.getElementById("gpxFile");
@@ -66,27 +67,61 @@ const breaksContainer = document.getElementById("breaksContainer");
 const addBreakBtn = document.getElementById("addBreakBtn");
 const slider = document.getElementById("timeSlider");
 const timeSliderLabel = document.getElementById("timeSliderLabel");
-const minus15 = document.getElementById("minus15");
-const plus15  = document.getElementById("plus15");
+const minusStep = document.getElementById("minusStep");
+const plusStep  = document.getElementById("plusStep");
+const minus10 = document.getElementById("minus10");
+const plus10  = document.getElementById("plus10");
 const minus60 = document.getElementById("minus60");
 const plus60  = document.getElementById("plus60");
 const minus1440 = document.getElementById("minus1440");
 const plus1440  = document.getElementById("plus1440");
+const optimizeMinutes = document.getElementById("granularityMinutes");
+const optimizeCheckbox = document.getElementById("optimizeStart");
+const modal = document.getElementById("optimizeModal");
+const closeBtn = modal.querySelector(".close");
+const optStartDateMin = document.getElementById("optStartDateMin");
+const optStartDateMax = document.getElementById("optStartDateMax");
+const optStartTimeMin = document.getElementById("optStartTimeMin");
+const optStartTimeMax = document.getElementById("optStartTimeMax");
+const optimizeBtn = document.getElementById("optimizeButton");
+const errorMsg = document.getElementById("rangeError");
+const sliders = [
+  { id: "rainSlider", valueId: "rainValue" },
+  { id: "windMaxSlider", valueId: "windMaxValue" },
+  { id: "windAvgSlider", valueId: "windAvgValue" },
+  { id: "tempSlider", valueId: "tempValue" }
+];
 const isMobile = window.innerWidth <= 768;
 
 // ---------- Init ----------
+document.getElementById("timeSliderContainer").classList.add("disabled");
+
 window.addEventListener("DOMContentLoaded", () => {
   // Set default start time to tomorrow at 07:00 (LOCAL string for datetime-local)
   const now = new Date();
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 7, 0, 0, 0);
   const pad = n => n.toString().padStart(2, "0");
-  startTimeInput.value =
-    `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`;
+  const formatDateTimeLocal = d =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const formatDateLocal = d =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  startTimeInput.value = formatDateTimeLocal(tomorrow);
   /*timeSliderLabel.textContent = tomorrow.toLocaleString([], {
       dateStyle: "short",
       timeStyle: "short"
     });*/
-  slider.value = 124
+  slider.value = 186
+
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const maxDate = new Date(todayMidnight.getTime() + 7 * 16 * 60 * 60 * 1000);
+  optStartDateMin.min = optStartDateMax.min = formatDateLocal(todayMidnight);
+  optStartDateMin.max = optStartDateMax.max = formatDateLocal(maxDate);
+  optStartDateMin.value = formatDateLocal(todayMidnight);
+  optStartDateMax.value = formatDateLocal(maxDate);
+  optStartTimeMin.value = "07:00";
+  optStartTimeMax.value = "09:00";
+
   // Initialize map
   const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
   ({ map, layerControl, baseLayers, overlays } = ensureMap(providerSel.value, pictos));
@@ -188,11 +223,56 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // ---------- Helpers ----------
 function adjustSlider(steps) {
-  let newVal = parseInt(slider.value, 10) + steps;
-  newVal = Math.max(slider.min, Math.min(slider.max, newVal));
+  const newVal = Math.max(0, Math.min(slider.max,
+    parseInt(slider.value, 10) + Math.round(steps)
+  ));
   slider.value = newVal;
   slider.dispatchEvent(new Event("input")); // trigger existing handler
   updateStepButtons(); // refresh button states
+}
+
+function updateLabels() {
+  sliders.forEach(s => {
+    const slider = document.getElementById(s.id);
+    const value = document.getElementById(s.valueId);
+    value.textContent = slider.value + "%";
+  });
+}
+
+function validateRanges() {
+  let valid = true;
+  let messages = [];
+
+  // Date check
+  if (optStartDateMin.value && optStartDateMax.value) {
+    const dMin = new Date(optStartDateMin.value);
+    const dMax = new Date(optStartDateMax.value);
+    if (dMin > dMax) {
+      valid = false;
+      messages.push("Earliest date must be before latest date.");
+    }
+  }
+
+  // Time check
+  if (optStartTimeMin.value && optStartTimeMax.value) {
+    const [h1, m1] = optStartTimeMin.value.split(":").map(Number);
+    const [h2, m2] = optStartTimeMax.value.split(":").map(Number);
+    const minMinutes = h1 * 60 + m1;
+    const maxMinutes = h2 * 60 + m2;
+    if (minMinutes > maxMinutes) {
+      valid = false;
+      messages.push("Earliest time must be before latest time.");
+    }
+  }
+
+  if (valid) {
+    optimizeBtn.disabled = false;
+    errorMsg.style.display = "none";
+  } else {
+    optimizeBtn.disabled = true;
+    errorMsg.textContent = messages.join(" ");
+    errorMsg.style.display = "block";
+  }
 }
 
 function updateStepButtons() {
@@ -200,17 +280,21 @@ function updateStepButtons() {
   const min = parseInt(slider.min, 10);
   const max = parseInt(slider.max, 10);
 
-  // 15 min
-  minus15.disabled = (val <= min);
-  plus15.disabled  = (val >= max);
+  const steps10 = Math.round(10 / stepMinutes);
+  const steps60 = Math.round(60 / stepMinutes);
+  const steps1440 = Math.round(1440 / stepMinutes);
 
-  // 1 hour (4 steps)
-  minus60.disabled = (val - 4 < min);
-  plus60.disabled  = (val + 4 > max);
+  minusStep.disabled = (val <= min);
+  plusStep.disabled  = (val >= max);
 
-  // 1 day (96 steps)
-  minus1440.disabled = (val - 96 < min);
-  plus1440.disabled  = (val + 96 > max);
+  minus10.disabled = (val - steps10 < min);
+  plus10.disabled  = (val + steps10 > max);
+
+  minus60.disabled = (val - steps60 < min);
+  plus60.disabled  = (val + steps60 > max);
+
+  minus1440.disabled = (val - steps1440 < min);
+  plus1440.disabled  = (val + steps1440 > max);
 }
 
 function validateReady() {
@@ -253,8 +337,81 @@ function addBreakMarker(marker) {
   breakMarkers.push(marker);
 }
 
+function parseDateInput(value) {
+  // value is "YYYY-MM-DD"
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d); // local midnight
+}
+
+function parseTimeInput(value) {
+  // value is "HH:MM"
+  const [h, min] = value.split(":").map(Number);
+  return { hours: h, minutes: min };
+}
+
+function computeMetrics(results, start) {
+  const aligned = pickForecastAtETAs(results, start);
+  let wetPts = 0;
+  for (const p of aligned) {
+      if ((p.precip ?? 0) >= 0.1) wetPts++;
+  }
+  const rain = aligned.length ? (wetPts / aligned.length) : 0;
+  // const rain = aligned.reduce((sum, p) => sum + (p.precip ?? 0), 0) / aligned.length;
+  const windValues = aligned.map(p => Math.abs(p.windEffectiveKmH ?? 0));
+  const windMax = Math.max(...windValues);
+  const windAvg = windValues.reduce((sum, v) => sum + v, 0) / windValues.length;
+  const temps = aligned.map(p => p.tempC).filter(v => v !== undefined);
+  const tempSpread = temps.length ? Math.max(...temps) - Math.min(...temps) : 0;
+
+  return { start, rain, windMax, windAvg, tempSpread };
+}
+
+function optimizeStartTime(results, timeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights) {
+  const optimizeSteps = timeSteps.filter((t, idx) => {
+    // idx * stepMinutes = minutes offset from globalMinTime
+    const minutesFromStart = idx * stepMinutes;
+    return minutesFromStart % optimizeMinutes.value === 0;
+  });
+
+  // Filter candidate times within allowed range
+  const candidates = filterCandidates(optimizeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts);
+  if (candidates.length === 0) return null;
+  // Helper: normalize array to 0–1
+  const normalize = arr => {
+    const min = Math.min(...arr);
+    const max = Math.max(...arr);
+    return arr.map(v => (max === min ? 0.5 : (v - min) / (max - min)));
+  };
+  const scores = candidates.map(start => computeMetrics(results, start));
+
+  // Normalize each metric across candidates
+  const rainNorm = normalize(scores.map(s => s.rain));
+  const windMaxNorm = normalize(scores.map(s => s.windMax));
+  const windAvgNorm = normalize(scores.map(s => s.windAvg));
+  const tempNorm = normalize(scores.map(s => s.tempSpread));
+
+  // Compute weighted score
+  scores.forEach((s, i) => {
+    s.score =
+      (rainNorm[i] * (weights.rain || 0)) +
+      (windMaxNorm[i] * (weights.windMax || 0)) +
+      (windAvgNorm[i] * (weights.windAvg || 0)) +
+      (tempNorm[i] * (weights.temperature || 0));
+  });
+
+  // Pick best
+  scores.sort((a, b) => a.score - b.score);
+  console.log('first score', scores[0])
+  console.log('last score', scores[scores.length - 1])
+  return scores.slice(0, 5); // best 5 candidates
+}
+
 function updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing,
 minSpacingDense, minTimeSpacingDense, pictos) {
+  if (!aligned.length) {
+    log("No forecast results to render.");
+    return;
+  }
   // Clear old layers
   overlays["Temperature"].clearLayers();
   overlays["Wind"].clearLayers();
@@ -263,21 +420,6 @@ minSpacingDense, minTimeSpacingDense, pictos) {
   clearWindMarkers();
   clearBreakMarkers();
   routeLayerGroup.clearLayers();
-
-  // Sort by ETA
-  aligned.sort((a, b) => a.eta - b.eta);
-  if (!aligned.length) {
-    log("No forecast results to render.");
-    return;
-  }
-
-  // Duration
-  const lastEta = aligned[aligned.length - 1]?.eta;
-  if (lastEta) {
-    const durationMs = lastEta.getTime() - aligned[0].eta.getTime();
-    const durationSec = durationMs / 1000;
-    document.getElementById("statDuration").textContent = formatDuration(durationSec);
-  }
 
   // Outline
   const fullRoute = points.map(p => [p.lat, p.lon]);
@@ -541,13 +683,149 @@ addBreakBtn.addEventListener("click", () => {
   validateReady();
 });
 
-minus15.addEventListener("click", () => adjustSlider(-1));
-plus15.addEventListener("click", () => adjustSlider(1));
-minus60.addEventListener("click", () => adjustSlider(-4));
-plus60.addEventListener("click", () => adjustSlider(4));
-minus1440.addEventListener("click", () => adjustSlider(-96));
-plus1440.addEventListener("click", () => adjustSlider(96));
+const stepMinutes = parseInt(sampleMinutesSelectDense.value, 10);
+minusStep.addEventListener("click", () => adjustSlider(-1));
+plusStep.addEventListener("click", () => adjustSlider(1));
+minus10.addEventListener("click", () => adjustSlider(-10 / stepMinutes));
+plus10.addEventListener("click", () => adjustSlider(10 / stepMinutes));
+minus60.addEventListener("click", () => adjustSlider(-60 / stepMinutes));
+plus60.addEventListener("click", () => adjustSlider(60 / stepMinutes));
+minus1440.addEventListener("click", () => adjustSlider(-1440 / stepMinutes));
+plus1440.addEventListener("click", () => adjustSlider(1440 / stepMinutes));
 slider.addEventListener("input", updateStepButtons);
+
+sliders.forEach(s => {
+  document.getElementById(s.id).addEventListener("input", updateLabels);
+});
+updateLabels();
+
+[optStartDateMin, optStartDateMax, optStartTimeMin, optStartTimeMax].forEach(el => {
+  el.addEventListener("input", validateRanges);
+});
+
+document.querySelector("#optimizeResultsModal .close").addEventListener("click", () => {
+  document.getElementById("optimizeResultsModal").style.display = "none";
+});
+
+optimizeCheckbox.addEventListener("change", e => {
+  if (e.target.checked) {
+    modal.style.display = "flex";
+  } else {
+    modal.style.display = "none";
+  }
+});
+
+closeBtn.addEventListener("click", () => {
+  modal.style.display = "none";
+  optimizeCheckbox.checked = false; // reset checkbox
+});
+
+window.addEventListener("click", e => {
+  if (e.target === modal) {
+    modal.style.display = "none";
+    optimizeCheckbox.checked = false;
+  }
+});
+
+document.getElementById("optimizeForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const values = sliders.map(s => parseInt(document.getElementById(s.id).value, 10));
+  const total = values.reduce((a, b) => a + b, 0) || 1;
+
+  // Normalize to sum = 100
+  const normalized = values.map(v => Math.round((v / total) * 100));
+
+  // Apply back to sliders + labels
+  sliders.forEach((s, i) => {
+    document.getElementById(s.id).value = normalized[i];
+    document.getElementById(s.valueId).textContent = normalized[i] + "%";
+  });
+
+  const rangeDateMin = parseDateInput(optStartDateMin.value);
+  const rangeDateMax = parseDateInput(optStartDateMax.value);
+  const timeMinParts = parseTimeInput(optStartTimeMin.value);
+  const timeMaxParts = parseTimeInput(optStartTimeMax.value);
+
+  const weights = {
+    rain: parseInt(document.getElementById("rainSlider").value, 10),
+    windMax: parseInt(document.getElementById("windMaxSlider").value, 10),
+    windAvg: parseInt(document.getElementById("windAvgSlider").value, 10),
+    temperature: parseInt(document.getElementById("tempSlider").value, 10)
+  };
+  const bestCandidates = optimizeStartTime(latestResults, latestTimeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights);
+  if (bestCandidates.length) {
+  const initial = initialMetrics; // use the best as baseline for "relative"
+  const list = document.getElementById("optimizeResultsList");
+  list.innerHTML = "";
+
+  bestCandidates.forEach((c, idx) => {
+  const card = document.createElement("div");
+  card.className = "result-card";
+
+  // summary row
+  const summary = document.createElement("div");
+  summary.className = "result-summary";
+  summary.textContent = `${c.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" })}`; // (score: ${c.score.toFixed(2)})`;
+  card.appendChild(summary);
+
+  // details section
+  const details = document.createElement("div");
+  details.className = "result-details";
+
+  // relative differences vs initial
+  const rel = {
+    rain: (c.rain - initial.rain).toFixed(2),
+    windMax: (c.windMax - initial.windMax).toFixed(2),
+    windAvg: (c.windAvg - initial.windAvg).toFixed(2),
+    tempSpread: (c.tempSpread - initial.tempSpread).toFixed(2)
+  };
+
+  details.innerHTML = `
+    <div>Wet share: ${Math.round(c.rain * 100)}%  (Δ ${Math.round(rel.rain * 100)}%)</div>
+    <div>Max wind: ${c.windMax.toFixed(1)} km/h (Δ ${rel.windMax})</div>
+    <div>Avg wind: ${c.windAvg.toFixed(1)} km/h (Δ ${rel.windAvg})</div>
+    <div>Temp spread: ${c.tempSpread.toFixed(1)}°C (Δ ${rel.tempSpread})</div>
+  `;
+
+  const applyBtn = document.createElement("button");
+  applyBtn.textContent = "Apply this start time";
+  applyBtn.addEventListener("click", () => {
+    const i = latestTimeSteps.findIndex(t => +t === +c.start);
+    slider.value = i;
+    timeSliderLabel.textContent = c.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+    slider.dispatchEvent(new Event("input"));
+    document.getElementById("optimizeResultsModal").style.display = "none";
+  });
+  details.appendChild(applyBtn);
+
+  card.appendChild(details);
+
+  // toggle expand/collapse, but only one at a time
+  summary.addEventListener("click", () => {
+    // collapse all other cards
+    document.querySelectorAll(".result-card.expanded").forEach(el => {
+      if (el !== card) el.classList.remove("expanded");
+    });
+    // toggle this one
+    card.classList.toggle("expanded");
+  });
+
+  list.appendChild(card);
+});
+
+  document.getElementById("optimizeResultsModal").style.display = "flex";
+}
+  /*if (best) {
+    console.log("Best start:", best.start, "score:", best.score);
+    // Update slider + label
+    const idx = latestTimeSteps.findIndex(t => +t === +best.start);
+    slider.value = idx;
+    timeSliderLabel.textContent = best.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+  }
+  */
+  modal.style.display = "none";
+  optimizeCheckbox.checked = false;
+});
 
 fileInput.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
@@ -620,7 +898,7 @@ fileInput.addEventListener("change", async (e) => {
 });
 
 processBtn.addEventListener("click", async () => {
-  try {
+  //try {
     const startDate = new Date(startTimeInput.value);
     if (isNaN(startDate.getTime())) return log("Invalid start time.");
 
@@ -644,11 +922,13 @@ processBtn.addEventListener("click", async () => {
     processBtn.disabled = true;
     await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey,
     minSpacingDense, minTimeSpacingDense);
-  } catch (e) {
+    document.getElementById("timeSliderContainer").classList.remove("disabled");
+    optimizeCheckbox.disabled = false;
+  /*} catch (e) {
     log("Failed: " + e.message);
-  } finally {
+  } finally {*/
     validateReady();
-  }
+  //}
 });
 
 // ---------- Core: processRoute ----------
@@ -759,22 +1039,25 @@ async function worker() {
     }
   }
 }
+  latestResults = results;
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
   // Now compute global time range across all results
   const allTimes = results.flatMap(r => r.times);
   const allAccumTime = results.flatMap(r => r.accumTime);
-  const globalMinTime = new Date(Math.min(...allTimes));
-  const globalMaxTime = new Date(Math.max(...allTimes));
+  const globalMinTime = new Date(allTimes.reduce((min, d) => Math.min(min, d), Infinity));
+  // const globalMinTime = new Date();
+  const globalMaxTime = new Date(allTimes.reduce((max, d) => Math.max(max, d), -Infinity));
   const tripDurationMs = Math.max(...allAccumTime) * 1000;
   const latestStartTime = new Date(globalMaxTime.getTime() - tripDurationMs);
 
   // Build time steps
   const timeSteps = [];
-  const stepMinutes = 15;
+  // const stepMinutes = 1;
   for (let t = new Date(globalMinTime); t <= latestStartTime; t.setMinutes(t.getMinutes() + stepMinutes)) {
     timeSteps.push(new Date(t));
   }
+  latestTimeSteps = timeSteps;
 
   // Setup slider once
   slider.max = timeSteps.length - 1;
@@ -792,13 +1075,13 @@ async function worker() {
   // Set slider thumb to startDate position
   slider.value = startIdx;
 
-  timeSliderLabel.textContent = timeSteps[startIdx].toLocaleString([], {
+  timeSliderLabel.textContent = latestTimeSteps[startIdx].toLocaleString([], {
     dateStyle: "short",
     timeStyle: "short"
   });
 
   slider.addEventListener("input", () => {
-    const newStart = timeSteps[slider.value];
+    const newStart = latestTimeSteps[slider.value];
     timeSliderLabel.textContent = newStart.toLocaleString([], {
       dateStyle: "short",
       timeStyle: "short"
@@ -812,6 +1095,9 @@ async function worker() {
   });
 
   const resultsInitialStartDate = pickForecastAtETAs(results, startDate);
+  console.log('Results with initial start date:', resultsInitialStartDate)
+  initialMetrics = computeMetrics(latestResults, startDate);
+  console.log('Initial metrics:', initialMetrics)
   updateMapAndCharts(points, resultsInitialStartDate, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);

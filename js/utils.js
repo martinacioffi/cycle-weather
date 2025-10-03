@@ -84,7 +84,7 @@ export function roundToNearestQuarter(date) {
  * @param {Date} startDate - new chosen start date
  */
 export function pickForecastAtETAs(results, startDate) {
-  return results.map(r => {
+  const aligned = results.map(r => {
     // compute shifted ETA for this point
     const shiftedEta = new Date(startDate.getTime() + r.accumTime * 1000);
 
@@ -101,7 +101,8 @@ export function pickForecastAtETAs(results, startDate) {
 
     return {
       ...r,
-      eta: r.times[idx], // actual forecast timestamp used
+      times: r.times[idx], // should be the same as etaQuarter
+      eta: shiftedEta, // actual forecast timestamp used
       tempC: r.tempC[idx],
       feltTempC: r.feltTempC[idx],
       gusts: r.gusts[idx],
@@ -116,6 +117,10 @@ export function pickForecastAtETAs(results, startDate) {
       pictocode: r.pictocode[idx],
     };
   });
+
+  aligned.sort((a, b) => a.eta - b.eta);
+
+  return aligned;
 }
 
 // ---------- Logging ----------
@@ -225,4 +230,24 @@ export function updateLegendRange(minVal, maxVal, barId, ticksId, type = "temp")
     <span>${fmt(t3)}</span>
     <span>${fmt(t4)}</span>
   `;
+}
+
+export function filterCandidates(timeSteps, rangeDateMin, rangeDateMax, rangeTimeMin, rangeTimeMax) {
+  const now = new Date();
+
+  return timeSteps.filter(t => {
+    const d = new Date(t);
+    if (d < now) return false;
+
+    // Date check
+    const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (dateOnly < rangeDateMin || dateOnly > rangeDateMax) return false;
+
+    // Time check
+    const minutes = d.getHours() * 60 + d.getMinutes();
+    const minMinutes = rangeTimeMin.hours * 60 + rangeTimeMin.minutes;
+    const maxMinutes = rangeTimeMax.hours * 60 + rangeTimeMax.minutes;
+
+    return minutes >= minMinutes && minutes <= maxMinutes;
+  });
 }
