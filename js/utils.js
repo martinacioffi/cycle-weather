@@ -76,6 +76,53 @@ export function roundToNearestQuarter(date) {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
+/**
+ * Given full-array forecasts per point and a new startDate,
+ * return a snapshot where each point is sampled at (startDate + accumTime).
+ *
+ * @param {Array} results - array of route points with full forecast arrays
+ * @param {Date} startDate - new chosen start date
+ */
+export function pickForecastAtETAs(results, startDate) {
+  const aligned = results.map(r => {
+    // compute shifted ETA for this point
+    const shiftedEta = new Date(startDate.getTime() + r.accumTime * 1000);
+
+    // find nearest forecast index for this point
+    let idx = 0;
+    let minDiff = Infinity;
+    for (let i = 0; i < r.times.length; i++) {
+      const diff = Math.abs(r.times[i] - shiftedEta);
+      if (diff < minDiff) {
+        minDiff = diff;
+        idx = i;
+      }
+    }
+
+    return {
+      ...r,
+      times: r.times[idx], // should be the same as etaQuarter
+      eta: shiftedEta, // actual forecast timestamp used
+      tempC: r.tempC[idx],
+      feltTempC: r.feltTempC[idx],
+      gusts: r.gusts[idx],
+      windKmH: r.windKmH[idx],
+      windDeg: r.windDeg[idx],
+      windEffectiveKmH: r.windEffectiveKmH[idx],
+      precip: r.precip[idx],
+      precipProb: r.precipProb[idx],
+      cloudCover: r.cloudCover[idx],
+      cloudCoverLow: r.cloudCoverLow[idx],
+      isDay: r.isDay[idx],
+      pictocode: r.pictocode[idx],
+    };
+  });
+
+  aligned.sort((a, b) => a.eta - b.eta);
+
+  return aligned;
+}
+
 // ---------- Logging ----------
 export function log(msg) {
   const el = document.getElementById("log");
@@ -183,4 +230,24 @@ export function updateLegendRange(minVal, maxVal, barId, ticksId, type = "temp")
     <span>${fmt(t3)}</span>
     <span>${fmt(t4)}</span>
   `;
+}
+
+export function filterCandidates(timeSteps, rangeDateMin, rangeDateMax, rangeTimeMin, rangeTimeMax) {
+  const now = new Date();
+
+  return timeSteps.filter(t => {
+    const d = new Date(t);
+    if (d < now) return false;
+
+    // Date check
+    const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (dateOnly < rangeDateMin || dateOnly > rangeDateMax) return false;
+
+    // Time check
+    const minutes = d.getHours() * 60 + d.getMinutes();
+    const minMinutes = rangeTimeMin.hours * 60 + rangeTimeMin.minutes;
+    const maxMinutes = rangeTimeMax.hours * 60 + rangeTimeMax.minutes;
+
+    return minutes >= minMinutes && minutes <= maxMinutes;
+  });
 }

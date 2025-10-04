@@ -15,6 +15,7 @@
     <link rel="icon" href="images/favicon.ico" type="image/x-icon">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
 <header>
@@ -109,6 +110,54 @@
             <h4 id="help-wind-chart">Wind chart</h4>
       <p>Shows wind and wind gusts, along with wind direction.</p>
 
+            <h3 id="help-update-start-time">Update Start Time</h3>
+      <p>Use this slider to see how the weather forecast would change if you selected a different start time.
+      The \(+\) and \(-\) buttons to the sides of the slider let you move along the slider in steps equal to the selected
+          "Min time spacing". Otherwise, you can use the buttons to the right to add and subtract, respectively, 10
+      minutes, 1 hour or 1 day.</p>
+      <h3 id="help-optimize">Optimize Start Time</h3>
+      <p>Use this option to find the optimal starting time for your route.</p>
+      <h4 id="help-optimize-start-time">Allowed start time range</h4>
+      <p>Select the earliest and latest date and time within which optimal routes will be searched.</p>
+      <h4 id="help-optimize-weights">Optimization weights and thresholds</h4>
+      <p>Here you find the different parameters that you can optimize your route for. Each parameter has a slider which
+        allows you to set the weight of that parameter in the overall optimization score. If they do not sum up to 100%,
+        weights will be re-normalized. Each parameter also has a threshold value, which indicates the maximum acceptable value for that parameter.
+        The optimization will try to find a route which stays as far from these thresholds as possible.</p><br>
+        <p>The following parameters are available for optimization:</p>
+        <ul>
+            <li><strong>Precipitation</strong>: optimize for low precipitation. The threshold is in mm/h.</li>
+            <li><strong>Headwind</strong>: optimize for low headwind. The threshold is in km/h.</li>
+            <li><strong>Wind</strong>: optimize for low wind. The threshold is in km/h.</li>
+            <li><strong>Hot temperature</strong>: avoid too high temperatures. The threshold is in °C.</li>
+            <li><strong>Cold temperature</strong>: avoid too low temperature. The threshold is in °C.</li>
+        </ul>
+          <p>As an example, the score for the wind parameter is computed as follows:</p>
+            $$
+            windScore = \frac{1}{N} \sum_{n=0}^{N} \frac{wind_{n} - minWind}{maxWind - minWind}\;,
+            $$
+     <p>where \(wind_{n}\) is the wind speed of the n-th point of a route with \(N\) points in total, \(minWind\) is 0
+         and \(maxWind\) is your chosen threshold. The other optimization scores are computed in a similar manner.</p><br>
+      <p>The final score is then computed as:</p>
+        $$ \begin{aligned}
+        score = 100 - (\
+           & weight_{precipitation} \cdot precipitationScore \\
+           +\; &weight_{headWind} \cdot headwindScore \\
+           +\; &weight_{wind} \cdot windScore \\
+           +\; &weight_{hotTemperature} \cdot hotTemperatureScore \\
+           +\; &weight_{coldTemperature} \cdot coldTemperatureScore),
+        \end{aligned}
+        \
+        $$
+      <p>where \(weight_{parameter}\) is the normalized weight given by the slider for each parameter.</p><br>
+    <p>The maximum score is 100%, and it means that there is almost no wind and no precipitation,
+    and the temperature lies in between your min and max acceptable thresholds. A score close to 0 features values
+        that on average lie close to your maximum thresholds. Negative scores are possible and indicate that, on average,
+        your route lies above your maximum thresholds. When one or more values in the route lie above your maximum
+        thresholds, a warning sign will signal that if the route is anyway featured among the best five.</p>
+      <h4 id="help-optimize-granularity">Granularity</h4>
+      <p>Controls the granularity of the candidate routes to be searched; e.g., a granularity of 20 minutes means that the
+      optimization functions will scan routes starting every 20 minutes.</p>
   </main>
 <aside class="on-this-page">
   <h4>On this page</h4>
@@ -136,6 +185,12 @@
             <li><a href="#help-wind-chart">Wind chart</a></li>
           </ul>
         </li>
+        <li><a href="#help-update-start-time">Update Start Time</a></li>
+        <li><a href="#help-optimize">Optimize Start Time</a>
+            <ul>
+                <li><a href="#help-optimize-start-time">Allowed start time range</a></li>
+                <li><a href="#help-optimize-weights">Optimization weights</a></li>
+                <li><a href="#help-optimize-granularity">Granularity</a></li>
       </ul>
     </li>
   </ul>

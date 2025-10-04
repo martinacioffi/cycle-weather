@@ -55,70 +55,6 @@ export function segmentBearings(points) {
   return br;
 }
 
-export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 15) {
-  const spacingSec = minTimeSpacing * 60;
-  let newPoints = [];
-  let breakIdx = 0;
-  let i = 0;
-
-  while (i < points.length) {
-    newPoints.push({ ...points[i], isBreak: false });
-
-    // Insert break if it falls after this segment
-    while (
-      breakIdx < breaks.length &&
-      i < points.length - 1 &&
-      points[i].distMeters <= breaks[breakIdx].distMeters &&
-      points[i + 1].distMeters > breaks[breakIdx].distMeters
-    ) {
-      const b = breaks[breakIdx];
-      // Interpolate break location
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const frac = (b.distMeters - p1.distMeters) / (p2.distMeters - p1.distMeters);
-      const lat = p1.lat + frac * (p2.lat - p1.lat);
-      const lon = p1.lon + frac * (p2.lon - p1.lon);
-      const ele = p1.ele != null && p2.ele != null ? p1.ele + frac * (p2.ele - p1.ele) : null;
-
-      // Insert all break samples at this location
-      const numBreakSamples = Math.max(2, Math.ceil(b.durSec / spacingSec));
-      for (let j = 0; j < numBreakSamples; j++) {
-        newPoints.push({
-          lat, lon, ele,
-          distMeters: b.distMeters,
-          isBreak: true,
-          breakIdx: breakIdx,
-          breakSample: j
-        });
-      }
-      breakIdx++;
-    }
-    i++;
-  }
-  // Reindex
-  newPoints = newPoints.map((p, idx) => ({ ...p, idx }));
-  return newPoints;
-}
-
-function normalizeBreaks(breaks) {
-  if (Array.isArray(breaks)) return breaks;
-  if (!breaks) return [];
-  // If it's array-like (numeric keys + length), convert it
-  if (Number.isInteger(breaks.length)) {
-    try {
-      return Array.from({ length: breaks.length }, (_, i) => breaks[i]).filter(Boolean);
-    } catch {
-      // fall through
-    }
-  }
-  // If it's a single break object, wrap it
-  if (typeof breaks === 'object' && ('durSec' in breaks || 'distMeters' in breaks)) {
-    return [breaks];
-  }
-  // As a last resort, take enumerable values
-  return Object.values(breaks);
-}
-
 export function buildSampleIndices(points, brngs, cum, maxCalls, minSpacingMeters, minSpacingMinutes, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaksRaw = []) {
   const n = points.length;
   if (!avgSpeedMpsUp) avgSpeedMpsUp = avgSpeedMps;
@@ -313,6 +249,70 @@ export function breakOffsetSeconds(distanceMeters, breaks) {
     if (distanceMeters >= b.distMeters) sum += b.durSec;
   }
   return sum;
+}
+
+export function insertBreaksIntoPoints(points, breaks, minTimeSpacing = 15) {
+  const spacingSec = minTimeSpacing * 60;
+  let newPoints = [];
+  let breakIdx = 0;
+  let i = 0;
+
+  while (i < points.length) {
+    newPoints.push({ ...points[i], isBreak: false });
+
+    // Insert break if it falls after this segment
+    while (
+      breakIdx < breaks.length &&
+      i < points.length - 1 &&
+      points[i].distMeters <= breaks[breakIdx].distMeters &&
+      points[i + 1].distMeters > breaks[breakIdx].distMeters
+    ) {
+      const b = breaks[breakIdx];
+      // Interpolate break location
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const frac = (b.distMeters - p1.distMeters) / (p2.distMeters - p1.distMeters);
+      const lat = p1.lat + frac * (p2.lat - p1.lat);
+      const lon = p1.lon + frac * (p2.lon - p1.lon);
+      const ele = p1.ele != null && p2.ele != null ? p1.ele + frac * (p2.ele - p1.ele) : null;
+
+      // Insert all break samples at this location
+      const numBreakSamples = Math.max(2, Math.ceil(b.durSec / spacingSec));
+      for (let j = 0; j < numBreakSamples; j++) {
+        newPoints.push({
+          lat, lon, ele,
+          distMeters: b.distMeters,
+          isBreak: true,
+          breakIdx: breakIdx,
+          breakSample: j
+        });
+      }
+      breakIdx++;
+    }
+    i++;
+  }
+  // Reindex
+  newPoints = newPoints.map((p, idx) => ({ ...p, idx }));
+  return newPoints;
+}
+
+function normalizeBreaks(breaks) {
+  if (Array.isArray(breaks)) return breaks;
+  if (!breaks) return [];
+  // If it's array-like (numeric keys + length), convert it
+  if (Number.isInteger(breaks.length)) {
+    try {
+      return Array.from({ length: breaks.length }, (_, i) => breaks[i]).filter(Boolean);
+    } catch {
+      // fall through
+    }
+  }
+  // If it's a single break object, wrap it
+  if (typeof breaks === 'object' && ('durSec' in breaks || 'distMeters' in breaks)) {
+    return [breaks];
+  }
+  // As a last resort, take enumerable values
+  return Object.values(breaks);
 }
 
 // ---------- Utility ----------

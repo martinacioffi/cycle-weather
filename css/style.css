@@ -51,7 +51,7 @@ header {
   justify-content: flex-end;
 }
 
-.demo-button {
+.std-button {
   padding: 8px 16px;
   font-size: 14px;
   background-color: #0078D4;
@@ -61,7 +61,7 @@ header {
   cursor: pointer;
   align-self: left;
 }
-.demo-button:hover {
+.std-button:hover {
   background-color: #005ea2;
 }
 .help-button {
@@ -350,7 +350,7 @@ html, body {
     header h1 {
     font-size: 0.9em;
     }
-    .demo-button {
+    .std-button {
     font-size: 0.7em;
     padding: 4px 8px;
     margin-right: 0px;
@@ -408,7 +408,45 @@ html, body {
   font-family: "Courier New", monospace; /* or another non-emoji font */
   font-size: 8px; /* adjust as needed */
   line-height: 1;
-}
+  }
+  #timeSliderContainer {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  #timeSliderMainLabel {
+    display: none;
+  }
+  #sliderRow {
+    display: flex;
+    flex-wrap: wrap;
+    padding-right: 0.75em;
+    padding-left: 0.75em;
+    align-items: center;
+    justify-content: center; /* center contents horizontally */
+    width: 100%;             /* span full container width */
+    gap: 0.5rem;
+  }
+  #timeSlider {
+    flex: 1 1 auto;          /* slider grows to fill space */
+    min-width: 70%;
+    max-width: 100%;         /* remove desktop cap */
+  }
+  .slider-controls-button {
+    flex: 0 0 auto;          /* buttons stay fixed size */
+  }
+  #timeSliderLabel {
+    order: 2;
+    flex-basis: auto;
+    align-self: center;
+  }
+  #jumpButtons {
+    display: none;
+  }
+  .optimize-start {
+    padding-left: 0.75em;
+  }
+
 }
 
 .main-col {
@@ -662,4 +700,340 @@ max-height: 300px;
   pointer-events: none;
   z-index: 200; /* lower than tile layer */
   opacity: 1;   /* make sure it's not 0 or >1 */
+}
+
+#timeSliderContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;          /* small gap between label, slider, and label span */
+  margin-right: 1rem;
+  padding-top: 0.5rem;
+}
+#sliderRow {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+}
+#timeSliderContainer.disabled {
+  opacity: 0.5;              /* visually dim */
+  pointer-events: none;      /* block clicks/dragging inside */
+}
+
+#timeSliderContainer label.control-label {
+  white-space: nowrap;  /* keep label on one line */
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+  flex: 0 0 auto;       /* fixed size, don’t stretch */
+}
+
+#timeSlider {
+  flex: 0 0 auto;       /* don’t grow to fill everything */
+  flex-wrap: wrap;
+  width: 80%;
+  max-width: 40%;       /* cap slider width relative to container */
+}
+
+#timeSliderLabel {
+  white-space: nowrap;
+  margin-left: 0.5rem;
+  flex: 0 0 auto;       /* keep it snug next to slider */
+}
+
+.step-controls {
+  margin-left: auto;    /* push step controls all the way to the right */
+  display: flex;
+  gap: 1.5rem;            /* spacing between groups */
+}
+
+.step-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;  /* keep text on one line */
+}
+
+.slider-controls-button {
+  width: 1.75em;
+  height: 1.75em;
+  padding: 0;
+  margin-left: 0.1em;
+  margin-right: 0.1em;
+  font-size: 0.9rem;
+  line-height: 1;
+  text-align: center;
+  background: transparent;       /* no background */
+  color: inherit;                /* inherit text color */
+  border: 1px solid #ccc;        /* light grey border */
+  border-radius: 4px;            /* optional: soften corners */
+}
+.step-group button:hover,
+.step-group button:focus {
+  background: transparent;       /* no background */
+  color: inherit;                /* inherit text color */
+  border-color: #aaa;            /* slightly darker grey on hover */
+  outline: none;                 /* remove default focus outline */
+}
+.optimize-start {
+  display: flex;           /* put children in a row */
+  align-items: center;     /* vertically center checkbox + text */
+  gap: 0.4rem;             /* small space between them */
+  margin-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.optimize-start label {
+  display: inline;         /* override your global label {display:block} */
+  margin: 0;               /* remove block margins */
+  color: var(--muted);
+}
+
+.optimize-start input[type="checkbox"] {
+  width: 1em;
+  height: 1em;
+  accent-color: var(--accent); /* modern browsers: use your theme accent */
+}
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.6);
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.modal > .optimize-modal-content {
+  background: var(--panel);
+  color: var(--text);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  margin: 0; /* remove vertical margin */
+}
+
+.optimize-modal-content h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.optimize-modal-content label {
+  display: block;
+  margin: 6px 0;
+}
+
+.optimize-modal-content button {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.close {
+  float: right;
+  font-size: 20px;
+  cursor: pointer;
+}
+.time-range {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+/* Smaller legend */
+.param-legend,
+.allowed-range {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.sliders input[type="range"] {
+  width: 100%;
+  margin-top: 0.25rem;
+  accent-color: var(--accent); /* modern browsers */
+}
+.sliders label {
+  display: flex;
+  justify-content: space-between; /* text left, value right */
+  align-items: center;
+  margin-top: 0.75rem;
+  color: var(--text);
+}
+
+.slider-value {
+  font-weight: bold;
+  color: var(--accent);
+  margin-left: 0.5rem;
+}
+.date-row,
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.date-row div,
+.time-row div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+/* Target date and time inputs */
+input[type="date"],
+input[type="time"] {
+  background-color:  var(--bg);   /* black background */
+  color: #fff;              /* white text */
+  border: 1px solid #555;   /* subtle border */
+  border-radius: 4px;
+  padding: 0.4rem;
+}
+
+/* Ensure the calendar/time picker icons are visible */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* flips icon colors so they show on dark background */
+}
+
+form {
+  display: block;
+  width: 100%;
+  max-width: 500px;   /* optional: constrain overall form width */
+  margin: 0 auto;     /* center the form */
+}
+.sliders {
+  padding: 1em;
+  border-radius: 6px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr max-content; /* left column flexes, right column = widest content */
+  gap: 0.7em 2em; /* row gap, column gap */
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3em;
+  font-weight: 600;
+}
+
+.slider-value {
+  font-weight: bold;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+form fieldset {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 1rem 0;   /* space between fieldsets */
+  padding: 1rem;
+  border: 1px solid #555;
+  border-radius: 6px;
+}
+
+/* Normalize legend so it doesn’t push width */
+form legend {
+  padding: 0 0.5rem;
+  font-weight: bold;
+}
+#optimizeResultsList button {
+  display: block;
+  width: 100%;
+  margin: 0.25rem 0;
+  padding: 0.5rem 0.75rem;
+
+  background: transparent;       /* no background */
+  color: inherit;                /* inherit text color */
+  border: 1px solid #ccc;        /* light grey border */
+  border-radius: 4px;            /* optional: soften corners */
+
+  cursor: pointer;               /* pointer on hover */
+}
+
+/* Optional hover/focus styles for better UX */
+#optimizeResultsList button:hover,
+#optimizeResultsList button:focus {
+  border-color: #aaa;            /* slightly darker grey on hover */
+  outline: none;                 /* remove default focus outline */
+}
+.result-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.result-summary {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text);
+}
+
+.result-details {
+  display: none; /* hidden until expanded */
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.result-card.expanded .result-details {
+  display: block;
+  max-height: 300px; /* large enough to fit content */
+}
+
+.result-details button {
+  margin-top: 0.5rem;
+  width: 100%;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 0.4rem;
+  cursor: pointer;
+}
+.help-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 1.2em;
+  height: 1.2em;
+  margin-left: 0.5em;
+  border-radius: 50%;
+  background-color: transparent; /* pick a brand/accent color */
+  color: var(--accent);
+  font-weight: normal;
+  text-decoration: none;
+  font-size: 0.7em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.help-icon:hover {
+  background-color: #005a9e; /* darker on hover */
 }

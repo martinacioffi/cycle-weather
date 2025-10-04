@@ -27,7 +27,7 @@
       </div>
     </div>
     <div class="header-right">
-      <button id="demoBtn" class="demo-button" title="Try it now with a demo file">Demo</button>
+      <button id="demoBtn" class="std-button" title="Try it now with a demo file">Demo</button>
         <a href="help.html" class="help-button" title="Learn about the inputs">Help</a>
     </div>
   </div>
@@ -156,7 +156,7 @@
             <div class="row">
                 <div>
                     <label for="maxCalls">Max API calls</label>
-                    <input type="number" id="maxCalls" min="5" max="1000" value="200"/>
+                    <input type="number" id="maxCalls" min="5" max="1000" value="100"/>
                 </div>
             </div>
 
@@ -238,6 +238,167 @@
       </div>
     </div>
         </main>
+    <div id="timeSliderContainer">
+      <!-- Label -->
+      <label for="timeSlider" id="timeSliderMainLabel">Update start time:</label>
+      <!-- Slider -->
+        <div id="sliderRow">
+          <button id="minusStep" class="slider-controls-button">-</button>
+          <input type="range" id="timeSlider" min="0" max="1008" step="1">
+          <button id="plusStep" class="slider-controls-button">+</button>
+      <label id="timeSliderLabel"></label>
+                    </div>
+
+      <!-- Step controls -->
+      <div class="step-controls" id="jumpButtons">
+        <!-- 15 minutes -->
+        <div class="step-group">
+          <button id="minus10" class="slider-controls-button">-</button>
+          <label class="step-label">10 minutes</label>
+          <button id="plus10" class="slider-controls-button">+</button>
+        </div>
+
+        <!-- 1 hour -->
+        <div class="step-group">
+          <button id="minus60" class="slider-controls-button">-</button>
+          <label class="step-label">1 hour</label>
+          <button id="plus60" class="slider-controls-button">+</button>
+        </div>
+
+        <!-- 1 day -->
+        <div class="step-group">
+          <button id="minus1440" class="slider-controls-button">-</button>
+          <label class="step-label">1 day</label>
+          <button id="plus1440" class="slider-controls-button">+</button>
+        </div>
+      </div>
+    </div>
+        <div class="optimize-start">
+  <input type="checkbox" id="optimizeStart" disabled>
+  <label for="optimizeStart">Optimize start time</label>
+</div>
+    <!-- Modal -->
+    <div id="optimizeModal" class="modal">
+      <div class="optimize-modal-content">
+        <span class="close">&times;</span>
+        <h2>
+            Choose optimization parameters
+            <a href="help.html#help-optimize" target="_blank" class="help-icon" title="Read more in Help">?</a>
+        </h2>
+        <form id="optimizeForm">
+
+          <fieldset class="time-range">
+            <legend class="allowed-range">Allowed start time range</legend>
+              <!-- Row 1: Dates -->
+              <div class="date-row">
+                <div>
+                  <label for="optStartDateMin">Earliest date:</label>
+                  <input type="date" id="optStartDateMin" name="optStartDateMin">
+                </div>
+                <div>
+                  <label for="optStartDateMax">Latest date:</label>
+                  <input type="date" id="optStartDateMax" name="optStartDateMax">
+                </div>
+              </div>
+              <!-- Row 2: Times -->
+              <div class="time-row">
+                <div>
+                  <label for="optStartTimeMin">Earliest time:</label>
+                  <input type="time" id="optStartTimeMin" name="optStartTimeMin" step="900">
+                </div>
+                <div>
+                  <label for="optStartTimeMax">Latest time:</label>
+                  <input type="time" id="optStartTimeMax" name="optStartTimeMax" step="900">
+                </div>
+              </div>
+              <label id="rangeError" style="color:red; display:none;"></label>
+          </fieldset>
+        <fieldset class="sliders">
+          <legend class="param-legend">Optimization weights and thresholds</legend>
+          <div class="grid">
+            <div class="form-group">
+              <label for="rainSlider">
+                Minimize precipitation:
+                <span id="rainValue" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="rainSlider" name="rain" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableRain">Max acceptable (mm/h)</label>
+              <input type="number" id="maxAcceptableRain" min="0" max="50" step="0.1" value="0"/>
+            </div>
+
+            <div class="form-group">
+              <label for="windMaxSlider">
+                Minimize headwind:
+                <span id="windMaxValue" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="windMaxSlider" name="windMax" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableWindMax">Max acceptable (km/h)</label>
+              <input type="number" id="maxAcceptableWindMax" min="0" max="200" value="10"/>
+            </div>
+
+            <div class="form-group">
+              <label for="windAvgSlider">
+                Minimize avg wind:
+                <span id="windAvgValue" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="windAvgSlider" name="windAvg" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableWindAvg">Max acceptable (km/h)</label>
+              <input type="number" id="maxAcceptableWindAvg" min="0" max="200" value="15"/>
+            </div>
+
+            <div class="form-group">
+              <label for="tempSliderHot">
+                Minimize hot temperatures:
+                <span id="tempValueHot" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="tempSliderHot" name="temperature" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableTemp">Max acceptable (°C)</label>
+              <input type="number" id="maxAcceptableTemp" min="15" max="50" value="25"/>
+            </div>
+                  <div class="form-group">
+              <label for="tempSliderCold">
+                Minimize cold temperatures:
+                <span id="tempValueCold" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="tempSliderCold" name="temperature" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="minAcceptableTemp">Min acceptable (°C)</label>
+              <input type="number" id="minAcceptableTemp" min="-20" max="30" value="0"/>
+            </div>
+          </div>
+            <label id="tempRangeError" style="color:red; display:none;"></label>
+        </fieldset>
+            <fieldset class="granularity">
+          <legend class="param-legend">Granularity</legend>
+                <label for="granularityMinutes">Check starting times every</label>
+                    <select id="granularityMinutes">
+                        <option value="10">10 min</option>
+                      <option value="20" selected>20 min</option>
+                      <option value="30">30 min</option>
+                      <option value="60">60 min</option>
+                    </select>
+        </fieldset>
+          <button id= "optimizeButton" type="submit">Optimize</button>
+        </form>
+      </div>
+    </div>
+        <div id="optimizeResultsModal" class="modal">
+          <div class="optimize-modal-content">
+              <span class="close">&times;</span>
+            <h2>Best Starting Times</h2>
+              <label>Select a starting time to see details</label>
+            <div id="optimizeResultsList"></div>
+          </div>
+        </div>
         <div class="charts">
             <h3>Trip forecast</h3>
                 <canvas id="tempChart"></canvas>
