@@ -240,7 +240,7 @@
         </main>
     <div id="timeSliderContainer">
       <!-- Label -->
-      <label for="timeSlider" id="timeSliderMainLabel">Update Start Time:</label>
+      <label for="timeSlider" id="timeSliderMainLabel">Update start time:</label>
       <!-- Slider -->
         <div id="sliderRow">
           <button id="minusStep" class="slider-controls-button">-</button>
@@ -281,7 +281,10 @@
     <div id="optimizeModal" class="modal">
       <div class="optimize-modal-content">
         <span class="close">&times;</span>
-        <h2>Choose optimization parameters</h2>
+        <h2>
+            Choose optimization parameters
+            <a href="help.html#help-optimize" target="_blank" class="help-icon" title="Read more in Help">?</a>
+        </h2>
         <form id="optimizeForm">
 
           <fieldset class="time-range">
@@ -311,27 +314,68 @@
               <label id="rangeError" style="color:red; display:none;"></label>
           </fieldset>
         <fieldset class="sliders">
-          <legend class="param-legend">Optimization weights</legend>
+          <legend class="param-legend">Optimization weights and thresholds</legend>
+          <div class="grid">
+            <div class="form-group">
+              <label for="rainSlider">
+                Minimize precipitation:
+                <span id="rainValue" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="rainSlider" name="rain" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableRain">Max acceptable (mm/h)</label>
+              <input type="number" id="maxAcceptableRain" min="0" max="50" step="0.1" value="0"/>
+            </div>
 
-          <label for="rainSlider">Avoid rain:
-            <span id="rainValue" class="slider-value">50%</span>
-          </label>
-          <input type="range" id="rainSlider" name="rain" min="0" max="100" value="50">
+            <div class="form-group">
+              <label for="windMaxSlider">
+                Minimize headwind:
+                <span id="windMaxValue" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="windMaxSlider" name="windMax" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableWindMax">Max acceptable (km/h)</label>
+              <input type="number" id="maxAcceptableWindMax" min="0" max="200" value="10"/>
+            </div>
 
-          <label for="windMaxSlider">Minimize max effective wind:
-            <span id="windMaxValue" class="slider-value">50%</span>
-          </label>
-          <input type="range" id="windMaxSlider" name="windMax" min="0" max="100" value="50">
+            <div class="form-group">
+              <label for="windAvgSlider">
+                Minimize avg wind:
+                <span id="windAvgValue" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="windAvgSlider" name="windAvg" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableWindAvg">Max acceptable (km/h)</label>
+              <input type="number" id="maxAcceptableWindAvg" min="0" max="200" value="15"/>
+            </div>
 
-          <label for="windAvgSlider">Minimize avg effective wind:
-            <span id="windAvgValue" class="slider-value">50%</span>
-          </label>
-          <input type="range" id="windAvgSlider" name="windAvg" min="0" max="100" value="50">
-
-          <label for="tempSlider">Minimize temperature extremes:
-            <span id="tempValue" class="slider-value">50%</span>
-          </label>
-          <input type="range" id="tempSlider" name="temperature" min="0" max="100" value="50">
+            <div class="form-group">
+              <label for="tempSliderHot">
+                Minimize hot temperatures:
+                <span id="tempValueHot" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="tempSliderHot" name="temperature" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="maxAcceptableTemp">Max acceptable (°C)</label>
+              <input type="number" id="maxAcceptableTemp" min="15" max="50" value="25"/>
+            </div>
+                  <div class="form-group">
+              <label for="tempSliderCold">
+                Minimize cold temperatures:
+                <span id="tempValueCold" class="slider-value">50%</span>
+              </label>
+              <input type="range" id="tempSliderCold" name="temperature" min="0" max="100" value="20">
+            </div>
+            <div class="form-group">
+              <label for="minAcceptableTemp">Min acceptable (°C)</label>
+              <input type="number" id="minAcceptableTemp" min="-20" max="30" value="0"/>
+            </div>
+          </div>
+            <label id="tempRangeError" style="color:red; display:none;"></label>
         </fieldset>
             <fieldset class="granularity">
           <legend class="param-legend">Granularity</legend>
@@ -353,8 +397,6 @@
             <h2>Best Starting Times</h2>
               <label>Select a starting time to see details</label>
             <div id="optimizeResultsList"></div>
-              <label>Δ values are with respect to the initially selected start time.</label>
-              <label>Wind figures are provided in absolute values.</label>
           </div>
         </div>
         <div class="charts">

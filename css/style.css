@@ -811,7 +811,7 @@ max-height: 300px;
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  max-width: 400px;
+  max-width: 600px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -906,8 +906,37 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 form {
   display: block;
   width: 100%;
-  max-width: 600px;   /* optional: constrain overall form width */
+  max-width: 500px;   /* optional: constrain overall form width */
   margin: 0 auto;     /* center the form */
+}
+.sliders {
+  padding: 1em;
+  border-radius: 6px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr max-content; /* left column flexes, right column = widest content */
+  gap: 0.7em 2em; /* row gap, column gap */
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3em;
+  font-weight: 600;
+}
+
+.slider-value {
+  font-weight: bold;
+  font-size: 0.9em;
+  color: var(--accent);
 }
 
 form fieldset {
@@ -987,4 +1016,24 @@ form legend {
   border-radius: 4px;
   padding: 0.4rem;
   cursor: pointer;
+}
+.help-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 1.2em;
+  height: 1.2em;
+  margin-left: 0.5em;
+  border-radius: 50%;
+  background-color: transparent; /* pick a brand/accent color */
+  color: var(--accent);
+  font-weight: normal;
+  text-decoration: none;
+  font-size: 0.7em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.help-icon:hover {
+  background-color: #005a9e; /* darker on hover */
 }

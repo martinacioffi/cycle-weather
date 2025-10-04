@@ -83,13 +83,17 @@ const optStartDateMin = document.getElementById("optStartDateMin");
 const optStartDateMax = document.getElementById("optStartDateMax");
 const optStartTimeMin = document.getElementById("optStartTimeMin");
 const optStartTimeMax = document.getElementById("optStartTimeMax");
+const maxAcceptableTemp = document.getElementById("maxAcceptableTemp");
+const minAcceptableTemp = document.getElementById("minAcceptableTemp");
 const optimizeBtn = document.getElementById("optimizeButton");
 const errorMsg = document.getElementById("rangeError");
+const errorMsgTemp = document.getElementById("tempRangeError");
 const sliders = [
   { id: "rainSlider", valueId: "rainValue" },
   { id: "windMaxSlider", valueId: "windMaxValue" },
   { id: "windAvgSlider", valueId: "windAvgValue" },
-  { id: "tempSlider", valueId: "tempValue" }
+  { id: "tempSliderHot", valueId: "tempValueHot" },
+  { id: "tempSliderCold", valueId: "tempValueCold" }
 ];
 const isMobile = window.innerWidth <= 768;
 
@@ -239,6 +243,25 @@ function updateLabels() {
   });
 }
 
+function validateTempRanges() {
+    let valid = true;
+    let messages = [];
+    const maxTemp = parseFloat(maxAcceptableTemp.value);
+    const minTemp = parseFloat(minAcceptableTemp.value);
+    if (minTemp >= maxTemp) {
+        valid = false;
+        messages.push("Min acceptable temp must be less than max acceptable temp.");
+    }
+    if (valid) {
+        optimizeBtn.disabled = false;
+        errorMsgTemp.style.display = "none";
+    } else {
+        optimizeBtn.disabled = true;
+        errorMsgTemp.textContent = messages.join(" ");
+        errorMsgTemp.style.display = "block";
+    }
+}
+
 function validateRanges() {
   let valid = true;
   let messages = [];
@@ -349,14 +372,11 @@ function parseTimeInput(value) {
   return { hours: h, minutes: min };
 }
 
-function computeMetrics(results, start) {
+function computeMetricsOld(results, start) {
   const aligned = pickForecastAtETAs(results, start);
-  let wetPts = 0;
-  for (const p of aligned) {
-      if ((p.precip ?? 0) >= 0.1) wetPts++;
-  }
-  const rain = aligned.length ? (wetPts / aligned.length) : 0;
-  // const rain = aligned.reduce((sum, p) => sum + (p.precip ?? 0), 0) / aligned.length;
+  console.log('aligned', aligned);
+
+  const rain = aligned.reduce((sum, p) => sum + (p.precip ?? 0), 0) / aligned.length;
   const windValues = aligned.map(p => Math.abs(p.windEffectiveKmH ?? 0));
   const windMax = Math.max(...windValues);
   const windAvg = windValues.reduce((sum, v) => sum + v, 0) / windValues.length;
@@ -364,6 +384,66 @@ function computeMetrics(results, start) {
   const tempSpread = temps.length ? Math.max(...temps) - Math.min(...temps) : 0;
 
   return { start, rain, windMax, windAvg, tempSpread };
+}
+
+function computeMetrics(weights, results, start) {
+  const aligned = pickForecastAtETAs(results, start);
+  console.log('aligned', aligned);
+
+  let minRain = 0;
+  const maxRain = Number(document.getElementById("maxAcceptableRain").value);
+    if (maxRain === minRain) minRain = maxRain - 1;
+  let minWind = 0;
+  const maxWind = Number(document.getElementById("maxAcceptableWindAvg").value);
+    if (maxWind === minWind) minWind = maxWind - 1;
+  let minHeadWind = 0;
+  const maxHeadWind = Number(document.getElementById("maxAcceptableWindMax").value);
+    if (maxHeadWind === minHeadWind) minHeadWind = maxHeadWind - 1;
+  const maxHotTemp = Number(document.getElementById("maxAcceptableTemp").value);
+  const minColdTemp = Number(document.getElementById("minAcceptableTemp").value);
+  const minHotTemp = (maxHotTemp + minColdTemp) / 2;
+  const maxColdTemp = (maxHotTemp + minColdTemp) / 2;
+
+  const rainNorm = aligned.map(p => (p.precip - minRain) / (maxRain - minRain));
+  const windMaxNorm = aligned.map(p => (Math.max(-p.windEffectiveKmH, 0) - minHeadWind) / (maxHeadWind - minHeadWind));
+  const windAvgNorm = aligned.map(p => (p.windKmH - minWind) / (maxWind - minWind));
+  const tempHotNorm = aligned.map(p => (Math.max(p.tempC, minHotTemp) - minHotTemp) / (maxHotTemp - minHotTemp));
+  const tempColdNorm = aligned.map(p => (Math.min(p.tempC, maxColdTemp) - maxColdTemp) / (minColdTemp - maxColdTemp));
+
+  const rainAvg = rainNorm.reduce((sum, p) => sum + (p ?? 0), 0) / rainNorm.length;
+  const headWindAvg = windMaxNorm.reduce((sum, p) => sum + (p ?? 0), 0) / windMaxNorm.length;
+  const effWindAvg = windAvgNorm.reduce((sum, p) => sum + (p ?? 0), 0) / windAvgNorm.length;
+  const tempHotAvg = tempHotNorm.reduce((sum, p) => sum + (p ?? 0), 0) / tempHotNorm.length;
+  const tempColdAvg = tempColdNorm.reduce((sum, p) => sum + (p ?? 0), 0) / tempColdNorm.length;
+
+  const score = rainAvg * (weights.rain || 0) +
+                headWindAvg * (weights.windMax || 0) +
+                effWindAvg * (weights.windAvg || 0) +
+                tempHotAvg * (weights.temperatureHot || 0) +
+                tempColdAvg * (weights.temperatureCold || 0);
+
+  console.log('start', start, 'score', score.toFixed(3));
+  const res = {
+    start,
+    score,
+    rainAvg: aligned.reduce((sum, p) => sum + (p.precip ?? 0), 0) / aligned.length,
+    rainMax: Math.max(...aligned.map(p => p.precip ?? 0)),
+    rainAboveMax: aligned.filter(p => (p.precip ?? 0) > maxRain).length,
+    headWindMax: Math.max(...aligned.map(p => - p.windEffectiveKmH ?? 0)),
+    headWindAvg: aligned.reduce((sum, p) => sum + (Math.max(-p.windEffectiveKmH ?? 0, 0)), 0) / aligned.length,
+    headWindAboveMax: aligned.filter(p => (- p.windEffectiveKmH ?? 0) > maxHeadWind).length,
+    windAvg: aligned.reduce((sum, p) => sum + (p.windKmH ?? 0), 0) / aligned.length,
+    windMax: Math.max(...aligned.map(p => p.windKmH ?? 0)),
+    windAboveMax: aligned.filter(p => (p.windKmH ?? 0) > maxWind).length,
+    tempMin: Math.min(...aligned.map(p => p.tempC ?? 0)),
+    tempMax: Math.max(...aligned.map(p => p.tempC ?? 0)),
+    tempBelowMin: aligned.filter(p => (p.tempC ?? 0) < minColdTemp).length,
+    tempAboveMax: aligned.filter(p => (p.tempC ?? 0) > maxHotTemp).length,
+    tempAvg: aligned.reduce((sum, p) => sum + (p.tempC ?? 0), 0) / aligned.length
+  };
+
+  console.log('res', res);
+  return res;
 }
 
 function optimizeStartTime(results, timeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights) {
@@ -377,27 +457,10 @@ function optimizeStartTime(results, timeSteps, rangeDateMin, rangeDateMax, timeM
   const candidates = filterCandidates(optimizeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts);
   if (candidates.length === 0) return null;
   // Helper: normalize array to 0–1
-  const normalize = arr => {
-    const min = Math.min(...arr);
-    const max = Math.max(...arr);
-    return arr.map(v => (max === min ? 0.5 : (v - min) / (max - min)));
+  const normalizeFixed = (value, min, max) => {
+    return (value - min) / (max - min);
   };
-  const scores = candidates.map(start => computeMetrics(results, start));
-
-  // Normalize each metric across candidates
-  const rainNorm = normalize(scores.map(s => s.rain));
-  const windMaxNorm = normalize(scores.map(s => s.windMax));
-  const windAvgNorm = normalize(scores.map(s => s.windAvg));
-  const tempNorm = normalize(scores.map(s => s.tempSpread));
-
-  // Compute weighted score
-  scores.forEach((s, i) => {
-    s.score =
-      (rainNorm[i] * (weights.rain || 0)) +
-      (windMaxNorm[i] * (weights.windMax || 0)) +
-      (windAvgNorm[i] * (weights.windAvg || 0)) +
-      (tempNorm[i] * (weights.temperature || 0));
-  });
+  const scores = candidates.map(start => computeMetrics(weights, results, start));
 
   // Pick best
   scores.sort((a, b) => a.score - b.score);
@@ -703,6 +766,10 @@ updateLabels();
   el.addEventListener("input", validateRanges);
 });
 
+[maxAcceptableTemp, minAcceptableTemp].forEach(el => {
+    el.addEventListener("input", validateTempRanges);
+});
+
 document.querySelector("#optimizeResultsModal .close").addEventListener("click", () => {
   document.getElementById("optimizeResultsModal").style.display = "none";
 });
@@ -750,11 +817,11 @@ document.getElementById("optimizeForm").addEventListener("submit", e => {
     rain: parseInt(document.getElementById("rainSlider").value, 10),
     windMax: parseInt(document.getElementById("windMaxSlider").value, 10),
     windAvg: parseInt(document.getElementById("windAvgSlider").value, 10),
-    temperature: parseInt(document.getElementById("tempSlider").value, 10)
+    temperatureHot: parseInt(document.getElementById("tempSliderHot").value, 10),
+    temperatureCold: parseInt(document.getElementById("tempSliderCold").value, 10)
   };
   const bestCandidates = optimizeStartTime(latestResults, latestTimeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights);
   if (bestCandidates.length) {
-  const initial = initialMetrics; // use the best as baseline for "relative"
   const list = document.getElementById("optimizeResultsList");
   list.innerHTML = "";
 
@@ -765,27 +832,40 @@ document.getElementById("optimizeForm").addEventListener("submit", e => {
   // summary row
   const summary = document.createElement("div");
   summary.className = "result-summary";
-  summary.textContent = `${c.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" })}`; // (score: ${c.score.toFixed(2)})`;
+  summary.textContent = `${c.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" })}`;
   card.appendChild(summary);
 
   // details section
   const details = document.createElement("div");
   details.className = "result-details";
 
-  // relative differences vs initial
-  const rel = {
-    rain: (c.rain - initial.rain).toFixed(2),
-    windMax: (c.windMax - initial.windMax).toFixed(2),
-    windAvg: (c.windAvg - initial.windAvg).toFixed(2),
-    tempSpread: (c.tempSpread - initial.tempSpread).toFixed(2)
-  };
-
   details.innerHTML = `
-    <div>Wet share: ${Math.round(c.rain * 100)}%  (Δ ${Math.round(rel.rain * 100)}%)</div>
-    <div>Max wind: ${c.windMax.toFixed(1)} km/h (Δ ${rel.windMax})</div>
-    <div>Avg wind: ${c.windAvg.toFixed(1)} km/h (Δ ${rel.windAvg})</div>
-    <div>Temp spread: ${c.tempSpread.toFixed(1)}°C (Δ ${rel.tempSpread})</div>
+    <div>Score: ${(100 - c.score).toFixed(1)}%</div>
+    <br>
+    <div><strong>🌧️ Precipitation</strong> avg: ${c.rainAvg.toFixed(1)} mm/h, max: ${c.rainMax.toFixed(1)} mm/h</div>
+    <div><strong>💨 Headwind</strong> avg: ${c.headWindAvg.toFixed(1)} km/h, max: ${c.headWindMax.toFixed(1)} km/h</div>
+    <div><strong>💨 Wind</strong> avg: ${c.windAvg.toFixed(1)} km/h, max: ${c.windMax.toFixed(1)} km/h</div>
+    <div><strong>🌡️ Temperature</strong> avg: ${c.tempAvg.toFixed(1)}°C, min: ${c.tempMin.toFixed(1)}°C, max: ${c.tempMax.toFixed(1)}°C</div>
   `;
+
+  if (c.rainAboveMax === 0 && c.headWindAboveMax === 0 && c.windAboveMax === 0 && c.tempBelowMin === 0 && c.tempAboveMax === 0) {
+    const note = document.createElement("div");
+    note.style.marginBottom = "8px";
+    note.innerHTML = `<br>✅ All conditions within acceptable limits`;
+    details.appendChild(note);
+  }
+    else {
+        const note = document.createElement("div");
+        note.style.marginBottom = "8px";
+        let issues = [];
+        if (c.rainAboveMax > 0) issues.push(`precipitation`);
+        if (c.headWindAboveMax > 0) issues.push(`headwind`);
+        if (c.windAboveMax > 0) issues.push(`wind`);
+        if (c.tempBelowMin > 0) issues.push(`low temperature`);
+        if (c.tempAboveMax > 0) issues.push(`high temperature`);
+        note.innerHTML = `<br>⚠️ Some conditions exceed acceptable limits: ${issues.join(", ")}`;
+        details.appendChild(note);
+    }
 
   const applyBtn = document.createElement("button");
   applyBtn.textContent = "Apply this start time";
@@ -1096,8 +1176,6 @@ async function worker() {
 
   const resultsInitialStartDate = pickForecastAtETAs(results, startDate);
   console.log('Results with initial start date:', resultsInitialStartDate)
-  initialMetrics = computeMetrics(latestResults, startDate);
-  console.log('Initial metrics:', initialMetrics)
   updateMapAndCharts(points, resultsInitialStartDate, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
