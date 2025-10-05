@@ -120,7 +120,7 @@
       <p>Select the earliest and latest date and time within which optimal routes will be searched.</p>
       <h4 id="help-optimize-weights">Optimization weights and thresholds</h4>
       <p>Here you find the different parameters that you can optimize your route for. Each parameter has a slider which
-        allows you to set the weight of that parameter in the overall optimization score. If they do not sum up to 100%,
+        allows you to set the weight for that parameter in the overall optimization score. If they do not sum up to 100%,
         weights will be re-normalized. Each parameter also has a threshold value, which indicates the maximum acceptable value for that parameter.
         The optimization will try to find a route which stays as far from these thresholds as possible.</p><br>
         <p>The following parameters are available for optimization:</p>
@@ -138,13 +138,14 @@
             $$
             </div>
      <p>where \(wind_{n}\) is the wind speed of the n-th point of a route with \(N\) points in total, \(minWind\) is 0
-         and \(maxWind\) is your chosen threshold. The other optimization scores are computed in a similar manner.</p><br>
+         (the ideal condition) and \(maxWind\) is your chosen threshold. The other optimization scores are computed in
+         a similar manner.</p><br>
       <p>The final score is then computed as:</p>
       <div class="formula">
         $$ \begin{aligned}
         score = 100 - (\
            & weight_{precipitation} \cdot precipitationScore \\
-           +\; &weight_{headWind} \cdot headwindScore \\
+           +\; &weight_{headWind} \cdot headWindScore \\
            +\; &weight_{wind} \cdot windScore \\
            +\; &weight_{hotTemperature} \cdot hotTemperatureScore \\
            +\; &weight_{coldTemperature} \cdot coldTemperatureScore),

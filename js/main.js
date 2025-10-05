@@ -372,20 +372,6 @@ function parseTimeInput(value) {
   return { hours: h, minutes: min };
 }
 
-function computeMetricsOld(results, start) {
-  const aligned = pickForecastAtETAs(results, start);
-  console.log('aligned', aligned);
-
-  const rain = aligned.reduce((sum, p) => sum + (p.precip ?? 0), 0) / aligned.length;
-  const windValues = aligned.map(p => Math.abs(p.windEffectiveKmH ?? 0));
-  const windMax = Math.max(...windValues);
-  const windAvg = windValues.reduce((sum, v) => sum + v, 0) / windValues.length;
-  const temps = aligned.map(p => p.tempC).filter(v => v !== undefined);
-  const tempSpread = temps.length ? Math.max(...temps) - Math.min(...temps) : 0;
-
-  return { start, rain, windMax, windAvg, tempSpread };
-}
-
 function computeMetrics(weights, results, start) {
   const aligned = pickForecastAtETAs(results, start);
   console.log('aligned', aligned);
