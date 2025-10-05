@@ -29,6 +29,26 @@ export function bearing(lat1, lon1, lat2, lon2) {
   return (θ * 180 / Math.PI + 360) % 360;
 }
 
+export function interpolateValues(points, aligned, key) {
+  let ai = 0;
+  return points.map((p, i) => {
+    while (ai < aligned.length - 1 && aligned[ai + 1].idx <= i) {
+      ai++;
+    }
+    const a1 = aligned[ai];
+    const a2 = aligned[Math.min(ai + 1, aligned.length - 1)];
+
+    const v1 = a1 ? a1[key] : null;
+    const v2 = a2 ? a2[key] : null;
+
+    if (!isFinite(v1)) return null;
+    if (!isFinite(v2) || a1.idx === a2.idx) return v1;
+
+    const f = (i - a1.idx) / (a2.idx - a1.idx);
+    return v1 + f * (v2 - v1);
+  });
+}
+
 // ---------- Formatting ----------
 export function formatKm(m) {
   return (m / 1000).toFixed(2) + " km";

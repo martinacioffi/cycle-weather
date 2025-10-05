@@ -1,5 +1,5 @@
 import {
-  haversine, formatKm, formatDuration, speedToMps, log,
+  haversine, formatKm, formatDuration, speedToMps, log, interpolateValues,
   makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates,
   updateLegendRange, getPercentInput, roundToNearestQuarter
 } from './utils.js';
@@ -497,9 +497,10 @@ minSpacingDense, minTimeSpacingDense, pictos) {
   if (maxT - minT < 0.1) { maxT = minT + 0.1; }
 
   const tempColor = makeColorer(minT, maxT, "temp");
+  const interpolatedTemps = interpolateValues(points, aligned, "tempC");
+
   for (let s = 0; s < points.length - 1; s++) {
-    const nearest = nearestByIdx(aligned, s);
-    const t = nearest ? nearest.tempC : null;
+    const t = interpolatedTemps[s];
     const color = (t == null) ? "#cccccc" : tempColor(t);
     const seg = L.polyline(
       [[points[s].lat, points[s].lon], [points[s+1].lat, points[s+1].lon]],
@@ -516,9 +517,9 @@ minSpacingDense, minTimeSpacingDense, pictos) {
   if (maxW - minW < 0.1) { maxW = minW + 0.1; }
 
   const windColor = makeColorer(minW, maxW, "wind");
+  const interpolatedWinds = interpolateValues(points, aligned, "windEffectiveKmH");
   for (let s = 0; s < points.length - 1; s++) {
-    const nearest = nearestByIdx(aligned, s);
-    const eff = nearest ? nearest.windEffectiveKmH : 0;
+    const eff = interpolatedWinds[s];
     const color = (eff == null) ? "#cccccc" : windColor(eff);
     const seg = L.polyline(
       [[points[s].lat, points[s].lon], [points[s+1].lat, points[s+1].lon]],
