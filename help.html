@@ -132,12 +132,15 @@
             <li><strong>Cold temperature</strong>: avoid too low temperature. The threshold is in °C.</li>
         </ul>
           <p>As an example, the score for the wind parameter is computed as follows:</p>
+            <div class="formula">
             $$
             windScore = \frac{1}{N} \sum_{n=0}^{N} \frac{wind_{n} - minWind}{maxWind - minWind}\;,
             $$
+            </div>
      <p>where \(wind_{n}\) is the wind speed of the n-th point of a route with \(N\) points in total, \(minWind\) is 0
          and \(maxWind\) is your chosen threshold. The other optimization scores are computed in a similar manner.</p><br>
       <p>The final score is then computed as:</p>
+      <div class="formula">
         $$ \begin{aligned}
         score = 100 - (\
            & weight_{precipitation} \cdot precipitationScore \\
@@ -148,6 +151,7 @@
         \end{aligned}
         \
         $$
+        </div>
       <p>where \(weight_{parameter}\) is the normalized weight given by the slider for each parameter.</p><br>
     <p>The maximum score is 100%, and it means that there is almost no wind and no precipitation,
     and the temperature lies in between your min and max acceptable thresholds. A score close to 0 features values

@@ -341,7 +341,9 @@ html, body {
   header {
     position: sticky;
     top: 0;
-    width: 100%;
+    width: 100vw;
+    left: 0;
+    right: 0;
     z-index: 9000; /* ensure it sits above content */
   }
   .header-content {
@@ -395,7 +397,19 @@ html, body {
     overflow: visible;
     height: auto;
     }
-
+.help-content {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box; /* so padding/border don’t push it wider */
+}
+.formula, .MathJax_Display {
+  font-size: clamp(0.6em, 2vw, 1em);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1em auto;
+  text-align: left;
+}
     #map {
     height: 300px;
     min-height: 0;
@@ -481,8 +495,7 @@ background: #0f1115;
 }
 .charts canvas {
 flex: 1 1 0;
-width: auto !important;
-height: 100% !important;
+spect-ratio: 2 / 1;
 max-height: 300px;
 }
 .help-btn {
