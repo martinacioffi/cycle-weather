@@ -12,15 +12,15 @@
             crossorigin=""
     />
    <link rel="stylesheet" href="./css/style.css">
-    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
-    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+    <link rel="icon" href="./images/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="./image/png" sizes="32x32" href="./images/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
 </head>
 <body>
 <header>
   <div class="header-content">
     <div class="header-left">
-      <img src="images/bike.jpg" alt="Logo" class="logo">
+      <img src="./images/bike.jpg" alt="Logo" class="logo">
       <div>
         <h1>GPX Route Weather Forecast</h1>
         <div class="sub">Upload GPX → set start time, speed & breaks → see forecast along your route</div>
@@ -28,7 +28,32 @@
     </div>
     <div class="header-right">
       <button id="demoBtn" class="std-button" title="Try it now with a demo file">Demo</button>
-        <a href="help.html" class="help-button" title="Learn about the inputs">Help</a>
+        <a href="./help.html" class="help-button" title="Learn about the inputs">Help</a>
+        <button id="loginBtn" class="login-button">Sign in</button>
+        <img id="userAvatar" src="./images/user.png" alt="avatar" style="
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              cursor: pointer;
+              vertical-align: middle;
+              margin-right: 8px;
+              display: none;
+            ">
+        <div id="avatarMenu" class="avatar-menu" style="display: none;">
+              <ul>
+                <li id="profileOption">Profile</li>
+                <li id="settingsOption">Settings</li>
+                <li id="logoutOption">Logout</li>
+              </ul>
+            </div>
+        <div id="loginModal" class="login-modal">
+          <div class="login-modal-content">
+            <span class="login-close-btn" id="closeLogin">&times;</span>
+            <h3>Sign in</h3>
+            <div id="firebaseui-auth-container"></div>
+            <footer>As of now, we only support logging in with your Google account.</footer>
+          </div>
+        </div>
     </div>
   </div>
 </header>
@@ -283,7 +308,7 @@
         <span class="close">&times;</span>
         <h2>
             Choose optimization parameters
-            <a href="help.html#help-optimize" target="_blank" class="help-icon" title="Read more in Help">?</a>
+            <a href="./help.html#help-optimize" target="_blank" class="help-icon" title="Read more in Help">?</a>
         </h2>
         <form id="optimizeForm">
 
@@ -429,5 +454,98 @@
 <script type="module" src="./js/main.js"></script>
 <!-- Goat Counter for logs and analytics -->
 <script data-goatcounter="https://martina-cioffi.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<!-- Firebase core + required services -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+
+<!-- FirebaseUI for Web -->
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
+<script>
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBQGbCVJQW5JjKyYjzIwv_ThsQC73Zth6Q",
+  authDomain: "cycle-weather-93125.firebaseapp.com",
+  projectId: "cycle-weather-93125",
+  storageBucket: "cycle-weather-93125.firebasestorage.app",
+  messagingSenderId: "284158359959",
+  appId: "1:284158359959:web:8275e2b7288fa5b97dacd2",
+  measurementId: "G-PJJKWY2N5J"
+};
+
+  firebase.initializeApp(firebaseConfig);
+</script>
+<script>
+const uiConfig = {
+  signInOptions: [
+    firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+    //{
+    //  provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
+    //  requireDisplayName: false
+    //}
+  ],
+  signInFlow: 'popup',
+  credentialHelper: firebaseui.auth.CredentialHelper.NONE,
+  autoUpgradeAnonymousUsers: true,
+  callbacks: {
+    signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+      document.getElementById("loginModal").style.display = "none";
+      return false; // prevent redirect
+    },
+    signInFailure: function(error) {
+      // Handle when the email is already linked to another account
+      if (error.code === 'firebaseui/anonymous-upgrade-merge-conflict') {
+        // Sign in to the existing account with the new credential
+        return firebase.auth().signInWithCredential(error.credential);
+      }
+      console.error("FirebaseUI error:", error);
+      return Promise.resolve();
+    }
+  }
+};
+
+  let ui = firebaseui.auth.AuthUI.getInstance() || new firebaseui.auth.AuthUI(firebase.auth());
+
+  // Open modal and render widget
+  document.getElementById("loginBtn").addEventListener("click", () => {
+    const modal = document.getElementById("loginModal");
+    modal.style.display = "block";
+    ui.reset();
+    ui.start('#firebaseui-auth-container', uiConfig);
+  });
+
+const loginBtn = document.getElementById("loginBtn");
+const userAvatar = document.getElementById("userAvatar");
+const avatarMenu = document.getElementById("avatarMenu");
+
+firebase.auth().onAuthStateChanged(user => {
+  if (user) {
+    // Show avatar, hide login button
+    loginBtn.style.display = "none";
+    userAvatar.style.display = "inline-block";
+
+    // Use user's photo or fallback
+    userAvatar.src = user.photoURL || "https://i.imgur.com/8Km9tLL.png";
+    userAvatar.title = user.displayName || user.email;
+
+    // Optional: show initials if no photo
+    if (!user.photoURL) {
+      const initials = (user.displayName || user.email || "?")[0].toUpperCase();
+      userAvatar.alt = initials;
+    }
+
+    // Avatar click toggles dropdown
+    userAvatar.onclick = () => {
+      avatarMenu.style.display = avatarMenu.style.display === "none" ? "block" : "none";
+    };
+  } else {
+    // Show login button, hide avatar and menu
+    loginBtn.style.display = "inline-block";
+    userAvatar.style.display = "none";
+    avatarMenu.style.display = "none";
+  }
+});
+</script>
 </body>
 </html>

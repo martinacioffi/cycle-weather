@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>User Settings — GPX Route Weather</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="header-left">
+          <a href="./index.html">
+        <img src="./images/bike.jpg" alt="Logo" class="logo" />
+            </a>
+        <div>
+          <h1>GPX Route Weather Forecast</h1>
+          <div class="sub">Customize your default settings</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="display: flex; justify-content: center; align-items: flex-start; padding: 40px;">
+    <div class="group" style="width: 100%; max-width: 600px;">
+        <h3>Default Input Settings</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td><label for="def-provider">Weather Provider</label></td>
+          <td>
+            <select id="def-provider">
+              <option value="openmeteo">Open-Meteo</option>
+              <option value="meteoblue">Meteoblue</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="def-pictogramProvider">Pictogram Provider</label></td>
+          <td>
+            <select id="def-pictogramProvider">
+                <option value="yr">Yr</option>
+              <option value="meteoblue">Meteoblue</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="def-meteoblueKey">Meteoblue API Key</label></td>
+          <td><input type="text" id="def-meteoblueKey" placeholder="Enter your API key" /></td>
+        </tr>
+        <tr>
+          <td><label for="def-startTime">Default Start Time</label></td>
+          <td><input type="time" id="def-startTime" value="07:00" /></td>
+        </tr>
+         <tr>
+  <td><label for="def-speed">Average speed (flat terrain)</label></td>
+  <td><input type="number" id="def-speed" min="0" step="0.1" value="14" /></td>
+</tr>
+<tr>
+  <td><label for="def-speedUnit">Unit</label></td>
+  <td>
+    <select id="def-speedUnit">
+      <option value="km/h" selected>km/h</option>
+      <option value="mph">mph</option>
+    </select>
+  </td>
+</tr>
+<tr>
+  <td><label for="def-speedUp">Speed decrease uphill</label></td>
+  <td>
+    <div class="input-with-suffix">
+      <input type="number" id="def-speedUp" min="0" max="100" step="1" value="30" />
+      <span class="suffix">%</span>
+    </div>
+  </td>
+</tr>
+<tr>
+  <td><label for="def-speedDown">Speed increase downhill</label></td>
+  <td>
+    <div class="input-with-suffix">
+      <input type="number" id="def-speedDown" min="0" max="100" step="1" value="40" />
+      <span class="suffix">%</span>
+    </div>
+  </td>
+</tr>
+          <tr>
+  <td><label for="def-sampleMetersDense">Min sample spacing</label></td>
+  <td>
+    <select id="def-sampleMetersDense">
+        <option value="100">100 m</option>
+        <option value="200" selected>200 m</option>
+        <option value="500">500 m</option>
+        <option value="1000">1 km</option>
+    </select>
+  </td>
+</tr>
+<tr>
+  <td><label for="def-sampleMinutesDense">Min sample spacing</label></td>
+  <td>
+    <select id="def-sampleMinutesDense">
+      <option value="1">1 min</option>
+      <option value="2" selected>2 min</option>
+      <option value="5">5 min</option>
+        <option value="10">10 min</option>
+    </select>
+  </td>
+</tr>
+<tr>
+  <td><label for="def-sampleMeters">Min sample spacing (icons)</label></td>
+  <td>
+    <select id="def-sampleMeters">
+      <option value="2000" selected>2 km</option>
+      <option value="5000">5 km</option>
+      <option value="10000">10 km</option>
+    </select>
+  </td>
+</tr>
+<tr>
+  <td><label for="def-sampleMinutes">Min time spacing (icons)</label></td>
+  <td>
+    <select id="def-sampleMinutes">
+      <option value="15" selected>15 min</option>
+      <option value="30">30 min</option>
+      <option value="60">60 min</option>
+    </select>
+  </td>
+</tr>
+<tr>
+  <td><label for="def-maxCalls">Max API calls</label></td>
+  <td><input type="number" id="def-maxCalls" min="5" max="200" value="60" /></td>
+</tr>
+          <tr>
+    <td colspan="2"><br><h3>Default Optimization Settings</h3></td>
+  </tr>
+        <tr>
+          <td><label for="def-optStartTimeMin">Earliest time</label></td>
+          <td><input type="time" id="def-optStartTimeMin" name="def-optStartTimeMin" value="07:00">
+          </td>
+        </tr>
+        <tr>
+          <td><label for="def-optStartTimeMax">Earliest time</label></td>
+          <td><input type="time" id="def-optStartTimeMax" name="def-optStartTimeMax" value="09:00">
+          </td>
+        </tr>
+        <tr>
+          <td><label for="def-rainSlider">Precipitation weight</label></td>
+          <td>
+              <div class="slider-row">
+            <input type="range" id="def-rainSlider" name="def-rainSlider" min="0" max="100" value="20">
+              <span id="def-rainSliderValue" class="slider-value">20%</span>
+                </div>
+          </td>
+        </tr>
+          <tr>
+            <td><label for="def-maxAcceptableRain">Max acceptable precipitation (mm/h)</label></td>
+            <td><input type="number" id="def-maxAcceptableRain" min="0" max="50" step="0.1" value="0" /></td>
+          </tr>
+                  <tr>
+          <td><label for="def-windMaxSlider">Headwind weight</label></td>
+          <td>
+              <div class="slider-row">
+              <input type="range" id="def-windMaxSlider" name="def-windMaxSlider" min="0" max="100" value="20">
+                <span id="def-windMaxSliderValue" class="slider-value">20%</span>
+                    </div>
+          </td>
+        </tr>
+          <tr>
+            <td><label for="def-maxAcceptableWindMax">Max acceptable headwind (km/h)</label></td>
+            <td><input type="number" id="def-maxAcceptableWindMax" min="0" max="100" value="10" /></td>
+          </tr>
+          <tr>
+          <td><label for="def-windAvgSlider">Average wind weight</label></td>
+          <td><div class="slider-row">
+              <input type="range" id="def-windAvgSlider" name="def-windAvgSlider" min="0" max="100" value="20">
+                <span id="def-windAvgSliderValue" class="slider-value">20%</span>
+                    </div>
+          </td>
+        </tr>
+          <tr>
+            <td><label for="def-maxAcceptableWindAvg">Max acceptable average wind (km/h)</label></td>
+            <td><input type="number" id="def-maxAcceptableWindAvg" min="0" max="200" value="15" /></td>
+          </tr>
+                     <tr>
+          <td><label for="def-tempSliderHot">Hot temperature weight</label></td>
+          <td>
+              <div class="slider-row">
+              <input type="range" id="def-tempSliderHot" name="def-tempSliderHot" min="0" max="100" value="20">
+                <span id="def-tempSliderHotValue" class="slider-value">20%</span>
+                    </div>
+          </td>
+        </tr>
+          <tr>
+            <td><label for="def-maxAcceptableTemp">Max acceptable hot temperature (°C)</label></td>
+            <td><input type="number" id="def-maxAcceptableTemp" min="15" max="50" value="25" /></td>
+          </tr>
+                               <tr>
+          <td><label for="def-tempSliderCold">Hot temperature weight</label></td>
+          <td>
+              <div class="slider-row">
+              <input type="range" id="def-tempSliderCold" name="def-tempSliderCold" min="0" max="100" value="20">
+                <span id="def-tempSliderColdValue" class="slider-value">20%</span>
+                    </div>
+          </td>
+        </tr>
+          <tr>
+            <td><label for="def-minAcceptableTemp">Min acceptable cold temperature (°C)</label></td>
+            <td><input type="number" id="def-minAcceptableTemp" min="-20" max="30" value="0" /></td>
+          </tr>
+                    <tr>
+  <td><label for="def-granularityMinutes">Granularity</label></td>
+  <td>
+    <select id="def-granularityMinutes">
+            <option value="10">10 min</option>
+          <option value="20" selected>20 min</option>
+          <option value="30">30 min</option>
+          <option value="60">60 min</option>
+    </select>
+  </td>
+</tr>
+      </table>
+<div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+  <button id="saveSettingsBtn" style="width: auto;">Save Settings</button>
+    </div>
+        <div style="margin-top: 20px; font-size: 12px; color: var(--muted);">
+          <p><strong>Note:</strong> These settings will be used as defaults when you load the main page. You can always override them there.</p>
+          <p>Your settings are saved to the cloud using Firebase Firestore. Make sure you are signed in to save and load your preferences.
+              If you want to reset to the original defaults, simply clear your browser's local storage for this site.</p>
+</div>
+    </div>
+  </main>
+  <script>
+  function toggleSection(id) {
+    const el = document.getElementById(id);
+    el.style.display = (el.style.display === "none") ? "block" : "none";
+  }
+</script>
+<script>
+document.querySelectorAll('input[type="range"]').forEach(slider => {
+  const valueSpan = document.getElementById(slider.id + "Value");
+  if (valueSpan) {
+    valueSpan.textContent = slider.value + "%";
+    slider.addEventListener("input", () => {
+      valueSpan.textContent = slider.value + "%";
+    });
+  }
+});
+</script>
+<!-- Firebase App (always required) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<!-- Firebase Authentication -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<!-- Firebase Firestore -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBQGbCVJQW5JjKyYjzIwv_ThsQC73Zth6Q",
+  authDomain: "cycle-weather-93125.firebaseapp.com",
+  projectId: "cycle-weather-93125",
+  storageBucket: "cycle-weather-93125.firebasestorage.app",
+  messagingSenderId: "284158359959",
+  appId: "1:284158359959:web:8275e2b7288fa5b97dacd2",
+  measurementId: "G-PJJKWY2N5J"
+};
+
+  firebase.initializeApp(firebaseConfig);
+</script>
+<script>
+  const fields = [
+    "provider",
+    "pictogramProvider",
+    "meteoblueKey",
+    "startTime",
+    "speed",
+    "speedUnit",
+    "speedUp",
+    "speedDown",
+    "sampleMeters",
+    "sampleMinutes",
+    "maxCalls",
+    "sampleMetersDense",
+    "sampleMinutesDense",
+    "optStartTimeMin",
+    "optStartTimeMax",
+    "rainSlider",
+    "maxAcceptableRain",
+    "windMaxSlider",
+    "maxAcceptableWindMax",
+    "windAvgSlider",
+    "maxAcceptableWindAvg",
+    "tempSliderHot",
+    "maxAcceptableTemp",
+    "tempSliderCold",
+    "minAcceptableTemp",
+    "granularityMinutes"
+  ];
+
+    // Apply settings to form inputs
+    function applyUserDefaults(settings) {
+      Object.entries(settings).forEach(([key, value]) => {
+        const el = document.getElementById(`def-${key}`);
+        if (el) el.value = value;
+      });
+    }
+
+    // Save settings to Firestore
+    document.getElementById("saveSettingsBtn").addEventListener("click", () => {
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        alert("You must be signed in to save settings.");
+        return;
+      }
+
+      const settings = {};
+      fields.forEach(key => {
+        const el = document.getElementById(`def-${key}`);
+        if (el) settings[key] = el.value;
+      });
+      firebase.firestore()
+        .collection("userSettings")
+        .doc(user.uid)
+        .set(settings)
+        .then(() => {
+          alert("Settings saved to cloud!");
+          applyUserDefaults(settings);
+        })
+        .catch(error => {
+          console.error("Error saving settings:", error);
+          alert("Failed to save settings.");
+        });
+    });
+
+    // Load settings from Firestore on auth state change
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) return;
+      firebase.firestore()
+        .collection("userSettings")
+        .doc(user.uid)
+        .get()
+        .then(doc => {
+          if (doc.exists) {
+            const settings = doc.data();
+            applyUserDefaults(settings);
+          }
+        })
+        .catch(error => console.error("Error loading settings:", error));
+    });
+
+</script>
+</body>
+</html>

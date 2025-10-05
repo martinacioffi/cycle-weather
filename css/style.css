@@ -53,27 +53,33 @@ header {
 
 .std-button {
   padding: 8px 16px;
-  font-size: 14px;
+  font-size: 0.8rem;
   background-color: #0078D4;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   align-self: left;
+  margin-top: 0;
 }
 .std-button:hover {
   background-color: #005ea2;
 }
-.help-button {
+.help-button, .login-button {
   display: inline-block;
   padding: 8px 16px;
-  font-size: 14px;
-  margin-left: 8px;
+  font-size: 0.8rem;
+  line-height: 1;
   background: none; /* #0078d7; /* same style as demo button */
   color: #fff;
   border-radius: 4px;
   text-decoration: none;
   transition: background 0.2s;
+  font-weight: normal;
+  white-space: nowrap;
+  margin-top: 0;
+  border: none;
+  cursor: pointer;
 }
 
 .logo {
@@ -251,8 +257,6 @@ touch-action: auto;
   border-radius: 8px;
   color: var(--muted);
   font-size: 12px;
-  position: relative;
-  z-index: 1000;
 }
 .legend-bar {
   height: 10px;
@@ -357,7 +361,7 @@ html, body {
     padding: 4px 8px;
     margin-right: 0px;
     }
-    .help-button {
+    .help-button, .login-button {
     font-size: 0.7em;
     padding: 4px 8px;
     margin-left: 0px;
@@ -1049,4 +1053,172 @@ form legend {
 
 .help-icon:hover {
   background-color: #005a9e; /* darker on hover */
+}
+.login-modal {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.login-modal-content {
+  background: var(--panel);
+  margin: 10% auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: 520px;
+  color: var(--text);
+}
+
+.login-modal-content footer {
+  font-size: 14px;
+}
+
+.login-close-btn {
+  float: right;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  color: var(--muted);
+}
+.login-close-btn:hover {
+  color: var(--accent);
+}
+/* Shrink and align the action buttons */
+#firebaseui-auth-container .firebaseui-form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#firebaseui-auth-container .firebaseui-button {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+.avatar-menu {
+  position: absolute;
+  top: 60px; /* adjust based on your header height */
+  right: 20px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  z-index: 1000;
+}
+
+.avatar-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+    min-width: 135px;
+}
+
+.avatar-menu li {
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+   color: #333;
+}
+
+.avatar-menu li:hover {
+  background-color: #f0f0f0;
+}
+
+.settings-container {
+  max-width: 400px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  font-size: 34px !important;
+}
+
+.settings-container h2 {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.settings-container label {
+  display: block;
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+.settings-container input,
+.settings-container select {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 24px;
+}
+
+#saveSettingsBtn {
+  margin-top: 20px;
+  padding: 10px 16px;
+  background-color: #0078d4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+/* Make all inputs, selects, and ranges consistent */
+.group table td {
+  vertical-align: middle;
+  padding: 6px 8px;
+}
+
+.group table label {
+  display: inline-block;
+  min-width: 180px; /* keeps labels aligned */
+  text-align: left;
+}
+
+.group table input,
+.group table select {
+  width: 100%;              /* fill the cell */
+  max-width: 250px;         /* cap so they don't get too wide */
+  box-sizing: border-box;   /* include padding in width */
+}
+
+.group table input[type="range"] {
+  width: 90%; /* sliders stretch nicely */
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;              /* slider takes remaining space */
+  min-width: 0;         /* allow it to shrink */
+  accent-color: var(--accent);
+}
+
+.slider-value {
+  width: 40px;          /* fixed width for values like "100%" */
+  text-align: right;    /* align numbers neatly */
+  margin-left: 8px;     /* space between slider and value */
+  margin-right: 8px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;  /* prevent wrapping */
 }
