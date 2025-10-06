@@ -203,8 +203,8 @@ firebase.auth().onAuthStateChanged(user => {
         });
 
         showSaveModal("✅ GPX file saved successfully");
-        currentFile = null;
-        gpxInput.value = "";
+        // currentFile = null;
+        // gpxInput.value = "";
         updateSaveVisibility();
       } catch (err) {
         console.error("Save error:", err);
