@@ -328,8 +328,13 @@ html, body {
   padding: 0;
   /*overflow-x: hidden; /* prevents accidental horizontal scroll */
 }
-  .sub {
+  .sub, .app-title {
     display: none;
+  }
+    .login-modal-content {
+    width: 90%;          /* shrink to fit smaller screens */
+    margin: 30% auto;    /* push it down a bit more */
+    padding: 16px;       /* slightly tighter padding */
   }
    .on-this-page {
     display:none;
@@ -1072,12 +1077,14 @@ form legend {
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  width: 520px;
+  width: 25rem;
+  max-width: 90%;
   color: var(--text);
 }
 
 .login-modal-content footer {
-  font-size: 14px;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .login-close-btn {
