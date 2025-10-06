@@ -53,13 +53,33 @@ document.addEventListener("layoutReady", () => {
     const logoutOption = document.getElementById("logoutOption");
     const closeLogin = document.getElementById("closeLogin");
     const settingsOption = document.getElementById("settingsOption");
+    const myRoutesOption = document.getElementById("myRoutesOption");
     const currentPage = window.location.pathname.split("/").pop();
+    const gpxInput = document.getElementById("gpxFile");
+    const saveOption = document.getElementById("saveGpxOption");
+    const saveBtn = document.getElementById("saveGpxBtn");
+
+      // Modal elements
+  const saveModal = document.getElementById("saveGpxModal");
+  const saveModalMsg = document.getElementById("saveGpxModalMessage");
+  const closeSaveModal = document.getElementById("closeSaveModal");
+
+  let currentFile = null;
+  let currentUser = null;
+  const MAX_SIZE = 1024 * 1024; // 1 MB
 
     // --- Event Listeners ---
     if (settingsOption) {
         settingsOption.addEventListener("click", () => {
         avatarMenu.style.display = "none";
         window.location.href = "./settings.html";
+     });
+     }
+
+     if (myRoutesOption) {
+        myRoutesOption.addEventListener("click", () => {
+        avatarMenu.style.display = "none";
+        window.location.href = "./myroutes.html";
      });
      }
 
@@ -89,7 +109,7 @@ document.addEventListener("layoutReady", () => {
       firebase.auth().signOut().then(() => {
         console.log("User signed out");
         if (avatarMenu) avatarMenu.style.display = "none";
-        if (currentPage === "settings.html") {
+        if (currentPage === "settings.html" || currentPage === "myroutes.html") {
           window.location.href = "./index.html";
         }
       }).catch(error => {
@@ -104,8 +124,24 @@ document.addEventListener("click", (e) => {
   }
 });
 
+
+  // Show modal helper
+  function showSaveModal(message, isError = false) {
+    saveModalMsg.textContent = message;
+    // saveModalMsg.style.color = isError ? "red" : "green";
+    saveModal.style.display = "flex";
+  }
+
+  // Close modal
+  if ( closeSaveModal ) {
+  closeSaveModal.onclick = () => saveModal.style.display = "none";
+    }
+  window.onclick = (e) => { if (e.target === saveModal) saveModal.style.display = "none"; };
+
 // --- Auth State Handling ---
 firebase.auth().onAuthStateChanged(user => {
+    currentUser = user;
+    updateSaveVisibility();
   if (user) {
     // Show avatar, hide login button
     loginBtn.style.display = "none";
@@ -131,4 +167,51 @@ firebase.auth().onAuthStateChanged(user => {
     avatarMenu.style.display = "none";
   }
 });
+
+  // --- Track file selection ---
+  if (gpxInput) {
+    gpxInput.addEventListener("change", (e) => {
+      currentFile = e.target.files[0] || null;
+      updateSaveVisibility();
+    });
+  }
+
+  // --- Show/hide save button ---
+  function updateSaveVisibility() {
+    if (saveOption) {
+      saveOption.style.display = (currentUser && currentFile) ? "block" : "none";
+    }
+  }
+    // --- Handle save click ---
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      if (!currentUser || !currentFile) return;
+
+      if (currentFile.size > MAX_SIZE) {
+        showSaveModal(`❌ File exceeds maximum size of ${Math.round(MAX_SIZE/1024)} KB`, true);
+        return;
+      }
+
+      try {
+        const text = await currentFile.text();
+        const db = firebase.firestore();
+
+        await db.collection("users").doc(currentUser.uid).collection("gpxFiles").add({
+          name: currentFile.name,
+          gpxContent: text,
+          uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showSaveModal("✅ GPX file saved successfully");
+        currentFile = null;
+        gpxInput.value = "";
+        updateSaveVisibility();
+      } catch (err) {
+        console.error("Save error:", err);
+        showSaveModal("❌ Error saving file", true);
+      }
+
+    });
+  }
+
 });

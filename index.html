@@ -30,7 +30,17 @@
              <button id="gpxHelpBtn" type="button" class="help-btn">?</button>
             </label>
             <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,*/*"/>
-
+            <!-- Save option (hidden by default, shown only when logged in) -->
+            <div id="saveGpxOption" style="display: none; margin-top: 8px;">
+              <button id="saveGpxBtn">💾 Save this GPX file to my account</button>
+            </div>
+            <!-- Save GPX Feedback Modal -->
+            <div id="saveGpxModal" class="modal" style="display:none;">
+              <div class="savegpx-modal-content">
+                <span id="closeSaveModal" class="close">&times;</span>
+                <p id="saveGpxModalMessage"></p>
+              </div>
+            </div>
             <!-- Hidden pop-out modal -->
             <div id="gpxHelpPopover" class="help-popover">
               <div class="help-popover-content">

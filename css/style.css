@@ -5,6 +5,8 @@
   --muted: #a5adba;
   --accent: #66d9ef;
   --line: #2a2f3a;
+  --header-h: 0px;
+  --footer-h: 0px;
 }
 *, *::before, *::after {
   box-sizing: border-box;
@@ -17,6 +19,9 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+}
+main.routes-wrap {
+  min-height: calc(100vh - var(--header-h) - var(--footer-h));
 }
 header {
   position: sticky;
@@ -331,7 +336,7 @@ html, body {
   .sub, .app-title {
     display: none;
   }
-    .login-modal-content {
+    .login-modal-content, .savegpx-modal-content {
     width: 90%;          /* shrink to fit smaller screens */
     margin: 30% auto;    /* push it down a bit more */
     padding: 16px;       /* slightly tighter padding */
@@ -457,6 +462,9 @@ html, body {
   }
   .slider-controls-button {
     flex: 0 0 auto;          /* buttons stay fixed size */
+  }
+  .routes-list button {
+  flex: 0 0 auto;
   }
   #timeSliderLabel {
     order: 2;
@@ -827,7 +835,7 @@ max-height: 300px;
   box-sizing: border-box;
 }
 
-.modal > .optimize-modal-content {
+.modal > .optimize-modal-content, .modal > .savegpx-modal-content {
   background: var(--panel);
   color: var(--text);
   padding: 20px;
@@ -841,13 +849,13 @@ max-height: 300px;
   margin: 0; /* remove vertical margin */
 }
 
-.optimize-modal-content h2 {
+.optimize-modal-content h2, .savegpx-modal-content h2 {
   margin-top: 0;
   font-size: 1.1rem;
   color: var(--accent);
 }
 
-.optimize-modal-content label {
+.optimize-modal-content label, .savegpx-modal-content label {
   display: block;
   margin: 6px 0;
 }
@@ -1228,4 +1236,79 @@ form legend {
   font-size: 12px;
   font-weight: bold;
   white-space: nowrap;  /* prevent wrapping */
+}
+#saveGpxOption {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+#saveGpxOption input {
+  margin-right: 6px;
+}
+#saveGpxOption label {
+  display: inline-block;
+  cursor: pointer;
+}
+
+#saveGpxOption input[type="checkbox"] {
+  vertical-align: middle;
+  margin-right: 6px; /* small gap */
+}
+
+.routes-list button, #saveGpxBtn {
+  height: 2em;
+  width: auto;
+  padding: 0.5em 0.5em;
+  margins: 0.5em 0.5em 0.5em 0.5em;
+  font-size: 0.9rem;
+  line-height: 1;
+  text-align: center;
+  background: transparent;       /* no background */
+  color: inherit;                /* inherit text color */
+  border: 1px solid var(--muted);        /* light grey border */
+  border-radius: 4px;            /* optional: soften corners */
+}
+#saveGpxBtn {
+font-weight: normal;
+font-size: 0.75rem;
+color: var(--text);
+margin-top: 0;
+}
+.routes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.routes-list li {
+  display: flex;
+  justify-content: space-between; /* name on left, buttons on right */
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.route-name {
+  font-weight: 500;
+}
+
+.route-actions {
+  display: flex;
+  gap: 20px; /* space between buttons */
+}
+.routes-wrap {
+  gap: 40px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  padding-top: 0px;
+  margin-left: calc(40px + 16px);
+  max-width: 900px;
+}
+.route-info {
+  display: flex;
+  flex-direction: column;
+}
+.route-timestamp {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 2px;
 }
