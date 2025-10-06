@@ -72,6 +72,18 @@ export function speedToMps(val, unit) {
   return v; // m/s
 }
 
+export function updateLabels() {
+  document.querySelectorAll('input[type="range"]').forEach(slider => {
+    const valueSpan = document.getElementById(slider.id + "Value");
+    if (valueSpan) {
+      valueSpan.textContent = slider.value + "%";
+      slider.addEventListener("input", () => {
+        valueSpan.textContent = slider.value + "%";
+      });
+    }
+  });
+}
+
 export function roundToNearestQuarter(date) {
   const rounded = new Date(date); // clone the original date
   const minutes = rounded.getMinutes();

@@ -1,7 +1,7 @@
 import {
   haversine, formatKm, formatDuration, speedToMps, log, interpolateValues,
   makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates,
-  updateLegendRange, getPercentInput, roundToNearestQuarter
+  updateLegendRange, getPercentInput, roundToNearestQuarter, updateLabels
 } from './utils.js';
 
 import {
@@ -91,11 +91,11 @@ const optimizeBtn = document.getElementById("optimizeButton");
 const errorMsg = document.getElementById("rangeError");
 const errorMsgTemp = document.getElementById("tempRangeError");
 const sliders = [
-  { id: "rainSlider", valueId: "rainValue" },
-  { id: "windMaxSlider", valueId: "windMaxValue" },
-  { id: "windAvgSlider", valueId: "windAvgValue" },
-  { id: "tempSliderHot", valueId: "tempValueHot" },
-  { id: "tempSliderCold", valueId: "tempValueCold" }
+  { id: "rainSlider", valueId: "rainSliderValue" },
+  { id: "windMaxSlider", valueId: "windMaxSliderValue" },
+  { id: "windAvgSlider", valueId: "windAvgSliderValue" },
+  { id: "tempSliderHot", valueId: "tempSliderHotValue" },
+  { id: "tempSliderCold", valueId: "tempSliderColdValue" }
 ];
 const isMobile = window.innerWidth <= 768;
 
@@ -190,102 +190,6 @@ window.addEventListener("DOMContentLoaded", () => {
     map.doubleClickZoom.disable(); // optional: disable double-tap zoom
   }
 
-  // Navigation to settings
-  document.getElementById("settingsOption").addEventListener("click", () => {
-    document.getElementById("avatarMenu").style.display = "none";
-    window.location.href = "./settings.html";
-  });
-
-  // Load user settings from Firebase
-  firebase.auth().onAuthStateChanged(user => {
-  console.log("Auth state changed, user:", user);
-    if (!user) return;
-
-    const db = firebase.firestore(); // Ensure Firestore is initialized correctly
-    console.log('db', db);
-    db.collection("userSettings").doc(user.uid).get().then(doc => {
-      if (doc.exists) {
-        const settings = doc.data();
-        console.log("Loaded user settings:", settings);
-        applyUserDefaults(document, settings); // Apply to form inputs
-        updateLabels(); // Update slider labels
-        setStartTimeTomorrow(settings.startTime); // Use user's preferred time
-      } else {
-        setStartTimeTomorrow(); // No saved time, use default
-      }
-    }).catch(error => {
-      console.error("Error loading settings:", error);
-      setStartTimeTomorrow(); // Fallback
-    });
-  });
-
-  // Save settings to Firebase (triggered elsewhere, e.g. Save button)
-  window.saveUserSettings = function () {
-    const user = firebase.auth().currentUser;
-    if (!user) {
-      console.warn("No user is signed in — settings not saved.");
-      return;
-    }
-
-    const settings = {
-      provider: document.getElementById("def-provider")?.value,
-      pictogramProvider: document.getElementById("def-pictogramProvider")?.value,
-      meteoblueKey: document.getElementById("def-meteoblueKey")?.value,
-      startTime: document.getElementById("def-startTime")?.value,
-      speed: document.getElementById("def-speed")?.value,
-      speedUnit: document.getElementById("def-speedUnit")?.value,
-      speedUp: document.getElementById("def-speedUp")?.value,
-      speedDown: document.getElementById("def-speedDown")?.value,
-      sampleMeters: document.getElementById("def-sampleMeters")?.value,
-      sampleMinutes: document.getElementById("def-sampleMinutes")?.value,
-      maxCalls: document.getElementById("def-maxCalls")?.value,
-      sampleMetersSelectDense: document.getElementById("def-sampleMetersDense")?.value,
-      sampleMinutesSelectDense: document.getElementById("def-sampleMinutesDense")?.value,
-      optStartTimeMin: document.getElementById("def-optStartTimeMin")?.value,
-      optStartTimeMax: document.getElementById("def-optStartTimeMax")?.value,
-      rainSlider: document.getElementById("def-rainSlider")?.value,
-      maxAcceptableRain: document.getElementById("def-maxAcceptableRain")?.value,
-        windMaxSlider: document.getElementById("def-windMaxSlider")?.value,
-        maxAcceptableWindMax: document.getElementById("def-maxAcceptableWindMax")?.value,
-        windAvgSlider: document.getElementById("def-windAvgSlider")?.value,
-        maxAcceptableWindAvg: document.getElementById("def-maxAcceptableWindAvg")?.value,
-        tempSliderHot: document.getElementById("def-tempSliderHot")?.value,
-        maxAcceptableTemp: document.getElementById("def-maxAcceptableTemp")?.value,
-        tempSliderCold: document.getElementById("def-tempSliderCold")?.value,
-        minAcceptableTemp: document.getElementById("def-minAcceptableTemp")?.value,
-        granularityMinutes: document.getElementById("def-granularityMinutes")?.value,
-    };
-    console.log('settings', settings);
-
-    firebase.firestore()
-    .collection("userSettings")
-    .doc(user.uid)
-    .set(settings)
-  .then(() => {
-    alert("Settings saved to cloud!");
-    applyUserDefaults(settings); // ✅ Apply immediately
-    updateLabels();
-  })
-      .catch(error => {
-        console.error("Error saving settings:", error);
-        alert("Failed to save settings.");
-      });
-  };
-    console.log('applied settings');
-
-  // Set default start time to tomorrow + user time or 07:00
-  function setStartTimeTomorrow(userTime = "07:00") {
-    const startTimeInput = document.getElementById("startTime");
-    if (!startTimeInput) return;
-
-    const now = new Date();
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const pad = n => n.toString().padStart(2, "0");
-
-    startTimeInput.value =
-      `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${userTime}`;
-  }
-
   // When provider changes
   providerSel.addEventListener("change", () => {
   const currentProvider = providerSel.value;
@@ -310,31 +214,6 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   });
 
-document.getElementById("closeLogin").addEventListener("click", () => {
-  document.getElementById("loginModal").style.display = "none";
-});
-
-window.addEventListener("click", (e) => {
-  if (e.target === document.getElementById("loginModal")) {
-    document.getElementById("loginModal").style.display = "none";
-  }
-});
-document.getElementById("logoutOption").addEventListener("click", () => {
-  firebase.auth().signOut().then(() => {
-    console.log("User signed out");
-    document.getElementById("avatarMenu").style.display = "none";
-  }).catch(error => {
-    console.error("Sign-out error:", error);
-  });
-});
-document.addEventListener("click", (e) => {
-  const avatar = document.getElementById("userAvatar");
-  const menu = document.getElementById("avatarMenu");
-  if (!avatar.contains(e.target) && !menu.contains(e.target)) {
-    menu.style.display = "none";
-  }
-});
-
   map.on("zoomend", () => {
   const zoom = map.getZoom();
   // pick a scaling factor relative to zoom
@@ -356,14 +235,6 @@ function adjustSlider(steps) {
   slider.value = newVal;
   slider.dispatchEvent(new Event("input")); // trigger existing handler
   updateStepButtons(); // refresh button states
-}
-
-function updateLabels() {
-  sliders.forEach(s => {
-    const slider = document.getElementById(s.id);
-    const value = document.getElementById(s.valueId);
-    value.textContent = slider.value + "%";
-  });
 }
 
 function validateTempRanges() {

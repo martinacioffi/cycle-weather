@@ -16,21 +16,8 @@
 <link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
-<body>
-<header>
-  <div class="header-content">
-    <div class="header-left">
-      <a href="./index.html" title="Back to home">
-          <img src="./images/bike.jpg" alt="Logo" class="logo">
-        </a>
-      <div>
-        <h1>GPX Route Weather Forecast</h1>
-        <div class="sub">Documentation & Input Guide</div>
-      </div>
-    </div>
-  </div>
-</header>
-
+<body data-sub="Documentation & Input Guide" data-demo="false">
+<header id="header"></header>
 <div class="help-wrap">
   <main class="help-content">
     <h2 id="help-intro">How to Use the Tool</h2>
@@ -201,11 +188,16 @@
      </ul>
 </aside>
 </div>
-<footer style="text-align:center; margin-top:2em; padding:1em; font-size:0.8em; color:#help-808080; border-top:1px solid #help-595959;">
-  © 2025 Marti — Licensed under the
-  <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer" class="contact-link">
-    GNU General Public License v3.0
-  </a>
-</footer>
+<div id="footer"></div>
+<script src="./js/common.js"></script>
+<!-- Firebase core + required services -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<!-- FirebaseUI for Web -->
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
+<script src="./js/auth.js"></script>
+<script>loadLayout();</script>
 </body>
 </html>

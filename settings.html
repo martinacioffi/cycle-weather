@@ -6,21 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./css/style.css" />
 </head>
-<body>
-  <header>
-    <div class="header-content">
-      <div class="header-left">
-          <a href="./index.html">
-        <img src="./images/bike.jpg" alt="Logo" class="logo" />
-            </a>
-        <div>
-          <h1>GPX Route Weather Forecast</h1>
-          <div class="sub">Customize your default settings</div>
-        </div>
-      </div>
-    </div>
-  </header>
-
+<body data-sub="Customize your default settings" data-demo="false">
+<header id="header"></header>
   <main class="wrap" style="display: flex; justify-content: center; align-items: flex-start; padding: 40px;">
     <div class="group" style="width: 100%; max-width: 600px;">
         <h3>Default Input Settings</h3>
@@ -59,7 +46,7 @@
   <td><label for="def-speedUnit">Unit</label></td>
   <td>
     <select id="def-speedUnit">
-      <option value="km/h" selected>km/h</option>
+      <option value="kmh" selected>km/h</option>
       <option value="mph">mph</option>
     </select>
   </td>
@@ -218,7 +205,7 @@
 </tr>
       </table>
 <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-  <button id="saveSettingsBtn" style="width: auto;">Save Settings</button>
+  <button id="saveSettingsBtn" style="width: auto;" onclick="saveUserSettings()">Save Settings</button>
     </div>
         <div style="margin-top: 20px; font-size: 12px; color: var(--muted);">
           <p><strong>Note:</strong> These settings will be used as defaults when you load the main page. You can always override them there.</p>
@@ -227,124 +214,17 @@
 </div>
     </div>
   </main>
-  <script>
-  function toggleSection(id) {
-    const el = document.getElementById(id);
-    el.style.display = (el.style.display === "none") ? "block" : "none";
-  }
-</script>
-<script>
-document.querySelectorAll('input[type="range"]').forEach(slider => {
-  const valueSpan = document.getElementById(slider.id + "Value");
-  if (valueSpan) {
-    valueSpan.textContent = slider.value + "%";
-    slider.addEventListener("input", () => {
-      valueSpan.textContent = slider.value + "%";
-    });
-  }
-});
-</script>
-<!-- Firebase App (always required) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<!-- Firebase Authentication -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<!-- Firebase Firestore -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script>
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyBQGbCVJQW5JjKyYjzIwv_ThsQC73Zth6Q",
-  authDomain: "cycle-weather-93125.firebaseapp.com",
-  projectId: "cycle-weather-93125",
-  storageBucket: "cycle-weather-93125.firebasestorage.app",
-  messagingSenderId: "284158359959",
-  appId: "1:284158359959:web:8275e2b7288fa5b97dacd2",
-  measurementId: "G-PJJKWY2N5J"
-};
-
-  firebase.initializeApp(firebaseConfig);
-</script>
-<script>
-  const fields = [
-    "provider",
-    "pictogramProvider",
-    "meteoblueKey",
-    "startTime",
-    "speed",
-    "speedUnit",
-    "speedUp",
-    "speedDown",
-    "sampleMeters",
-    "sampleMinutes",
-    "maxCalls",
-    "sampleMetersDense",
-    "sampleMinutesDense",
-    "optStartTimeMin",
-    "optStartTimeMax",
-    "rainSlider",
-    "maxAcceptableRain",
-    "windMaxSlider",
-    "maxAcceptableWindMax",
-    "windAvgSlider",
-    "maxAcceptableWindAvg",
-    "tempSliderHot",
-    "maxAcceptableTemp",
-    "tempSliderCold",
-    "minAcceptableTemp",
-    "granularityMinutes"
-  ];
-
-    // Apply settings to form inputs
-    function applyUserDefaults(settings) {
-      Object.entries(settings).forEach(([key, value]) => {
-        const el = document.getElementById(`def-${key}`);
-        if (el) el.value = value;
-      });
-    }
-
-    // Save settings to Firestore
-    document.getElementById("saveSettingsBtn").addEventListener("click", () => {
-      const user = firebase.auth().currentUser;
-      if (!user) {
-        alert("You must be signed in to save settings.");
-        return;
-      }
-
-      const settings = {};
-      fields.forEach(key => {
-        const el = document.getElementById(`def-${key}`);
-        if (el) settings[key] = el.value;
-      });
-      firebase.firestore()
-        .collection("userSettings")
-        .doc(user.uid)
-        .set(settings)
-        .then(() => {
-          alert("Settings saved to cloud!");
-          applyUserDefaults(settings);
-        })
-        .catch(error => {
-          console.error("Error saving settings:", error);
-          alert("Failed to save settings.");
-        });
-    });
-
-    // Load settings from Firestore on auth state change
-    firebase.auth().onAuthStateChanged(user => {
-      if (!user) return;
-      firebase.firestore()
-        .collection("userSettings")
-        .doc(user.uid)
-        .get()
-        .then(doc => {
-          if (doc.exists) {
-            const settings = doc.data();
-            applyUserDefaults(settings);
-          }
-        })
-        .catch(error => console.error("Error loading settings:", error));
-    });
-
-</script>
+<div id="footer"></div>
+<script src="./js/common.js"></script>
+<!-- Firebase core + required services -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<!-- FirebaseUI for Web -->
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
+<script src="./js/auth.js"></script>
+<script type="module" src="./js/settings.js"></script>
+<script>loadLayout();</script>
 </body>
 </html>
