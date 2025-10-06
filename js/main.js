@@ -577,7 +577,8 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     const popupHtml = `
       <div style="min-width:200px">
         <div>${etaLabel}</div>
-        <div>Km from start: ${formatKm(r.accumDist)}</div><br>
+        <div>Km from start: ${formatKm(r.accumDist)}</div>
+        <div>Altitude: ${r.ele} m a.s.l.</div><br>
         <div><strong>Forecast:</strong></div>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
         🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
