@@ -45,6 +45,8 @@ let currentMinW = -15;
 let currentMaxW = 15;
 let latestResults = null;
 let latestTimeSteps = null;
+let latestPoints = null;
+let latestBreaks = null;
 let initialMetrics;
 
 // ---------- DOM Elements (match your HTML) ----------
@@ -117,7 +119,9 @@ window.addEventListener("DOMContentLoaded", () => {
       dateStyle: "short",
       timeStyle: "short"
     });*/
-  slider.value = 186
+
+  const initialVal = parseInt(sessionStorage.getItem("sliderValue") || "0", 10);
+  slider.value = initialVal || 186;
 
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const maxDate = new Date(todayMidnight.getTime() + 7 * 16 * 60 * 60 * 1000);
@@ -278,9 +282,20 @@ function restoreFromSession() {
   // Trigger change event if needed
   gpxInput.dispatchEvent(new Event("change"));
   }
-  const results = sessionStorage.getItem("gpxResults");
-  const timeSteps = sessionStorage.getItem("gpxTimeSteps");
-  const sampledPoints = JSON.parse(sessionStorage.getItem("gpxSampleIndices"));
+  const results = JSON.parse(sessionStorage.getItem("gpxResults") || "[]")
+  .map(r => ({
+    ...r,
+    eta: new Date(r.eta),
+    etaQuarter: new Date(r.etaQuarter),
+    times: r.times.map(t => new Date(t))
+  }));
+  const timeSteps = JSON.parse(sessionStorage.getItem("gpxTimeSteps") || "[]").map(t => new Date(t));
+  const sampledPoints = JSON.parse(sessionStorage.getItem("gpxSampleIndices")|| "[]")
+  .map(r => ({
+    ...r,
+    eta: new Date(r.eta),
+    etaQuarter: new Date(r.etaQuarter),
+  }));
   const points = JSON.parse(sessionStorage.getItem("gpxPoints"));
 
   const savedView = sessionStorage.getItem("mapView");
@@ -290,8 +305,10 @@ function restoreFromSession() {
     }
   if (name && content && results && timeSteps) {
     gpxText = content;
-    latestResults = JSON.parse(results);
-    latestTimeSteps = JSON.parse(timeSteps);
+    latestResults = results;
+    latestTimeSteps = timeSteps;
+    latestPoints = points;
+    latestBreaks = JSON.parse(sessionStorage.getItem("gpxBreaks") || "[]");
 
     log(`Restored file from session: ${name} (${Math.round(content.length / 1024)} kB)`);
 
@@ -326,6 +343,16 @@ function restoreFromSession() {
       minTimeSpacingDense,
       pictos
     );
+    // restore slider position and text label
+    const sliderVal = parseInt(sessionStorage.getItem("sliderValue") || slider.value, 10);
+    const sliderMax = parseInt(sessionStorage.getItem("sliderMax") || slider.max, 10);
+    slider.max = sliderMax;
+    slider.value = sliderVal;
+    const sliderTime = latestTimeSteps[slider.value];
+    timeSliderLabel.textContent = sliderTime.toLocaleString([], {
+        dateStyle: "short",
+        timeStyle: "short"
+        });
   }
 }
 
@@ -335,6 +362,7 @@ function adjustSlider(steps) {
     parseInt(slider.value, 10) + Math.round(steps)
   ));
   slider.value = newVal;
+  sessionStorage.setItem("sliderValue", newVal);
   slider.dispatchEvent(new Event("input")); // trigger existing handler
   updateStepButtons(); // refresh button states
 }
@@ -838,7 +866,6 @@ minus60.addEventListener("click", () => adjustSlider(-60 / stepMinutes));
 plus60.addEventListener("click", () => adjustSlider(60 / stepMinutes));
 minus1440.addEventListener("click", () => adjustSlider(-1440 / stepMinutes));
 plus1440.addEventListener("click", () => adjustSlider(1440 / stepMinutes));
-slider.addEventListener("input", updateStepButtons);
 
 sliders.forEach(s => {
   document.getElementById(s.id).addEventListener("input", updateLabels);
@@ -978,14 +1005,6 @@ document.getElementById("optimizeForm").addEventListener("submit", e => {
 
   document.getElementById("optimizeResultsModal").style.display = "flex";
 }
-  /*if (best) {
-    console.log("Best start:", best.start, "score:", best.score);
-    // Update slider + label
-    const idx = latestTimeSteps.findIndex(t => +t === +best.start);
-    slider.value = idx;
-    timeSliderLabel.textContent = best.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
-  }
-  */
   modal.style.display = "none";
   optimizeCheckbox.checked = false;
 });
@@ -1069,6 +1088,29 @@ fileInput.addEventListener("change", async (e) => {
   });
 });
 
+slider.addEventListener("input", () => {
+    const newStart = latestTimeSteps[slider.value];
+    sessionStorage.setItem("sliderValue", slider.value);
+    sessionStorage.setItem("startDate", newStart);
+    timeSliderLabel.textContent = newStart.toLocaleString([], {
+      dateStyle: "short",
+      timeStyle: "short"
+    });
+
+    updateStepButtons();
+    const aligned = pickForecastAtETAs(latestResults, newStart);
+    sessionStorage.setItem("gpxAlignedResults", JSON.stringify(aligned));
+    const pad = n => n.toString().padStart(2, "0");
+    startTimeInput.value =
+    `${newStart.getFullYear()}-${pad(newStart.getMonth() + 1)}-${pad(newStart.getDate())}T${pad(newStart.getHours())}:${pad(newStart.getMinutes())}`;
+    const minSpacing = parseInt(sampleMetersSelect.value, 10);
+    const minTimeSpacing = parseInt(sampleMinutesSelect.value, 10);
+    const minSpacingDense = parseInt(sampleMetersSelectDense.value, 10);
+    const minTimeSpacingDense = parseInt(sampleMinutesSelectDense.value, 10);
+    const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+    updateMapAndCharts(latestPoints, aligned, latestBreaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
+});
+
 processBtn.addEventListener("click", async () => {
   try {
     const startDate = new Date(startTimeInput.value);
@@ -1126,6 +1168,8 @@ minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpa
   const breaks = getBreaks(pointsRaw);
   sessionStorage.setItem("breaks", JSON.stringify(breaks));
   const points = insertBreaksIntoPoints(pointsRaw, breaks, minTimeSpacingDense);
+  latestPoints = points;
+  latestBreaks = breaks;
   sessionStorage.setItem("gpxPoints", JSON.stringify(points));
   const { cum, total } = cumulDistance(points);
   const brngs = segmentBearings(points);
@@ -1241,6 +1285,7 @@ async function worker() {
 
   // Setup slider once
   slider.max = timeSteps.length - 1;
+  sessionStorage.setItem("sliderMax", slider.max);
   // Find index of startDate in timeSteps (nearest)
   let startIdx = 0;
   let minDiff = Infinity;
@@ -1258,22 +1303,6 @@ async function worker() {
   timeSliderLabel.textContent = latestTimeSteps[startIdx].toLocaleString([], {
     dateStyle: "short",
     timeStyle: "short"
-  });
-
-  slider.addEventListener("input", () => {
-    const newStart = latestTimeSteps[slider.value];
-    sessionStorage.setItem("startDate", newStart);
-    timeSliderLabel.textContent = newStart.toLocaleString([], {
-      dateStyle: "short",
-      timeStyle: "short"
-    });
-
-    const aligned = pickForecastAtETAs(results, newStart);
-    sessionStorage.setItem("gpxAlignedResults", JSON.stringify(aligned));
-    const pad = n => n.toString().padStart(2, "0");
-    startTimeInput.value =
-    `${newStart.getFullYear()}-${pad(newStart.getMonth() + 1)}-${pad(newStart.getDate())}T${pad(newStart.getHours())}:${pad(newStart.getMinutes())}`;
-    updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
   });
 
   const resultsInitialStartDate = pickForecastAtETAs(results, startDate);
