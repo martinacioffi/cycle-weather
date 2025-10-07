@@ -120,3 +120,7 @@ firebase.auth().onAuthStateChanged(user => {
       setStartTimeTomorrow();
     });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  updateLabels();
+});
