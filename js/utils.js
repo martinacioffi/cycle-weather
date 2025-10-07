@@ -84,6 +84,27 @@ export function updateLabels() {
   });
 }
 
+export function normalizeDateTimeLocal(val) {
+  if (!val) return "";
+
+  // If it's already a full yyyy-MM-ddTHH:mm string, just return it
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(val)) {
+    return val;
+  }
+
+  // If it's just "HH:mm", expand it to tomorrow's date
+  if (/^\d{2}:\d{2}$/.test(val)) {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const pad = n => n.toString().padStart(2, "0");
+    const dateStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+    return `${dateStr}T${val}`;
+  }
+
+  // Fallback: return as-is
+  return val;
+}
+
 export function roundToNearestQuarter(date) {
   const rounded = new Date(date); // clone the original date
   const minutes = rounded.getMinutes();

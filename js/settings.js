@@ -1,4 +1,4 @@
-import { updateLabels } from './utils.js';
+import { updateLabels, normalizeDateTimeLocal } from './utils.js';
 // --- List of known settings keys ---
 const fields = [
   "provider", "pictogramProvider", "meteoblueKey",
@@ -79,13 +79,40 @@ firebase.auth().onAuthStateChanged(user => {
 
   firebase.firestore().collection("userSettings").doc(user.uid).get()
     .then(doc => {
-      if (doc.exists) {
-        const settings = doc.data();
-        applyUserDefaults(settings);
-        updateLabels();
-        setStartTimeTomorrow(settings.startTime);
-      } else {
+      if (!doc.exists) {
         setStartTimeTomorrow();
+        return;
+      }
+
+      const settings = doc.data();
+      let applied = false;
+      Object.entries(settings).forEach(([key, value]) => {
+        const sessionVal = sessionStorage.getItem(key);
+        const el = document.getElementById(`def-${key}`) || document.getElementById(key);
+
+        if (sessionVal === null && el) {
+          if (el.type === "datetime-local" || el.type === "time") {
+            el.value = normalizeDateTimeLocal(value);
+          } else {
+            el.value = value;
+          }
+          sessionStorage.setItem(key, value);
+          applied = true;
+        }
+      });
+
+      if (applied) {
+        updateLabels();
+        const el = document.getElementById("startTime");
+        const sessionStart = sessionStorage.getItem("startTime");
+        if (sessionStart && el) {
+          el.value = normalizeDateTimeLocal(sessionStart);
+        } else if (settings.startTime && el) {
+          el.value = normalizeDateTimeLocal(settings.startTime);
+          sessionStorage.setItem("startTime", settings.startTime);
+        } else {
+          setStartTimeTomorrow();
+        }
       }
     })
     .catch(error => {

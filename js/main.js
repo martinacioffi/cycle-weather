@@ -1,6 +1,6 @@
 import {
   haversine, formatKm, formatDuration, speedToMps, log, interpolateValues,
-  makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates,
+  makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates, normalizeDateTimeLocal,
   updateLegendRange, getPercentInput, roundToNearestQuarter, updateLabels
 } from './utils.js';
 
@@ -25,8 +25,6 @@ import {
 import {
   buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById
 } from './charts.js';
-
-import { applyUserDefaults } from './user.js';
 
 // ---------- Global ----------
 let gpxText = null;
@@ -248,7 +246,11 @@ function restoreFromSession() {
     meteoblueKeyInput, providerSel, pictogramsProvider
   ].forEach(el => {
     const val = sessionStorage.getItem(el.id);
-    if (val !== null) el.value = val;
+  if (val !== null) {
+    el.value = (el.type === "datetime-local")
+      ? normalizeDateTimeLocal(val)
+      : val;
+  }
   });
 
     const breaks = JSON.parse(sessionStorage.getItem('breaks') || '[]');
@@ -1103,6 +1105,7 @@ slider.addEventListener("input", () => {
     const pad = n => n.toString().padStart(2, "0");
     startTimeInput.value =
     `${newStart.getFullYear()}-${pad(newStart.getMonth() + 1)}-${pad(newStart.getDate())}T${pad(newStart.getHours())}:${pad(newStart.getMinutes())}`;
+    startTimeInput.dispatchEvent(new Event("change"));
     const minSpacing = parseInt(sampleMetersSelect.value, 10);
     const minTimeSpacing = parseInt(sampleMinutesSelect.value, 10);
     const minSpacingDense = parseInt(sampleMetersSelectDense.value, 10);
