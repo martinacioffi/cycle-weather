@@ -134,6 +134,13 @@ window.addEventListener("DOMContentLoaded", () => {
   tempLayerGroup = overlays["Temperature"];
   windLayerGroup = overlays["Wind"];
   // Initial attribution sync
+  map.on("moveend zoomend", () => {
+  const view = {
+    center: map.getCenter(), // {lat, lng}
+    zoom: map.getZoom()
+  };
+  sessionStorage.setItem("mapView", JSON.stringify(view));
+  });
   map.on('baselayerchange', function() {
     const currentProvider = providerSel.value;
     const currentPictos = currentProvider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
@@ -225,7 +232,102 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
   validateReady();
+  restoreFromSession();
 });
+  // ---------- Restore GPX from sessionStorage ----------
+function restoreFromSession() {
+    console.log("Restoring settings from sessionStorage...");
+    [
+    startTimeInput, speedInput, speedUp, speedDown, speedUnit,
+    maxCallsInput, sampleMetersSelect, sampleMinutesSelect,
+    sampleMetersSelectDense, sampleMinutesSelectDense,
+    meteoblueKeyInput, providerSel, pictogramsProvider
+  ].forEach(el => {
+    const val = sessionStorage.getItem(el.id);
+    if (val !== null) el.value = val;
+  });
+
+    const breaks = JSON.parse(sessionStorage.getItem('breaks') || '[]');
+    breaksContainer.innerHTML = '';
+    breaks.forEach(b => {
+      const row = document.createElement('div');
+      row.className = 'break-row';
+      row.innerHTML = `
+        <input type="number" class="break-km" min="0" step="0.1" value="${(b.distMeters / 1000).toFixed(2)}" />
+        <input type="number" class="break-min" min="1" step="1" value="${Math.round(b.durSec / 60)}" />
+        <button type="button" title="Remove break">✕</button>
+      `;
+      row.querySelector("button").addEventListener("click", () => {
+        row.remove();
+      });
+      breaksContainer.appendChild(row);
+    });
+
+  const name = sessionStorage.getItem("gpxFileName");
+  const content = sessionStorage.getItem("gpxFileContent");
+  const gpxInput = document.getElementById("gpxFile");
+
+  if (name && content) {
+  const blob = new Blob([content], { type: "application/gpx+xml" });
+  const file = new File([blob], name, { type: "application/gpx+xml" });
+
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+  gpxInput.files = dataTransfer.files;
+
+  // Trigger change event if needed
+  gpxInput.dispatchEvent(new Event("change"));
+  }
+  const results = sessionStorage.getItem("gpxResults");
+  const timeSteps = sessionStorage.getItem("gpxTimeSteps");
+  const sampledPoints = JSON.parse(sessionStorage.getItem("gpxSampleIndices"));
+  const points = JSON.parse(sessionStorage.getItem("gpxPoints"));
+
+  const savedView = sessionStorage.getItem("mapView");
+    if (savedView) {
+      const { center, zoom } = JSON.parse(savedView);
+      map.setView([center.lat, center.lng], zoom);
+    }
+  if (name && content && results && timeSteps) {
+    gpxText = content;
+    latestResults = JSON.parse(results);
+    latestTimeSteps = JSON.parse(timeSteps);
+
+    log(`Restored file from session: ${name} (${Math.round(content.length / 1024)} kB)`);
+
+    // Re-enable UI
+    validateReady();
+    document.getElementById("timeSliderContainer").classList.remove("disabled");
+    optimizeCheckbox.disabled = false;
+
+    // Re-render map and charts
+    const startDate = sessionStorage.getItem("startDate") ? new Date(sessionStorage.getItem("startDate")) : new Date(startTimeInput.value);
+    const speedVal = parseFloat(speedInput.value);
+    const mps = speedToMps(speedVal, speedUnit.value);
+    const mpsUp = speedToMps(speedVal * (1 - getPercentInput("speedUp") ?? 0), speedUnit.value);
+    const mpsDown = speedToMps(speedVal * (1 + getPercentInput("speedDown") ?? 0), speedUnit.value);
+
+    const minSpacing = parseInt(sampleMetersSelect.value, 10);
+    const minTimeSpacing = parseInt(sampleMinutesSelect.value, 10);
+    const minSpacingDense = parseInt(sampleMetersSelectDense.value, 10);
+    const minTimeSpacingDense = parseInt(sampleMinutesSelectDense.value, 10);
+
+    const provider = providerSel.value;
+    const pictos = provider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+    const aligned = JSON.parse(sessionStorage.getItem("gpxAlignedResults"));
+    // Re-render everything
+    updateMapAndCharts(
+      points,
+      aligned,
+      breaks,
+      minSpacing,
+      minTimeSpacing,
+      minSpacingDense,
+      minTimeSpacingDense,
+      pictos
+    );
+  }
+}
 
 // ---------- Helpers ----------
 function adjustSlider(steps) {
@@ -608,11 +710,15 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     if ((r.precip || 0) >= 0.1) wetPts++;
   }
 
+  const durationSec = aligned[aligned.length - 1].accumTime;
+  const durationMeter = aligned[aligned.length - 1].accumDist;
+  document.getElementById("statDistance").textContent = formatKm(durationMeter);
+  document.getElementById("statDuration").textContent = formatDuration(durationSec);
   document.getElementById("statTempRange").textContent = `${minT.toFixed(1)}°C → ${maxT.toFixed(1)}°C`;
   document.getElementById("statWetShare").textContent = Math.round(100 * wetPts / aligned.length) + "%";
 
   // Charts
-  const chartSeries = resultsWithFlags
+  let chartSeries = resultsWithFlags
     .map(r => ({
       t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
       precip: r.precip, precipProb: r.precipProb, windKmh: r.windKmH, windDeg: r.windDeg,
@@ -621,7 +727,7 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     }))
     .filter(r => r.showIcon)
     .sort((a, b) => +a.t - +b.t);
-
+  chartSeries = chartSeries.map(s => ({ ...s, t: new Date(s.t) }));
   buildTempChart(chartSeries, visibleWeatherMarkers, pictos, isMobile);
   buildPrecipChart(chartSeries, visibleWeatherMarkers, isMobile);
   buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
@@ -890,6 +996,9 @@ fileInput.addEventListener("change", async (e) => {
   try {
     gpxText = await f.text();
     log(`Loaded file: ${f.name} (${Math.round(f.size / 1024)} kB)`);
+    // 🔥 Save to sessionStorage
+    sessionStorage.setItem("gpxFileName", f.name);
+    sessionStorage.setItem("gpxFileContent", gpxText);
   } catch (err) {
     log("Error reading file: " + err.message);
     gpxText = null;
@@ -950,12 +1059,18 @@ fileInput.addEventListener("change", async (e) => {
   sampleMetersSelectDense, sampleMinutesSelectDense,
   meteoblueKeyInput, providerSel, pictogramsProvider
 ].forEach(el => {
-  el.addEventListener("input", validateReady);
-  el.addEventListener("change", validateReady);
+  el.addEventListener("input", () => {
+    sessionStorage.setItem(el.id, el.value);
+    validateReady();
+  });
+  el.addEventListener("change", () => {
+    sessionStorage.setItem(el.id, el.value);
+    validateReady();
+  });
 });
 
 processBtn.addEventListener("click", async () => {
-  //try {
+  try {
     const startDate = new Date(startTimeInput.value);
     if (isNaN(startDate.getTime())) return log("Invalid start time.");
 
@@ -981,11 +1096,11 @@ processBtn.addEventListener("click", async () => {
     minSpacingDense, minTimeSpacingDense);
     document.getElementById("timeSliderContainer").classList.remove("disabled");
     optimizeCheckbox.disabled = false;
-  /*} catch (e) {
+  } catch (e) {
     log("Failed: " + e.message);
-  } finally {*/
+  } finally {
     validateReady();
-  //}
+  }
 });
 
 // ---------- Core: processRoute ----------
@@ -1009,11 +1124,19 @@ minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpa
   const pointsRaw = parseGPX(gpxText);
   setupBreakValidation(pointsRaw);
   const breaks = getBreaks(pointsRaw);
+  sessionStorage.setItem("breaks", JSON.stringify(breaks));
   const points = insertBreaksIntoPoints(pointsRaw, breaks, minTimeSpacingDense);
+  sessionStorage.setItem("gpxPoints", JSON.stringify(points));
   const { cum, total } = cumulDistance(points);
   const brngs = segmentBearings(points);
   const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
   map.fitBounds(bounds.pad(0.1));
+  map.invalidateSize();
+  const view = {
+  center: map.getCenter(), // {lat, lng}
+  zoom: map.getZoom()
+  };
+  sessionStorage.setItem("mapView", JSON.stringify(view));
 
   // Grey base line
   const baseLine = L.polyline(points.map(p => [p.lat, p.lon]), { color: "#777", weight: 3, opacity: 0.35 });
@@ -1022,16 +1145,14 @@ minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpa
   // Sampling
   const sampleIdx = buildSampleIndices(points, brngs, cum, maxCalls, minSpacingDense, minTimeSpacingDense, avgSpeedMps,
   avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
+  sessionStorage.setItem("gpxSampleIndices", JSON.stringify(sampleIdx));
   log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacingDense} meters and ≥ ${minTimeSpacingDense} minutes).`);
-  const durationSec = sampleIdx[sampleIdx.length - 1].accumTime;
-  const durationMeters = sampleIdx[sampleIdx.length - 1].accumDist;
+  const durationSecLog = sampleIdx[sampleIdx.length - 1].accumTime;
   log(`Route has ${pointsRaw.length} points, ${formatKm(cumulDistance(points).total)} total.`);
-  log(`Expected travel time (no breaks): ${formatDuration(durationSec - breakOffsetSeconds(cumulDistance(points).total, breaks))} at an average speed of ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
+  log(`Expected travel time (no breaks): ${formatDuration(durationSecLog - breakOffsetSeconds(cumulDistance(points).total, breaks))} at an average speed of ${(avgSpeedMps*3.6).toFixed(1)} km/h.`);
     if (breaks.length) {
-        log(`Expected travel time (with breaks): ${formatDuration(durationSec)}.`);
+        log(`Expected travel time (with breaks): ${formatDuration(durationSecLog)}.`);
     }
-  document.getElementById("statDistance").textContent = formatKm(durationMeters);
-  document.getElementById("statDuration").textContent = formatDuration(durationSec);
 
   // Fetch forecasts
   const results = [];
@@ -1096,9 +1217,10 @@ async function worker() {
     }
   }
 }
-  latestResults = results;
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
+  latestResults = results;
+  sessionStorage.setItem("gpxResults", JSON.stringify(results));
   // Now compute global time range across all results
   const allTimes = results.flatMap(r => r.times);
   const allAccumTime = results.flatMap(r => r.accumTime);
@@ -1115,6 +1237,7 @@ async function worker() {
     timeSteps.push(new Date(t));
   }
   latestTimeSteps = timeSteps;
+  sessionStorage.setItem("gpxTimeSteps", JSON.stringify(timeSteps));
 
   // Setup slider once
   slider.max = timeSteps.length - 1;
@@ -1139,12 +1262,14 @@ async function worker() {
 
   slider.addEventListener("input", () => {
     const newStart = latestTimeSteps[slider.value];
+    sessionStorage.setItem("startDate", newStart);
     timeSliderLabel.textContent = newStart.toLocaleString([], {
       dateStyle: "short",
       timeStyle: "short"
     });
 
     const aligned = pickForecastAtETAs(results, newStart);
+    sessionStorage.setItem("gpxAlignedResults", JSON.stringify(aligned));
     const pad = n => n.toString().padStart(2, "0");
     startTimeInput.value =
     `${newStart.getFullYear()}-${pad(newStart.getMonth() + 1)}-${pad(newStart.getDate())}T${pad(newStart.getHours())}:${pad(newStart.getMinutes())}`;
@@ -1152,7 +1277,9 @@ async function worker() {
   });
 
   const resultsInitialStartDate = pickForecastAtETAs(results, startDate);
-  console.log('Results with initial start date:', resultsInitialStartDate)
+  sessionStorage.setItem("startDate", startDate)
+  console.log('Results with initial start date:', resultsInitialStartDate);
+  sessionStorage.setItem("gpxAlignedResults", JSON.stringify(resultsInitialStartDate));
   updateMapAndCharts(points, resultsInitialStartDate, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);

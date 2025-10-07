@@ -82,7 +82,7 @@ export function flagIconPoints(results, iconSpacingMeters, iconSpacingMinutes) {
 }
 
 export function ensureMap(provider, pictos) {
-      if (map) return { map, layerControl: null, baseLayers: null, overlays: null, weatherLayerGroup: null };
+      if (map) return { map, layerControl: null, baseLayers: null, overlays: null };
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
       routeLayerGroup = L.layerGroup().addTo(map);
 

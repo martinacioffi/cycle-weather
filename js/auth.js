@@ -170,9 +170,15 @@ firebase.auth().onAuthStateChanged(user => {
 
   // --- Track file selection ---
   if (gpxInput) {
-    gpxInput.addEventListener("change", (e) => {
-      currentFile = e.target.files[0] || null;
-      updateSaveVisibility();
+      gpxInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const text = await file.text();
+        sessionStorage.setItem("gpxFileName", file.name);
+        sessionStorage.setItem("gpxFileContent", text);
+        currentFile = file;
+        updateSaveVisibility();
+      }
     });
   }
 
