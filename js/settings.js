@@ -103,8 +103,39 @@ window.saveUserSettings = function () {
   updateLabels();
 };
 
+let lastUser = undefined;
+
 firebase.auth().onAuthStateChanged(user => {
-  if (!user) return;
+    if (!user) {
+    if (lastUser !== null && lastUser !== undefined) {
+        console.log("User logged out — restoring defaults");
+        sessionStorage.clear();
+    }
+
+    [...inputFields, ...optimizationFields].forEach(key => {
+      const el = document.getElementById(key) || document.getElementById(`def-${key}`);
+      if (!el) return;
+
+      // Reset to the default attribute value if present
+      if (el.defaultValue !== undefined) {
+        el.value = el.defaultValue;
+      }
+
+      // Special case: datetime-local startTime
+      if (key === "startTime" && el.type === "datetime-local") {
+        // fallback to tomorrow 07:00 if no defaultValue
+        if (!el.defaultValue) {
+          const pad = n => n.toString().padStart(2, "0");
+          const now = new Date();
+          const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          el.value = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T07:00`;
+        }
+      }
+    });
+
+    updateLabels();
+    return;
+  }
   firebase.firestore().collection("userSettings").doc(user.uid).get()
     .then(doc => {
       const settings = doc.exists ? doc.data() : {};
@@ -120,6 +151,7 @@ firebase.auth().onAuthStateChanged(user => {
       console.error("Error loading settings:", error);
     });
     updateLabels();
+    lastUser = user ? user : null;
 });
 
 document.addEventListener("DOMContentLoaded", () => {
