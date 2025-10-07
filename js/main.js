@@ -1,7 +1,7 @@
 import {
   haversine, formatKm, formatDuration, speedToMps, log, interpolateValues,
   makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates, normalizeDateTimeLocal,
-  updateLegendRange, getPercentInput, roundToNearestQuarter, updateLabels
+  updateLegendRange, getPercentInput, roundToNearestQuarter, updateLabels, toLocalDateTimeString
 } from './utils.js';
 
 import {
@@ -25,6 +25,8 @@ import {
 import {
   buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById
 } from './charts.js';
+
+import { saveResult, loadResult, deleteResult } from "./db.js";
 
 // ---------- Global ----------
 let gpxText = null;
@@ -237,7 +239,7 @@ window.addEventListener("DOMContentLoaded", () => {
   restoreFromSession();
 });
   // ---------- Restore GPX from sessionStorage ----------
-function restoreFromSession() {
+async function restoreFromSession() {
     console.log("Restoring settings from sessionStorage...");
     [
     startTimeInput, speedInput, speedUp, speedDown, speedUnit,
@@ -284,8 +286,9 @@ function restoreFromSession() {
   // Trigger change event if needed
   gpxInput.dispatchEvent(new Event("change"));
   }
-  const results = JSON.parse(sessionStorage.getItem("gpxResults") || "[]")
-  .map(r => ({
+  // const results = JSON.parse(sessionStorage.getItem("gpxResults") || "[]")
+  const rawResults = await loadResult("gpxResults") || [];
+  const results = rawResults.map(r => ({
     ...r,
     eta: new Date(r.eta),
     etaQuarter: new Date(r.etaQuarter),
@@ -320,7 +323,7 @@ function restoreFromSession() {
     optimizeCheckbox.disabled = false;
 
     // Re-render map and charts
-    const startDate = sessionStorage.getItem("startDate") ? new Date(sessionStorage.getItem("startDate")) : new Date(startTimeInput.value);
+    const startDate = sessionStorage.getItem("startTime") ? new Date(sessionStorage.getItem("startTime")) : new Date(startTimeInput.value);
     const speedVal = parseFloat(speedInput.value);
     const mps = speedToMps(speedVal, speedUnit.value);
     const mpsUp = speedToMps(speedVal * (1 - getPercentInput("speedUp") ?? 0), speedUnit.value);
@@ -1093,7 +1096,7 @@ fileInput.addEventListener("change", async (e) => {
 slider.addEventListener("input", () => {
     const newStart = latestTimeSteps[slider.value];
     sessionStorage.setItem("sliderValue", slider.value);
-    sessionStorage.setItem("startDate", newStart);
+    sessionStorage.setItem("startTime", toLocalDateTimeString(newStart));
     timeSliderLabel.textContent = newStart.toLocaleString([], {
       dateStyle: "short",
       timeStyle: "short"
@@ -1267,7 +1270,8 @@ async function worker() {
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
   latestResults = results;
-  sessionStorage.setItem("gpxResults", JSON.stringify(results));
+  // sessionStorage.setItem("gpxResults", JSON.stringify(results));
+  await saveResult("gpxResults", results);
   // Now compute global time range across all results
   const allTimes = results.flatMap(r => r.times);
   const allAccumTime = results.flatMap(r => r.accumTime);
@@ -1309,7 +1313,7 @@ async function worker() {
   });
 
   const resultsInitialStartDate = pickForecastAtETAs(results, startDate);
-  sessionStorage.setItem("startDate", startDate)
+  sessionStorage.setItem("startTime", toLocalDateTimeString(startDate));
   console.log('Results with initial start date:', resultsInitialStartDate);
   sessionStorage.setItem("gpxAlignedResults", JSON.stringify(resultsInitialStartDate));
   updateMapAndCharts(points, resultsInitialStartDate, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
