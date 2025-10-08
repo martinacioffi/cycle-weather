@@ -272,7 +272,7 @@ async function restoreFromSession() {
     });
 
   const name = sessionStorage.getItem("gpxFileName");
-  const content = sessionStorage.getItem("gpxFileContent");
+  const content = await loadResult("gpxFileContent") || "";
   const gpxInput = document.getElementById("gpxFile");
 
   if (name && content) {
@@ -282,11 +282,8 @@ async function restoreFromSession() {
   const dataTransfer = new DataTransfer();
   dataTransfer.items.add(file);
   gpxInput.files = dataTransfer.files;
-
-  // Trigger change event if needed
   gpxInput.dispatchEvent(new Event("change"));
   }
-  // const results = JSON.parse(sessionStorage.getItem("gpxResults") || "[]")
   const rawResults = await loadResult("gpxResults") || [];
   const results = rawResults.map(r => ({
     ...r,
@@ -1025,9 +1022,8 @@ fileInput.addEventListener("change", async (e) => {
   try {
     gpxText = await f.text();
     log(`Loaded file: ${f.name} (${Math.round(f.size / 1024)} kB)`);
-    // 🔥 Save to sessionStorage
     sessionStorage.setItem("gpxFileName", f.name);
-    sessionStorage.setItem("gpxFileContent", gpxText);
+    await saveResult("gpxFileContent", gpxText);
   } catch (err) {
     log("Error reading file: " + err.message);
     gpxText = null;

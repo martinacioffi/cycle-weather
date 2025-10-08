@@ -1,3 +1,16 @@
+function compressText(text) {
+  const compressed = pako.deflate(text, { to: 'string' });
+  return btoa(compressed); // base64 encode
+}
+
+function decompressText(base64) {
+  const binary = atob(base64);
+  const charData = binary.split('').map(c => c.charCodeAt(0));
+  const binData = new Uint8Array(charData);
+  const restored = pako.inflate(binData, { to: 'string' });
+  return restored;
+}
+
 // --- Firebase Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyBQGbCVJQW5JjKyYjzIwv_ThsQC73Zth6Q",
@@ -66,7 +79,6 @@ document.addEventListener("layoutReady", () => {
 
   let currentFile = null;
   let currentUser = null;
-  const MAX_SIZE = 1024 * 1024; // 1 MB
 
     // --- Event Listeners ---
     if (settingsOption) {
@@ -193,30 +205,29 @@ firebase.auth().onAuthStateChanged(user => {
     saveBtn.addEventListener("click", async () => {
       if (!currentUser || !currentFile) return;
 
-      if (currentFile.size > MAX_SIZE) {
-        showSaveModal(`❌ File exceeds maximum size of ${Math.round(MAX_SIZE/1024)} KB`, true);
-        return;
-      }
-
       try {
         const text = await currentFile.text();
+        const compressed = compressText(text); // your pako-based helper
         const db = firebase.firestore();
-
         await db.collection("usersFiles").doc(currentUser.uid).collection("gpxFiles").add({
           name: currentFile.name,
-          gpxContent: text,
+          gpxContent: compressed,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        showSaveModal("✅ GPX file saved successfully");
-        // currentFile = null;
-        // gpxInput.value = "";
-        updateSaveVisibility();
+      showSaveModal("✅ GPX file saved successfully");
+      updateSaveVisibility();
+
       } catch (err) {
         console.error("Save error:", err);
+
+      if (err.code === "invalid-argument" &&
+          /longer than 1048487 bytes/.test(err.message)) {
+        showSaveModal("❌ File exceeds maximum size of 1 MB", true);
+      } else {
         showSaveModal("❌ Error saving file", true);
       }
-
+    }
     });
   }
 
