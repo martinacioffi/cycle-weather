@@ -9,7 +9,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     return;
   }
 
-  const snapshot = await db.collection("users")
+  const snapshot = await db.collection("usersFiles")
     .doc(user.uid)
     .collection("gpxFiles")
     .orderBy("uploadedAt", "desc")

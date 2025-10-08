@@ -202,7 +202,7 @@ firebase.auth().onAuthStateChanged(user => {
         const text = await currentFile.text();
         const db = firebase.firestore();
 
-        await db.collection("users").doc(currentUser.uid).collection("gpxFiles").add({
+        await db.collection("usersFiles").doc(currentUser.uid).collection("gpxFiles").add({
           name: currentFile.name,
           gpxContent: text,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
