@@ -349,15 +349,20 @@ async function restoreFromSession() {
       pictos
     );
     // restore slider position and text label
-    const sliderVal = parseInt(sessionStorage.getItem("sliderValue") || slider.value, 10);
     const sliderMax = parseInt(sessionStorage.getItem("sliderMax") || slider.max, 10);
     slider.max = sliderMax;
-    slider.value = sliderVal;
+    slider.value = latestTimeSteps.findIndex(t => t >= startDate);
     const sliderTime = latestTimeSteps[slider.value];
     timeSliderLabel.textContent = sliderTime.toLocaleString([], {
         dateStyle: "short",
         timeStyle: "short"
         });
+  }
+  const saveOption = document.getElementById("saveGpxOption");
+  const user = firebase.auth().currentUser;
+  const hasFile = !!(name && content);
+  if (saveOption) {
+      saveOption.style.display = (user && hasFile) ? "block" : "none";
   }
 }
 
