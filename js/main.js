@@ -355,15 +355,20 @@ async function restoreFromSession() {
         timeStyle: "short"
         });
   }
+  updateSaveButtonVisibility(name, content);
+}
+
+// ---------- Helpers ----------
+function updateSaveButtonVisibility(name, content) {
   const saveOption = document.getElementById("saveGpxOption");
   const user = firebase.auth().currentUser;
+  console.log("Checking save button visibility...", { user, name, content });
   const hasFile = !!(name && content);
   if (saveOption) {
       saveOption.style.display = (user && hasFile) ? "block" : "none";
   }
 }
 
-// ---------- Helpers ----------
 function adjustSlider(steps) {
   const newVal = Math.max(0, Math.min(slider.max,
     parseInt(slider.value, 10) + Math.round(steps)
@@ -1018,7 +1023,14 @@ document.getElementById("optimizeForm").addEventListener("submit", e => {
 
 fileInput.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
-  if (!f) return;
+  if (!f) {
+  gpxText = null;
+  updateSaveButtonVisibility(null, gpxText);
+  sessionStorage.setItem("gpxFileName", "");
+  await saveResult("gpxFileContent", gpxText);
+  validateReady();
+  return;
+  }
   try {
     gpxText = await f.text();
     log(`Loaded file: ${f.name} (${Math.round(f.size / 1024)} kB)`);
