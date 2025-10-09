@@ -344,10 +344,27 @@ html, body {
    .on-this-page {
     display:none;
     }
-    .help-wrap {
+    .help-wrap, .routes-wrap {
     margin-left: 0 !important;
     font-size: 85%;
     }
+    .routes-wrap {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box; /* so padding/border don’t push it wider */
+    }
+    .routes-list li {
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    }
+  .route-actions {
+    margin-top: 0.5rem;
+    flex-wrap: wrap; /* allow buttons to wrap onto multiple lines */
+  }
     .wrap {
     display: flex;
     flex-direction: column;
@@ -610,7 +627,7 @@ max-height: 300px;
   line-height: 1.4;
   text-align: justify;
   flex: 1;
-    max-width: 900px;
+  max-width: 900px;
 }
 
 .help-content h2, .help-content h3 {
@@ -1278,18 +1295,30 @@ margin-top: 0;
 .routes-list li {
   display: flex;
   justify-content: space-between; /* name on left, buttons on right */
-  align-items: center;
+  align-items: flex-start;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
+  flex-wrap: wrap; /* allow wrapping on small screens */
+  width: 100%;            /* prevent accidental overflow */
+  box-sizing: border-box; /* include padding in width */
 }
-
 .route-name {
   font-weight: 500;
+  flex-skrink: 1; /* allow name to shrink if needed */
+  min-width: 0; /* allow shrinking */
+  max-width: 20em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
 .route-actions {
   display: flex;
   gap: 20px; /* space between buttons */
+  flex-shrink: 0; /* don’t let buttons shrink too much */
+}
+.route-actions button {
+  font-size: 1em; /* relative to parent’s font-size */
+  padding: 0.4em 0.6em; /* also scales with font-size */
 }
 .routes-wrap {
   gap: 40px;
@@ -1304,7 +1333,7 @@ margin-top: 0;
   flex-direction: column;
 }
 .route-timestamp {
-  font-size: 0.85rem;
+  font-size: 0.85em;
   color: #666;
   margin-top: 2px;
 }

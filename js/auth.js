@@ -246,7 +246,7 @@ firebase.auth().onAuthStateChanged(async user => {
     // Show avatar, hide login button
     loginBtn.style.display = "none";
     userAvatar.style.display = "inline-block";
-    savedRoutes.style.display = "inline-block";
+    if (savedRoutes) savedRoutes.style.display = "inline-block";
 
     // Use user's photo or fallback
     userAvatar.src = user.photoURL || "https://i.imgur.com/8Km9tLL.png";
@@ -267,7 +267,7 @@ firebase.auth().onAuthStateChanged(async user => {
     loginBtn.style.display = "inline-block";
     userAvatar.style.display = "none";
     avatarMenu.style.display = "none";
-    savedRoutes.style.display = "none";
+    if (savedRoutes) savedRoutes.style.display = "none";
   }
 });
 

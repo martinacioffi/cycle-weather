@@ -28,6 +28,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     const nameSpan = document.createElement("span");
     nameSpan.className = "route-name";
     nameSpan.textContent = data.displayName || data.name;
+    nameSpan.title = data.displayName || data.name;
 
     // Timestamp
     const tsSpan = document.createElement("span");
