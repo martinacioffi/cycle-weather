@@ -8,21 +8,26 @@
   --header-h: 0px;
   --footer-h: 0px;
 }
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
+
 html {
   scroll-padding-top: 80px; /* same value as header height */
 }
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 }
+
 main.routes-wrap {
   min-height: calc(100vh - var(--header-h) - var(--footer-h));
 }
+
 header {
   position: sticky;
   top: 0;
@@ -35,6 +40,7 @@ header {
   gap: 12px;
   flex-wrap: wrap;
 }
+
 .header-content {
   display: flex;
   align-items: center;
@@ -49,6 +55,7 @@ header {
   flex: 1; /* take up remaining space */
   justify-content: flex-start;
 }
+
 .header-right {
   display: flex;
   align-items: center;
@@ -64,12 +71,14 @@ header {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  align-self: left;
+  align-self: flex-start;
   margin-top: 0;
 }
+
 .std-button:hover {
   background-color: #005ea2;
 }
+
 .help-button, .login-button {
   display: inline-block;
   padding: 8px 16px;
@@ -92,32 +101,39 @@ header {
   height: auto;
   border-radius: 10px;
 }
+
 header h1 {
   margin: 0;
   font-size: 18px;
   letter-spacing: 0.3px;
 }
+
 header .sub {
   color: var(--muted);
   font-size: 13px;
 }
+
 #legendTempBox {
 display: none !important;
 }
+
 #legendWindBox {
 display: none !important;
 }
+
 .legend-labels {
   display: flex;
   justify-content: space-between; /* pushes one left, one right */
   font-weight: bold;
   margin-bottom: 4px;
 }
+
 .wrap {
   display: grid;
   grid-template-columns: 380px 1fr;
   min-height: calc(100vh - 60px);
 }
+
 .side {
   padding: 16px;
   display: flex;
@@ -125,32 +141,40 @@ display: none !important;
   gap: 14px;
   overflow: auto;
 }
+
 .group {
   background: #1b202a;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
 }
+
 .group h3 {
   margin: 0 0 8px;
   font-size: 14px;
   color: var(--accent);
 }
+
 .info {
   font-size: 0.9em; /* or try 14px, 13px, etc. */
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
   text-align: justify;
 }
+
 .contact-link {
   color: var(--accent);
   text-decoration: none;
 }
+
 label {
+  justify-content: space-between;
+  font-weight: 600;
   display: block;
   font-size: 12px;
   color: var(--muted);
   margin: 8px 0 6px;
 }
+
 input[type="file"],
 input[type="number"],
 input[type="datetime-local"],
@@ -164,14 +188,17 @@ select {
   padding: 8px 10px;
   box-sizing: border-box;
 }
+
 .row {
   display: flex;
   grid-template-columns: 1fr 140px;
   gap: 8px;
 }
+
 .row > div {
-  flex: 1; /* Ensures equal width for each column */
+  flex: 1;
 }
+
 .input-with-suffix {
   display: flex;
   align-items: center;
@@ -179,7 +206,7 @@ select {
 
 .input-with-suffix input {
   width: 100%;
-  padding-right: 1.5em; /* space for the suffix */
+  padding-right: 1.5em;
   box-sizing: border-box;
 }
 
@@ -190,6 +217,7 @@ select {
   color: #555;
   pointer-events: none;
 }
+
 button {
   width: 100%;
   background: linear-gradient(135deg, #4b9fff, #627aff);
@@ -201,6 +229,7 @@ button {
   font-weight: 600;
   margin-top: 8px;
 }
+
 button.ghost {
   background: transparent;
   border: 1px dashed var(--line);
@@ -210,21 +239,36 @@ button.ghost {
   border-radius: 6px;
   cursor: pointer;
 }
-button:disabled { opacity: 0.6; cursor: default; }
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 6px;
 }
+
 .stat {
   background: #11151c;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
 }
-.stat .label { font-size: 11px; color: var(--muted); }
-.stat .value { font-size: 16px; margin-top: 2px; }
+
+.stat .label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.stat .value {
+  font-size: 16px;
+  margin-top: 2px;
+}
+
 #log {
   height: 200px;
   overflow: auto;
@@ -237,24 +281,28 @@ button:disabled { opacity: 0.6; cursor: default; }
   white-space: pre-wrap;
   color: #c0c5d0;
 }
-#map { width: 100%; height: 60vh; }
+
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
   background: #11151c;
   color: var(--text);
   border: 1px solid var(--line);
 }
+
 .leaflet-container {
 touch-action: auto;
 }
+
 .leaflet-control-layers {
-  z-index: 1100; /* or higher than your legend */
+  z-index: 1100;
   position: relative;
   pointer-events: none;   /* ignore clicks */
   opacity: 0.5;           /* optional: show it’s disabled */
 }
+
 .leaflet-top.leaflet-right {
   z-index: 1100; /* higher than legend’s container */
 }
+
 .legend {
   padding: 8px 10px;
   background: #11151c;
@@ -263,20 +311,23 @@ touch-action: auto;
   color: var(--muted);
   font-size: 12px;
 }
+
 .legend-bar {
   height: 10px;
   width: 240px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgb(255 255 255 / 8%);
   margin: 6px 0;
   background: linear-gradient(90deg, #2c7bb6, #abd9e9, #ffffbf, #fdae61, #d7191c);
 }
+
 .legend-ticks {
   display: flex;
   justify-content: space-between;
   width: 240px;
   font-variant-numeric: tabular-nums;
 }
+
 .break-row {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
@@ -284,13 +335,15 @@ touch-action: auto;
   align-items: end;
   margin-top: 6px;
 }
+
 .break-row button {
   margin-top: 0;
   padding: 6px 10px;
 }
+
 .break-km.invalid {
   border: 2px solid #e74c3c;   /* red border */
-  background-color: rgba(231, 76, 60, 0.05); /* optional subtle background */
+  background-color: rgb(231 76 60 / 5%); /* optional subtle background */
 }
 
 .break-km.invalid::after {
@@ -319,40 +372,49 @@ canvas {
   border-radius: 8px;
   padding: 8px;
 }
+
 footer.note {
   color: var(--muted);
   font-size: 12px;
   margin-top: 6px;
 }
-@media (min-width: 1100px) {
+
+@media (width >= 1100px) {
   #map { height: calc(100vh - 60px - 230px); }
 }
-@media (max-width: 768px) {
+
+@media (width <= 768px) {
 html, body {
   margin: 0;
   padding: 0;
-  /*overflow-x: hidden; /* prevents accidental horizontal scroll */
+  overflow-x: hidden; /* prevents accidental horizontal scroll */
 }
+
   .sub, .app-title {
     display: none;
   }
+
     .login-modal-content, .savegpx-modal-content {
     width: 90%;          /* shrink to fit smaller screens */
     margin: 30% auto;    /* push it down a bit more */
     padding: 16px;       /* slightly tighter padding */
   }
+
    .on-this-page {
     display:none;
     }
+
     .help-wrap, .routes-wrap {
     margin-left: 0 !important;
     font-size: 85%;
     }
+
     .routes-wrap {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box; /* so padding/border don’t push it wider */
     }
+
     .routes-list li {
     min-width: 0;
     flex-direction: column;
@@ -361,14 +423,17 @@ html, body {
     text-overflow: ellipsis;
     white-space: nowrap;
     }
+
   .route-actions {
     margin-top: 0.5rem;
     flex-wrap: wrap; /* allow buttons to wrap onto multiple lines */
   }
+
     .wrap {
     display: flex;
     flex-direction: column;
     }
+
   header {
     position: sticky;
     top: 0;
@@ -377,22 +442,27 @@ html, body {
     right: 0;
     z-index: 9000; /* ensure it sits above content */
   }
+
   .header-content {
     width: 100%;
   }
+
     header h1 {
     font-size: 0.9em;
     }
+
     .std-button {
     font-size: 0.7em;
     padding: 4px 8px;
-    margin-right: 0px;
+    margin-right: 0;
     }
+
     .help-button, .login-button {
     font-size: 0.7em;
     padding: 4px 8px;
-    margin-left: 0px;
+    margin-left: 0;
     }
+
     .legend {
     font-size: 10px;
     padding: 4px 6px;
@@ -415,7 +485,6 @@ html, body {
     order: 1;
     width: 100%;
     height: auto;
-    overflow-y: visible;
     overflow: visible;
     border-right: none;
     border-bottom: 1px solid var(--line);
@@ -428,19 +497,21 @@ html, body {
     overflow: visible;
     height: auto;
     }
+
 .help-content {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box; /* so padding/border don’t push it wider */
 }
+
 .formula, .MathJax_Display {
   font-size: clamp(0.6em, 2vw, 1em);
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto hidden;
   margin: 1em auto;
   text-align: left;
 }
+
     #map {
     height: 300px;
     min-height: 0;
@@ -454,14 +525,17 @@ html, body {
   font-size: 8px; /* adjust as needed */
   line-height: 1;
   }
+
   #timeSliderContainer {
     flex-direction: column;
     align-items: stretch;
     width: 100%;
   }
+
   #timeSliderMainLabel {
     display: none;
   }
+
   #sliderRow {
     display: flex;
     flex-wrap: wrap;
@@ -472,25 +546,31 @@ html, body {
     width: 100%;             /* span full container width */
     gap: 0.5rem;
   }
+
   #timeSlider {
     flex: 1 1 auto;          /* slider grows to fill space */
     min-width: 70%;
     max-width: 100%;         /* remove desktop cap */
   }
+
   .slider-controls-button {
     flex: 0 0 auto;          /* buttons stay fixed size */
   }
+
   .routes-list button {
   flex: 0 0 auto;
   }
+
   #timeSliderLabel {
     order: 2;
     flex-basis: auto;
     align-self: center;
   }
+
   #jumpButtons {
     display: none;
   }
+
   .optimize-start {
     padding-left: 0.75em;
   }
@@ -503,22 +583,27 @@ flex-direction: column;
 min-width: 0;
 height: 100%;
 }
+
 .wind-arrow {
   font-family: "Courier New", monospace; /* or another non-emoji font */
   font-size: 14px; /* adjust as needed */
   line-height: 1;
 }
+
 #map {
+height: 60vh;
 flex: 1 1 auto;
 min-height: 350px;
 width: 100%;
 margin-top: 10px;
 }
+
 .charts h3 {
   margin: 10px 0 8px;
   font-size: 14px;
   color: var(--accent);
 }
+
 .charts {
 display: flex;
 flex-direction: column;
@@ -527,11 +612,13 @@ padding: 10px 16px 20px;
 border-top: 1px solid var(--line);
 background: #0f1115;
 }
+
 .charts canvas {
 flex: 1 1 0;
-spect-ratio: 2 / 1;
+aspect-ratio: 2 / 1;
 max-height: 300px;
 }
+
 .help-btn {
   border: none;
   background: none;
@@ -559,11 +646,11 @@ max-height: 300px;
   color: #222;
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 0px 0px;
+  padding: 0;
   font-size: 8px;
   line-height: 1.3;
   max-width: 250px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 15%);
   z-index: 1000;
 }
 
@@ -578,22 +665,27 @@ max-height: 300px;
   font-size: 12px;         /* smaller font */
   line-height: 1.4;
 }
+
 .help-popover p {
   margin: 4px 0;             /* less vertical space between paragraphs */
   font-size: 12px;          /* smaller font size */
 }
+
 .help-popover a {
   font-size: 12px;
-  color: #0066cc;
+  color: #06c;
   text-decoration: underline;
 }
+
 .help-popover a:hover {
   color: #004080;
 }
+
 .help-popover-content h2 {
   font-size: 14px;
   margin-top: -8px;
 }
+
 .leaflet-tooltip.forecast-tooltip {
   background: #000;               /* black background */
   border: 1px solid #444;
@@ -602,7 +694,7 @@ max-height: 300px;
   color: #fff;                    /* white text */
   font-size: 13px;
   line-height: 1.3;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 40%);
   min-width: 200px;
 }
 
@@ -611,15 +703,16 @@ max-height: 300px;
   margin-bottom: 4px;
 }
 
-.leaflet-tooltip.forecast-tooltip:before {
+.leaflet-tooltip.forecast-tooltip::before {
   border-top-color: #333; /* arrow color */
 }
+
 .help-wrap {
   display: flex;
   gap: 40px;
   margin: 0 auto;
   padding: 40px 20px;
-  padding-top: 0px;
+  padding-top: 0;
   margin-left: calc(40px + 16px);
 }
 
@@ -634,6 +727,7 @@ max-height: 300px;
   margin-top: 1em;
   margin-bottom: 0.1em;
 }
+
 .help-content p {
   margin-top: 0.1em;
   margin-bottom: 0.1em;
@@ -698,6 +792,7 @@ max-height: 300px;
   font-weight: 400;
   font-size: 12px;
 }
+
 .progress-overlay {
   position: absolute;
   top: 50%;
@@ -708,11 +803,11 @@ max-height: 300px;
 }
 
 .progress-box {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgb(0 0 0 / 70%);
   color: #fff;
   padding: 20px 24px;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 30%);
   text-align: center;
   min-width: 240px;
 }
@@ -738,6 +833,7 @@ max-height: 300px;
   background: #4caf50;
   transition: width 0.2s ease;
 }
+
 .leaflet-hotline-layer canvas,
 .shademap-canvas {
   pointer-events: none;
@@ -752,12 +848,14 @@ max-height: 300px;
   margin-right: 1rem;
   padding-top: 0.5rem;
 }
+
 #sliderRow {
   display: flex;
   align-items: center;
   flex: 1 1 auto;
   gap: 0.5rem;
 }
+
 #timeSliderContainer.disabled {
   opacity: 0.5;              /* visually dim */
   pointer-events: none;      /* block clicks/dragging inside */
@@ -810,6 +908,7 @@ max-height: 300px;
   border: 1px solid #ccc;        /* light grey border */
   border-radius: 4px;            /* optional: soften corners */
 }
+
 .step-group button:hover,
 .step-group button:focus {
   background: transparent;       /* no background */
@@ -817,6 +916,7 @@ max-height: 300px;
   border-color: #aaa;            /* slightly darker grey on hover */
   outline: none;                 /* remove default focus outline */
 }
+
 .optimize-start {
   display: flex;           /* put children in a row */
   align-items: center;     /* vertically center checkbox + text */
@@ -836,12 +936,13 @@ max-height: 300px;
   height: 1em;
   accent-color: var(--accent); /* modern browsers: use your theme accent */
 }
+
 .modal {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgb(0 0 0 / 60%);
   justify-content: center;
   align-items: center;
   padding: 1rem;
@@ -883,12 +984,14 @@ max-height: 300px;
   font-size: 20px;
   cursor: pointer;
 }
+
 .time-range {
   margin-top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
+
 /* Smaller legend */
 .param-legend,
 .allowed-range {
@@ -902,6 +1005,7 @@ max-height: 300px;
   margin-top: 0.25rem;
   accent-color: var(--accent); /* modern browsers */
 }
+
 .sliders label {
   display: flex;
   justify-content: space-between; /* text left, value right */
@@ -910,11 +1014,6 @@ max-height: 300px;
   color: var(--text);
 }
 
-.slider-value {
-  font-weight: bold;
-  color: var(--accent);
-  margin-left: 0.5rem;
-}
 .date-row,
 .time-row {
   display: flex;
@@ -929,6 +1028,7 @@ max-height: 300px;
   display: flex;
   flex-direction: column;
 }
+
 /* Target date and time inputs */
 input[type="date"],
 input[type="time"] {
@@ -952,6 +1052,7 @@ form {
   max-width: 500px;   /* optional: constrain overall form width */
   margin: 0 auto;     /* center the form */
 }
+
 .sliders {
   padding: 1em;
   border-radius: 6px;
@@ -969,24 +1070,11 @@ form {
   flex-direction: column;
 }
 
-label {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.3em;
-  font-weight: 600;
-}
-
-.slider-value {
-  font-weight: bold;
-  font-size: 0.9em;
-  color: var(--accent);
-}
-
 form fieldset {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  margin: 0 0 1rem 0;   /* space between fieldsets */
+  margin: 0 0 1rem;   /* space between fieldsets */
   padding: 1rem;
   border: 1px solid #555;
   border-radius: 6px;
@@ -997,17 +1085,16 @@ form legend {
   padding: 0 0.5rem;
   font-weight: bold;
 }
+
 #optimizeResultsList button {
   display: block;
   width: 100%;
   margin: 0.25rem 0;
   padding: 0.5rem 0.75rem;
-
   background: transparent;       /* no background */
   color: inherit;                /* inherit text color */
   border: 1px solid #ccc;        /* light grey border */
   border-radius: 4px;            /* optional: soften corners */
-
   cursor: pointer;               /* pointer on hover */
 }
 
@@ -1017,6 +1104,7 @@ form legend {
   border-color: #aaa;            /* slightly darker grey on hover */
   outline: none;                 /* remove default focus outline */
 }
+
 .result-card {
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1060,6 +1148,7 @@ form legend {
   padding: 0.4rem;
   cursor: pointer;
 }
+
 .help-icon {
   display: inline-flex;
   justify-content: center;
@@ -1080,6 +1169,7 @@ form legend {
 .help-icon:hover {
   background-color: #005a9e; /* darker on hover */
 }
+
 .login-modal {
   display: none;
   position: fixed;
@@ -1089,7 +1179,7 @@ form legend {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgb(0 0 0 / 60%);
 }
 
 .login-modal-content {
@@ -1115,9 +1205,11 @@ form legend {
   cursor: pointer;
   color: var(--muted);
 }
+
 .login-close-btn:hover {
   color: var(--accent);
 }
+
 /* Shrink and align the action buttons */
 #firebaseui-auth-container .firebaseui-form-actions {
   display: flex;
@@ -1137,6 +1229,7 @@ form legend {
   display: flex;
   justify-content: center;
 }
+
 .avatar-menu {
   position: absolute;
   top: 60px; /* adjust based on your header height */
@@ -1144,7 +1237,7 @@ form legend {
   background-color: white;
   border: 1px solid #ccc;
   border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 15%);
   z-index: 1000;
 }
 
@@ -1173,7 +1266,7 @@ form legend {
   padding: 20px;
   background: #f9f9f9;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
   font-size: 34px !important;
 }
 
@@ -1207,6 +1300,7 @@ form legend {
   border-radius: 4px;
   cursor: pointer;
 }
+
 /* Make all inputs, selects, and ranges consistent */
 .group table td {
   vertical-align: middle;
@@ -1229,6 +1323,7 @@ form legend {
 .group table input[type="range"] {
   width: 90%; /* sliders stretch nicely */
 }
+
 .slider-row {
   display: flex;
   align-items: center;
@@ -1241,22 +1336,30 @@ form legend {
 }
 
 .slider-value {
+  font-weight: bold;
+  color: var(--accent);
+  margin-left: 0.5rem;
+  font-size: 0.9em;
   width: 40px;          /* fixed width for values like "100%" */
   text-align: right;    /* align numbers neatly */
-  margin-left: 8px;     /* space between slider and value */
+
+  /* margin-left: 8px;     /* space between slider and value */
   margin-right: 8px;
   padding: 2px 6px;
-  font-size: 12px;
-  font-weight: bold;
+
+  /* font-size: 12px; */
   white-space: nowrap;  /* prevent wrapping */
 }
+
 #saveGpxOption {
   font-size: 0.9rem;
   color: var(--muted);
 }
+
 #saveGpxOption input {
   margin-right: 6px;
 }
+
 #saveGpxOption label {
   display: inline-block;
   cursor: pointer;
@@ -1270,8 +1373,8 @@ form legend {
 .routes-list button, #saveGpxBtn {
   height: 2em;
   width: auto;
-  padding: 0.5em 0.5em;
-  margins: 0.5em 0.5em 0.5em 0.5em;
+  padding: 0.5em;
+  margin: 0.5em;
   font-size: 0.9rem;
   line-height: 1;
   text-align: center;
@@ -1280,12 +1383,14 @@ form legend {
   border: 1px solid var(--muted);        /* light grey border */
   border-radius: 4px;            /* optional: soften corners */
 }
+
 #saveGpxBtn {
 font-weight: normal;
 font-size: 0.75rem;
 color: var(--text);
 margin-top: 0;
 }
+
 .routes-list {
   list-style: none;
   padding: 0;
@@ -1302,52 +1407,61 @@ margin-top: 0;
   width: 100%;            /* prevent accidental overflow */
   box-sizing: border-box; /* include padding in width */
 }
+
 .route-name {
   font-weight: 500;
-  flex-skrink: 1; /* allow name to shrink if needed */
+  flex-shrink: 1; /* allow name to shrink if needed */
   min-width: 0; /* allow shrinking */
   max-width: 20em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .route-actions {
   display: flex;
   gap: 20px; /* space between buttons */
   flex-shrink: 0; /* don’t let buttons shrink too much */
 }
+
 .route-actions button {
   font-size: 1em; /* relative to parent’s font-size */
   padding: 0.4em 0.6em; /* also scales with font-size */
 }
+
 .routes-wrap {
   gap: 40px;
   margin: 0 auto;
   padding: 40px 20px;
-  padding-top: 0px;
+  padding-top: 0;
   margin-left: calc(40px + 16px);
   max-width: 900px;
 }
+
 .route-info {
   display: flex;
   flex-direction: column;
 }
+
 .route-timestamp {
   font-size: 0.85em;
   color: #666;
   margin-top: 2px;
 }
+
 .gpx-picker {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
+
 .gpx-actions {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   align-items: stretch;
 }
+
 .current-route {
   font-style: italic;
   color: #444;
@@ -1360,24 +1474,27 @@ margin-top: 0;
   vertical-align: middle;
   margin-bottom: 0.5rem;
 }
+
 .current-route.active {
   color: var(--text);
   font-style: normal;
   font-size: 0.8rem;
 }
+
 #savedRoutes {
   appearance: none;
   flex: 1.3;
   text-align: center;
 }
+
 #uploadBtn {
-  background: transparent;       /* no background */
-  color: inherit;                /* inherit text color */
+  background: transparent;       /* no background */                /* inherit text color */
   font-weight: normal;
   color: var(--text);
   margin-top: 0;
   flex: 1;
 }
+
 #uploadBtn,
 #savedRoutes {
   font-size: 0.8rem;
@@ -1388,10 +1505,12 @@ margin-top: 0;
   color: var(--text);
   box-sizing: border-box; /* include padding in width */
 }
+
 #savedRoutes option {
   background-color: var(--bg);   /* dropdown list background */
   color: var(--text);
 }
+
 .help-wrapper {
   position: relative; /* anchor for the popover */
   display: inline-flex;
