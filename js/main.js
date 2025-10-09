@@ -51,6 +51,9 @@ let initialMetrics;
 
 // ---------- DOM Elements (match your HTML) ----------
 const fileInput = document.getElementById("gpxFile");
+const uploadBtn = document.getElementById("uploadBtn");
+const currentRoute = document.getElementById("currentRoute");
+const saveOption = document.getElementById("saveGpxOption");
 const providerSel = document.getElementById("provider");
 const meteoblueKeyInput = document.getElementById("meteoblueKey");
 const meteoblueKeyRow = document.getElementById("meteoblueKeyRow");
@@ -103,6 +106,8 @@ const isMobile = window.innerWidth <= 768;
 
 // ---------- Init ----------
 document.getElementById("timeSliderContainer").classList.add("disabled");
+
+uploadBtn.addEventListener("click", () => fileInput.click());
 
 window.addEventListener("DOMContentLoaded", () => {
   // Set default start time to tomorrow at 07:00 (LOCAL string for datetime-local)
@@ -359,10 +364,21 @@ async function restoreFromSession() {
 }
 
 // ---------- Helpers ----------
+async function handleGpxLoad(name, text) {
+  sessionStorage.setItem("gpxFileName", name);
+  await saveResult("gpxFileContent", gpxText);
+  gpxText = text;
+  currentRoute.textContent = name;
+  currentRoute.title = name;
+  currentRoute.classList.add("active");
+  updateSaveButtonVisibility(name, text);
+  log(`Loaded route: ${name}`);
+  validateReady();
+}
+window.handleGpxLoad = handleGpxLoad;
+
 function updateSaveButtonVisibility(name, content) {
-  const saveOption = document.getElementById("saveGpxOption");
   const user = firebase.auth().currentUser;
-  console.log("Checking save button visibility...", { user, name, content });
   const hasFile = !!(name && content);
   if (saveOption) {
       saveOption.style.display = (user && hasFile) ? "block" : "none";
@@ -455,6 +471,17 @@ function updateStepButtons() {
   minus1440.disabled = (val - steps1440 < min);
   plus1440.disabled  = (val + steps1440 > max);
 }
+
+function decompressText(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return pako.inflate(bytes, { to: 'string' }); // back to original text
+}
+
+window.decompressText = decompressText;
 
 function validateReady() {
   const ok = !!gpxText && startTimeInput.value && parseFloat(speedInput.value) > 0;
@@ -1019,6 +1046,11 @@ document.getElementById("optimizeForm").addEventListener("submit", e => {
 }
   modal.style.display = "none";
   optimizeCheckbox.checked = false;
+  goatcounter.count({
+     path: `/optimizeSubmit`,
+     title: `Optimize Submit Clicked`,
+     event: true
+  });
 });
 
 fileInput.addEventListener("change", async (e) => {
@@ -1028,14 +1060,15 @@ fileInput.addEventListener("change", async (e) => {
   updateSaveButtonVisibility(null, gpxText);
   sessionStorage.setItem("gpxFileName", "");
   await saveResult("gpxFileContent", gpxText);
+  currentRoute.textContent = "No route selected";
+  currentRoute.title = "";
+  currentRoute.classList.remove("active");
   validateReady();
   return;
   }
   try {
     gpxText = await f.text();
-    log(`Loaded file: ${f.name} (${Math.round(f.size / 1024)} kB)`);
-    sessionStorage.setItem("gpxFileName", f.name);
-    await saveResult("gpxFileContent", gpxText);
+    handleGpxLoad(f.name, gpxText);
   } catch (err) {
     log("Error reading file: " + err.message);
     gpxText = null;

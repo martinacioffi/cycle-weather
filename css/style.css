@@ -516,7 +516,6 @@ spect-ratio: 2 / 1;
 max-height: 300px;
 }
 .help-btn {
-  margin-left: 6px;
   border: none;
   background: none;
   color: #8c8c8c;
@@ -528,12 +527,9 @@ max-height: 300px;
   line-height: 16px;
   text-align: center;
   padding: 0;
-}
-
-.help-wrapper {
-  position: relative; /* anchor for the popover */
-  display: inline-flex;
-  align-items: center;
+  margin: 0;
+  margin-left: 6px;
+  flex: 0 0 auto;             /* ensure it doesn’t grow or push */
 }
 
 .help-popover {
@@ -1311,4 +1307,67 @@ margin-top: 0;
   font-size: 0.85rem;
   color: #666;
   margin-top: 2px;
+}
+.gpx-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.gpx-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: stretch;
+}
+.current-route {
+  font-style: italic;
+  color: #444;
+  font-size: 0.8rem;
+  display: inline-block;
+  max-width: 95%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  margin-bottom: 0.5rem;
+}
+.current-route.active {
+  color: var(--text);
+  font-style: normal;
+  font-size: 0.8rem;
+}
+#savedRoutes {
+  appearance: none;
+  flex: 1.3;
+  text-align: center;
+}
+#uploadBtn {
+  background: transparent;       /* no background */
+  color: inherit;                /* inherit text color */
+  font-weight: normal;
+  color: var(--text);
+  margin-top: 0;
+  flex: 1;
+}
+#uploadBtn,
+#savedRoutes {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem; /* consistent padding */
+  border: 1px solid var(--muted);
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  box-sizing: border-box; /* include padding in width */
+}
+#savedRoutes option {
+  background-color: var(--bg);   /* dropdown list background */
+  color: var(--text);
+}
+.help-wrapper {
+  position: relative; /* anchor for the popover */
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;     /* opt out of container stretching */
+  width: fit-content;         /* shrink to content */
+  white-space: nowrap;        /* keep text + ? on one line */
 }

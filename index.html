@@ -26,13 +26,28 @@
         <div class="group">
             <h3>Inputs</h3>
 
-            <label for="gpxFile" class="help-wrapper">GPX file
+        <div class="gpx-picker">
+          <label for="gpxFile" class="help-wrapper">Route (GPX file)
              <button id="gpxHelpBtn" type="button" class="help-btn">?</button>
             </label>
-            <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,*/*"/>
+          <div class="gpx-actions">
+            <!-- Upload -->
+            <button id="uploadBtn" type="button">📂 Upload file</button>
+            <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
+
+            <!-- Saved routes dropdown -->
+              <label for="savedRoutes"></label><select id="savedRoutes">
+              <option value="" disabled selected>💾 Choose from saved</option>
+              <!-- options populated dynamically -->
+            </select>
+          </div>
+
+          <!-- Current route display -->
+          <div id="currentRoute" class="current-route">No route selected</div>
+        </div>
             <!-- Save option (hidden by default, shown only when logged in) -->
             <div id="saveGpxOption" style="display: none; margin-top: 8px;">
-              <button id="saveGpxBtn">💾 Save this GPX file to my account</button>
+              <button id="saveGpxBtn">Save this GPX file to my account</button>
             </div>
             <!-- Save GPX Feedback Modal -->
             <div id="saveGpxModal" class="modal" style="display:none;">
@@ -407,6 +422,8 @@
 </div>
 <div id="footer"></div>
 <script src="./js/common.js"></script>
+<!-- Goat Counter for logs and analytics -->
+<script data-goatcounter="https://martina-cioffi.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <!-- Firebase core + required services -->
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
@@ -432,7 +449,5 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0"></script>
 <script type="module" src="./js/main.js"></script>
-<!-- Goat Counter for logs and analytics -->
-<script data-goatcounter="https://martina-cioffi.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>

@@ -1,15 +1,15 @@
 function compressText(text) {
-  const compressed = pako.deflate(text, { to: 'string' });
-  return btoa(compressed); // base64 encode
+  const compressed = pako.deflate(text); // returns Uint8Array
+  let binary = '';
+  const bytes = new Uint8Array(compressed);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary); // base64 string safe for Firestore
 }
 
-function decompressText(base64) {
-  const binary = atob(base64);
-  const charData = binary.split('').map(c => c.charCodeAt(0));
-  const binData = new Uint8Array(charData);
-  const restored = pako.inflate(binData, { to: 'string' });
-  return restored;
-}
+const savedRoutes = document.getElementById("savedRoutes");
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -85,6 +85,11 @@ document.addEventListener("layoutReady", () => {
         settingsOption.addEventListener("click", () => {
         avatarMenu.style.display = "none";
         window.location.href = "./settings.html";
+        goatcounter.count({
+            path: `/loadedSettings`,
+            title: `Loaded Settings Page`,
+            event: true
+        });
      });
      }
 
@@ -92,6 +97,11 @@ document.addEventListener("layoutReady", () => {
         myRoutesOption.addEventListener("click", () => {
         avatarMenu.style.display = "none";
         window.location.href = "./myroutes.html";
+        goatcounter.count({
+            path: `/loadedMyRoutes`,
+            title: `Loaded My Routes Page`,
+            event: true
+        });
      });
      }
 
@@ -100,6 +110,11 @@ document.addEventListener("layoutReady", () => {
         loginModal.style.display = "block";
         ui.reset();
         ui.start('#firebaseui-auth-container', uiConfig);
+        goatcounter.count({
+            path: `/openedLoginModal`,
+            title: `Opened Login Modal`,
+            event: true
+        });
       });
     }
 
@@ -150,14 +165,88 @@ document.addEventListener("click", (e) => {
     }
   window.onclick = (e) => { if (e.target === saveModal) saveModal.style.display = "none"; };
 
+async function populateSavedRoutes(user) {
+  const db = firebase.firestore();
+  try {
+    const snapshot = await db.collection("usersFiles")
+                             .doc(user.uid)
+                             .collection("gpxFiles")
+                             .orderBy("uploadedAt", "desc")
+                             .get();
+
+    if (!savedRoutes) return;
+
+    savedRoutesSelect.innerHTML = '<option value="" disabled selected>💾 Choose from saved</option>';
+    if (snapshot.empty) {
+      // Add a disabled "no routes" option that only shows in the dropdown
+      const opt = document.createElement("option");
+      opt.disabled = true;
+      opt.textContent = "No saved routes yet";
+      savedRoutes.appendChild(opt);
+      return;
+    }
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const opt = document.createElement("option");
+      opt.value = doc.id;
+      opt.textContent = data.name || "Unnamed route";
+      savedRoutes.appendChild(opt);
+    });
+
+  } catch (err) {
+    console.error("Error loading saved routes:", err);
+    savedRoutes.innerHTML = '<option value="">(Error loading routes)</option>';
+  }
+}
+
+const savedRoutesSelect = document.getElementById("savedRoutes");
+const currentRoute = document.getElementById("currentRoute");
+
+if (savedRoutesSelect && currentRoute) {
+savedRoutesSelect.addEventListener("change", async (e) => {
+  const id = e.target.value;
+  const user = firebase.auth().currentUser;
+  if (!id || !user) return;
+
+  const db = firebase.firestore();
+  const doc = await db.collection("usersFiles")
+                      .doc(user.uid)
+                      .collection("gpxFiles")
+                      .doc(id)
+                      .get();
+
+  if (doc.exists) {
+    const data = doc.data();
+    let text = data.gpxContent;
+    if (data.isCompressed) text = decompressText(text);
+    handleGpxLoad(data.name, text);
+
+    // Update currentRoute display
+    currentRoute.textContent = data.name || "Unnamed route";
+    currentRoute.title = data.name || "Unnamed route";
+    currentRoute.classList.add("active");
+
+    // Reset dropdown back to placeholder
+    savedRoutesSelect.selectedIndex = 0;
+  }
+    goatcounter.count({
+       path: `/loadedSavedRoute`,
+       title: `Loaded Route from Saved`,
+       event: true
+    });
+});
+}
+
 // --- Auth State Handling ---
-firebase.auth().onAuthStateChanged(user => {
+firebase.auth().onAuthStateChanged(async user => {
     currentUser = user;
     updateSaveVisibility();
   if (user) {
     // Show avatar, hide login button
     loginBtn.style.display = "none";
     userAvatar.style.display = "inline-block";
+    savedRoutes.style.display = "inline-block";
 
     // Use user's photo or fallback
     userAvatar.src = user.photoURL || "https://i.imgur.com/8Km9tLL.png";
@@ -172,11 +261,13 @@ firebase.auth().onAuthStateChanged(user => {
     userAvatar.onclick = () => {
       avatarMenu.style.display = avatarMenu.style.display === "none" ? "block" : "none";
     };
+    await populateSavedRoutes(user);
   } else {
     // Show login button, hide avatar and menu
     loginBtn.style.display = "inline-block";
     userAvatar.style.display = "none";
     avatarMenu.style.display = "none";
+    savedRoutes.style.display = "none";
   }
 });
 
@@ -212,11 +303,13 @@ firebase.auth().onAuthStateChanged(user => {
         await db.collection("usersFiles").doc(currentUser.uid).collection("gpxFiles").add({
           name: currentFile.name,
           gpxContent: compressed,
+          isCompressed: true,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
       showSaveModal("✅ GPX file saved successfully");
       updateSaveVisibility();
+      await populateSavedRoutes(currentUser);
 
       } catch (err) {
         console.error("Save error:", err);
@@ -228,6 +321,11 @@ firebase.auth().onAuthStateChanged(user => {
         showSaveModal("❌ Error saving file", true);
       }
     }
+        goatcounter.count({
+           path: `/savedRoute`,
+           title: `Saved Route to Cloud`,
+           event: true
+        });
     });
   }
 
