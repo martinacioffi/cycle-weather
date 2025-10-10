@@ -860,6 +860,12 @@ max-height: 18.75rem;
   border-radius: 0.5rem;
   padding: 0.75rem;
   font-size: 0.875rem;
+  max-height: calc(100vh - 6.25rem - 1rem); /* constrain to viewport */
+  overflow-y: hidden; /* hide scrollbar by default */
+}
+
+.on-this-page:hover {
+  overflow-y: auto;
 }
 
 .on-this-page h4 {
