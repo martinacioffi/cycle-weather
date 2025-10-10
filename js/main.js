@@ -729,8 +729,8 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     addWindMarker(windMarker);
 
     const windKmh = (r.windKmH).toFixed(1);
-    const eta = new Date(r.eta);  // parse the ISO string into a Date
-    const etaStr = eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+    const etaForLabel = new Date(r.eta);  // parse the ISO string into a Date
+    const etaStr = etaForLabel.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
     const etaLabel = isBreak ? `During Break: ${etaStr}` : `ETA: ${etaStr}`;
     // Decide headwind/tailwind
     let windLabel;
@@ -926,6 +926,8 @@ document.querySelector("#optimizeResultsModal .close").addEventListener("click",
 
 optimizeCheckbox.addEventListener("change", e => {
   if (e.target.checked) {
+    const oldFieldset = document.getElementById('compareFieldset');
+    if (oldFieldset) oldFieldset.remove();
     modal.style.display = "flex";
   } else {
     modal.style.display = "none";

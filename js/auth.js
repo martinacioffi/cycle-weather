@@ -222,10 +222,10 @@ savedRoutesSelect.addEventListener("change", async (e) => {
     const data = doc.data();
     let text = data.gpxContent;
     if (data.isCompressed) text = decompressText(text);
-    handleGpxLoad(data.name, text);
+    handleGpxLoad(data.displayName, text);
 
     // Update currentRoute display
-    currentRoute.textContent = data.name || "Unnamed route";
+    currentRoute.textContent = data.displayName || "Unnamed route";
     currentRoute.title = data.name || "Unnamed route";
     currentRoute.classList.add("active");
 
