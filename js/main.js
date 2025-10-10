@@ -729,7 +729,8 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     addWindMarker(windMarker);
 
     const windKmh = (r.windKmH).toFixed(1);
-    const etaStr = r.eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+    const eta = new Date(r.eta);  // parse the ISO string into a Date
+    const etaStr = eta.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
     const etaLabel = isBreak ? `During Break: ${etaStr}` : `ETA: ${etaStr}`;
     // Decide headwind/tailwind
     let windLabel;
@@ -747,7 +748,7 @@ minSpacingDense, minTimeSpacingDense, pictos) {
       <div style="min-width:200px">
         <div>${etaLabel}</div>
         <div>Km from start: ${formatKm(r.accumDist)}</div>
-        <div>Altitude: ${r.ele} m a.s.l.</div><br>
+        <div>Altitude: ${r.ele.toFixed(0)} m a.s.l.</div><br>
         <div><strong>Forecast:</strong></div>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
         🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
