@@ -120,14 +120,6 @@ header .sub {
   font-size: 0.8125rem;
 }
 
-#legendTempBox {
-display: none !important;
-}
-
-#legendWindBox {
-display: none !important;
-}
-
 .legend-labels {
   display: flex;
   justify-content: space-between; /* pushes one left, one right */
