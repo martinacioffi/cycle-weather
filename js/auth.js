@@ -190,7 +190,7 @@ async function populateSavedRoutes(user) {
       const data = doc.data();
       const opt = document.createElement("option");
       opt.value = doc.id;
-      opt.textContent = data.name || "Unnamed route";
+      opt.textContent = data.displayName || "Unnamed route";
       savedRoutes.appendChild(opt);
     });
 
@@ -199,6 +199,8 @@ async function populateSavedRoutes(user) {
     savedRoutes.innerHTML = '<option value="">(Error loading routes)</option>';
   }
 }
+
+window.populateSavedRoutes = populateSavedRoutes;
 
 const savedRoutesSelect = document.getElementById("savedRoutes");
 const currentRoute = document.getElementById("currentRoute");
@@ -301,6 +303,7 @@ firebase.auth().onAuthStateChanged(async user => {
         const compressed = compressText(text); // your pako-based helper
         const db = firebase.firestore();
         await db.collection("usersFiles").doc(currentUser.uid).collection("gpxFiles").add({
+          displayName: currentFile.name,
           name: currentFile.name,
           gpxContent: compressed,
           isCompressed: true,

@@ -92,7 +92,10 @@ window.saveUserSettings = function () {
   firebase.firestore().collection("userSettings").doc(user.uid).set(settings)
     .then(() => {
       alert("Settings saved to cloud!");
-      sessionStorage.clear(); // clear overrides
+      // sessionStorage.clear(); // clear overrides
+      inputFields.concat(optimizationFields).forEach(key => {
+         sessionStorage.removeItem(key);
+      });
       applyUserDefaults(settings);
       updateLabels();
     })

@@ -54,6 +54,10 @@ firebase.auth().onAuthStateChanged(async (user) => {
         await doc.ref.update({ displayName: newName.trim(), uploadedAt: firebase.firestore.FieldValue.serverTimestamp() });
         nameSpan.textContent = newName.trim();
         tsSpan.textContent = `Saved: just now`;
+        if (typeof window.populateSavedRoutes === "function") {
+            console.log('updating routes');
+          window.populateSavedRoutes(user);
+        }
       }
     };
 
@@ -77,6 +81,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
     delBtn.onclick = async () => {
       await doc.ref.delete();
       li.remove();
+    if (typeof window.populateSavedRoutes === "function") {
+          window.populateSavedRoutes(user);
+        }
     };
 
     btnGroup.appendChild(renameBtn);

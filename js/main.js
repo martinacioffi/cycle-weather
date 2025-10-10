@@ -615,7 +615,7 @@ function optimizeStartTime(results, timeSteps, rangeDateMin, rangeDateMax, timeM
 
 function updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing,
 minSpacingDense, minTimeSpacingDense, pictos) {
-  if (!aligned.length) {
+  if (!aligned  || !aligned.length) {
     log("No forecast results to render.");
     return;
   }
