@@ -72,6 +72,55 @@ export function speedToMps(val, unit) {
   return v; // m/s
 }
 
+export function updateLabels() {
+  document.querySelectorAll('input[type="range"]').forEach(slider => {
+    const valueSpan = document.getElementById(slider.id + "Value");
+    if (valueSpan) {
+      valueSpan.textContent = slider.value + "%";
+      slider.addEventListener("input", () => {
+        valueSpan.textContent = slider.value + "%";
+      });
+    }
+  });
+}
+
+// ---------- Date and time utils ----------
+export function parseDateInput(value) {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function parseTimeInput(value) {
+  const [h, min] = value.split(":").map(Number);
+  return { hours: h, minutes: min };
+}
+
+export function toLocalDateTimeString(date) {
+  const pad = n => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function normalizeDateTimeLocal(val) {
+  if (!val) return "";
+
+  // If it's already a full yyyy-MM-ddTHH:mm string, just return it
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(val)) {
+    return val;
+  }
+
+  // If it's just "HH:mm", expand it to tomorrow's date
+  if (/^\d{2}:\d{2}$/.test(val)) {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const pad = n => n.toString().padStart(2, "0");
+    const dateStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+    return `${dateStr}T${val}`;
+  }
+
+  // Fallback: return as-is
+  return val;
+}
+
 export function roundToNearestQuarter(date) {
   const rounded = new Date(date); // clone the original date
   const minutes = rounded.getMinutes();
@@ -96,13 +145,20 @@ export function roundToNearestQuarter(date) {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
-/**
- * Given full-array forecasts per point and a new startDate,
- * return a snapshot where each point is sampled at (startDate + accumTime).
- *
- * @param {Array} results - array of route points with full forecast arrays
- * @param {Date} startDate - new chosen start date
- */
+export function closestIndex(arr, target) {
+  let lo = 0, hi = arr.length - 1;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (arr[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  // lo is the first index >= target
+  if (lo > 0 && Math.abs(arr[lo - 1] - target) < Math.abs(arr[lo] - target)) {
+    return lo - 1;
+  }
+  return lo;
+}
+
 export function pickForecastAtETAs(results, startDate) {
   const aligned = results.map(r => {
     // compute shifted ETA for this point
@@ -148,6 +204,25 @@ export function log(msg) {
   const el = document.getElementById("log");
   el.textContent += (el.textContent ? "\n" : "") + msg;
   el.scrollTop = el.scrollHeight;
+}
+
+// ---------- Progress ----------
+export function createProgressUpdater({ progressBar, progressText, progressOverlay, total, titleEl }) {
+  let completed = 0;
+
+  return function updateProgress() {
+    completed++;
+    const pct = Math.round((completed / total) * 100);
+    progressBar.style.width = pct + "%";
+    progressText.textContent = pct + "%";
+
+    if (completed === total) {
+      progressText.textContent = "Done ✔";
+      setTimeout(() => {
+        progressOverlay.style.display = "none";
+      }, 1500);
+    }
+  };
 }
 
 // ---------- Color Interpolation ----------

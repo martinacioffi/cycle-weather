@@ -168,7 +168,7 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
       datasets: [
         {
           type: "line",
-          label: "Temperature (°C)",
+          label: isMobile ? "Temp (°C)" : "Temperature (°C)",
           data: series.map(s => s.tempC),
           borderColor: "#f9d349",
           borderWidth: isMobile ? 1 : 3,
@@ -182,7 +182,7 @@ export function buildTempChart(series, weatherMarkers, provider, isMobile) {
         },
         {
           type: "line",
-          label: "Felt Temperature (°C)",
+          label: isMobile ? "Felt Temp (°C)" : "Felt Temperature (°C)",
           data: series.map(s => s.feltTempC),
           borderColor: "#f96949",
           backgroundColor: "rgba(249,211,73,0.15)",
@@ -271,7 +271,7 @@ export function buildPrecipChart(series, weatherMarkers, isMobile) {
       datasets: [
         {
           type: "line",
-          label: "Precipitation Probability (%)",
+          label: isMobile ? "Precip Prob (%)" : "Precipitation Probability (%)",
           data: series.map(s => s.precipProb),
           borderColor: "#003366",
           borderWidth: isMobile ? 1 : 3,
@@ -285,7 +285,7 @@ export function buildPrecipChart(series, weatherMarkers, isMobile) {
         },
           {
           type: "bar",
-          label: "Precipitations (mm/h)",
+          label: isMobile ? "Precip (mm/h)" : "Precipitations (mm/h)",
           data: series.map(s => s.precip),
           backgroundColor: "#66d9ef",
           yAxisID: "yPrecip",

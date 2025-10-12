@@ -12,37 +12,51 @@
             crossorigin=""
     />
    <link rel="stylesheet" href="./css/style.css">
-    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
-    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+    <link rel="icon" href="./images/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="32x32" href="./images/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
 </head>
-<body>
-<header>
-  <div class="header-content">
-    <div class="header-left">
-      <img src="images/bike.jpg" alt="Logo" class="logo">
-      <div>
-        <h1>GPX Route Weather Forecast</h1>
-        <div class="sub">Upload GPX → set start time, speed & breaks → see forecast along your route</div>
-      </div>
-    </div>
-    <div class="header-right">
-      <button id="demoBtn" class="std-button" title="Try it now with a demo file">Demo</button>
-        <a href="help.html" class="help-button" title="Learn about the inputs">Help</a>
-    </div>
-  </div>
-</header>
-
+<body
+        data-sub="Upload GPX → set start time, speed & breaks → see forecast along your route"
+        data-demo="true"
+        data-compare="true"
+>
+<header id="header"></header>
 <div class="wrap">
     <aside class="side">
         <div class="group">
             <h3>Inputs</h3>
 
-            <label for="gpxFile" class="help-wrapper">GPX file
+        <div class="gpx-picker">
+          <label for="gpxFile" class="help-wrapper">Route (GPX file)
              <button id="gpxHelpBtn" type="button" class="help-btn">?</button>
             </label>
-            <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,*/*"/>
+          <div class="gpx-actions">
+            <!-- Upload -->
+            <button id="uploadBtn" class="uploadBtn" type="button">📂 Upload file</button>
+            <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
 
+            <!-- Saved routes dropdown -->
+              <label for="savedRoutes"></label><select id="savedRoutes" class="savedRoutes">
+              <option value="" disabled selected>💾 Choose from saved</option>
+              <!-- options populated dynamically -->
+            </select>
+          </div>
+
+          <!-- Current route display -->
+          <div id="currentRoute" class="current-route">No route selected</div>
+        </div>
+            <!-- Save option (hidden by default, shown only when logged in) -->
+            <div id="saveGpxOption" style="display: none; margin-top: 8px;">
+              <button id="saveGpxBtn">Save this GPX file to my account</button>
+            </div>
+            <!-- Save GPX Feedback Modal -->
+            <div id="saveGpxModal" class="modal" style="display:none;">
+              <div class="savegpx-modal-content">
+                <span id="closeSaveModal" class="close">&times;</span>
+                <p id="saveGpxModalMessage"></p>
+              </div>
+            </div>
             <!-- Hidden pop-out modal -->
             <div id="gpxHelpPopover" class="help-popover">
               <div class="help-popover-content">
@@ -51,7 +65,7 @@
                     GPX (GPS Exchange Format) files contain route, track, and waypoint data.
                 </p>
                 <p>
-                  You can create one using, for instance:
+                  You can create one using, for instance:</p>
                   <ul>
                     <li><a href="https://gpx.studio/" target="_blank">GPX Studio</a>
                     <span class="link-note">- fully flexible, create a route from scratch</span>
@@ -60,7 +74,6 @@
                     <span class="link-note">- starting from a Google Maps route</span>
                     </li>
                   </ul>
-                </p>
               </div>
             </div>
 
@@ -103,14 +116,14 @@
           <div>
             <label for="speedUp">Speed decrease uphill</label>
             <div class="input-with-suffix">
-              <input type="number" id="speedUp" min="0" max="100" step="1" value="30"/>
+              <input type="number" id="speedUp" min="0" max="100" step="0.1" value="30"/>
               <span class="suffix">%</span>
             </div>
           </div>
           <div>
             <label for="speedDown">Speed increase downhill</label>
             <div class="input-with-suffix">
-              <input type="number" id="speedDown" min="0" max="100" step="1" value="40"/>
+              <input type="number" id="speedDown" min="0" max="100" step="0.1" value="40"/>
               <span class="suffix">%</span>
             </div>
           </div>
@@ -168,23 +181,7 @@
             </div>
 
             <button id="processBtn" disabled>Process route & fetch forecast</button>
-
-            <div class="legend" id="legendTempBox">
-                <div><strong>Track color = temperature (°C)</strong></div>
-                <div class="legend-bar" id="legendBarTemp"></div>
-                <div class="legend-ticks" id="legendTicksTemp">
-                    <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
-                </div>
-            </div>
-            <div class="legend" id="legendWindBox" style="display:none">
-                <div><strong>Track color = wind</strong></div>
-                <div class="legend-bar" id="legendBarWind"></div>
-                <div class="legend-ticks" id="legendTicksWind">
-                    <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
-                </div>
-            </div>
         </div>
-
         <div class="group">
             <h3>Stats</h3>
             <div class="stats">
@@ -207,12 +204,12 @@
             </div>
         </div>
 
-        <div class="group">
+        <div class="group" id="logGroup">
             <h3>Log</h3>
             <div id="log">Load a GPX to begin.</div>
             <footer class="note">Open‑Meteo forecast is free to use. MeteoBlue requires your API key.</footer>
         </div>
-        <div class="group">
+        <div class="group" id="aboutMeGroup">
   <h3>About Me</h3>
   <div class="info">
     <p>Hi there - I'm Marti, the creator of this tool.<br>I built it to help my uncle plan his outdoor adventures with smarter weather insights. Hopefully you'll find it helpful too!</p>
@@ -228,15 +225,6 @@
     </aside>
     <div class="main-col">
         <main id="map" style="position: relative;">
-            <div id="progressOverlay" class="progress-overlay" style="display:none;">
-      <div class="progress-box">
-        <h3>Fetching forecasts…</h3>
-        <div class="progress-bar-container">
-          <div id="progressBar"></div>
-        </div>
-        <p id="progressText">0%</p>
-      </div>
-    </div>
         </main>
     <div id="timeSliderContainer">
       <!-- Label -->
@@ -283,10 +271,37 @@
         <span class="close">&times;</span>
         <h2>
             Choose optimization parameters
-            <a href="help.html#help-optimize" target="_blank" class="help-icon" title="Read more in Help">?</a>
+            <a href="./help.html#help-optimize" target="_blank" class="help-icon" title="Read more in Help">?</a>
         </h2>
         <form id="optimizeForm">
-
+          <fieldset id="compareFieldset" class="compare-toggle" hidden>
+            <legend class="two-routes">Pick two routes to compare</legend>
+                  <div class="route-picker">
+                <div class="gpx-picker">
+          <label class="help-wrapper">Route 1</label>
+          <div class="gpx-actions">
+            <button id="route1uploadBtn" class="uploadBtn" type="button">📂 Upload file</button>
+            <input type="file" id="route1gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
+              <label for="route1savedRoutes"></label><select id="route1savedRoutes" class="savedRoutes">
+              <option value="" disabled selected>💾 Choose from saved</option>
+            </select>
+          </div>
+          <div id="route1currentRoute" class="current-route">No route selected</div>
+        </div>
+                              <div class="gpx-picker">
+          <label class="help-wrapper">Route 2</label>
+          <div class="gpx-actions">
+            <button id="route2uploadBtn" class="uploadBtn" type="button">📂 Upload file</button>
+            <input type="file" id="route2gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
+              <label for="route2savedRoutes"></label><select id="route2savedRoutes" class="savedRoutes">
+              <option value="" disabled selected>💾 Choose from saved</option>
+            </select>
+          </div>
+          <div id="route2currentRoute" class="current-route">No route selected</div>
+        </div>
+        </div>
+              <label id="routeError" style="color:red; display:none;"></label>
+          </fieldset>
           <fieldset class="time-range">
             <legend class="allowed-range">Allowed start time range</legend>
               <!-- Row 1: Dates -->
@@ -304,22 +319,27 @@
               <div class="time-row">
                 <div>
                   <label for="optStartTimeMin">Earliest time:</label>
-                  <input type="time" id="optStartTimeMin" name="optStartTimeMin" step="900">
+                  <input type="time" id="optStartTimeMin" name="optStartTimeMin" value="07:00">
                 </div>
                 <div>
                   <label for="optStartTimeMax">Latest time:</label>
-                  <input type="time" id="optStartTimeMax" name="optStartTimeMax" step="900">
+                  <input type="time" id="optStartTimeMax" name="optStartTimeMax" value="09:00">
                 </div>
               </div>
               <label id="rangeError" style="color:red; display:none;"></label>
           </fieldset>
+            <fieldset id="singleStartFieldset" class="compare-toggle" hidden>
+              <legend class="param-legend">Start time</legend>
+              <label for="optSingleStartTime">Select the desired start time:</label>
+              <input type="datetime-local" id="optSingleStartTime" name="optSingleStartTime">
+            </fieldset>
         <fieldset class="sliders">
           <legend class="param-legend">Optimization weights and thresholds</legend>
           <div class="grid">
             <div class="form-group">
               <label for="rainSlider">
                 Minimize precipitation:
-                <span id="rainValue" class="slider-value">50%</span>
+                <span id="rainSliderValue" class="slider-value">50%</span>
               </label>
               <input type="range" id="rainSlider" name="rain" min="0" max="100" value="20">
             </div>
@@ -331,7 +351,7 @@
             <div class="form-group">
               <label for="windMaxSlider">
                 Minimize headwind:
-                <span id="windMaxValue" class="slider-value">50%</span>
+                <span id="windMaxSliderValue" class="slider-value">50%</span>
               </label>
               <input type="range" id="windMaxSlider" name="windMax" min="0" max="100" value="20">
             </div>
@@ -343,7 +363,7 @@
             <div class="form-group">
               <label for="windAvgSlider">
                 Minimize avg wind:
-                <span id="windAvgValue" class="slider-value">50%</span>
+                <span id="windAvgSliderValue" class="slider-value">50%</span>
               </label>
               <input type="range" id="windAvgSlider" name="windAvg" min="0" max="100" value="20">
             </div>
@@ -355,7 +375,7 @@
             <div class="form-group">
               <label for="tempSliderHot">
                 Minimize hot temperatures:
-                <span id="tempValueHot" class="slider-value">50%</span>
+                <span id="tempSliderHotValue" class="slider-value">50%</span>
               </label>
               <input type="range" id="tempSliderHot" name="temperature" min="0" max="100" value="20">
             </div>
@@ -366,7 +386,7 @@
                   <div class="form-group">
               <label for="tempSliderCold">
                 Minimize cold temperatures:
-                <span id="tempValueCold" class="slider-value">50%</span>
+                <span id="tempSliderColdValue" class="slider-value">50%</span>
               </label>
               <input type="range" id="tempSliderCold" name="temperature" min="0" max="100" value="20">
             </div>
@@ -387,32 +407,50 @@
                       <option value="60">60 min</option>
                     </select>
         </fieldset>
-          <button id= "optimizeButton" type="submit">Optimize</button>
+          <button id= "optimizeButton" type="submit" class="optimize-button">Optimize</button>
+            <button id= "compareButton" type="submit" class="compare-toggle" hidden>Find the optimal route</button>
         </form>
       </div>
     </div>
-        <div id="optimizeResultsModal" class="modal">
-          <div class="optimize-modal-content">
-              <span class="close">&times;</span>
-            <h2>Best Starting Times</h2>
-              <label>Select a starting time to see details</label>
-            <div id="optimizeResultsList"></div>
-          </div>
-        </div>
         <div class="charts">
-            <h3>Trip forecast</h3>
-                <canvas id="tempChart"></canvas>
-                <canvas id="precipChart"></canvas>
-                <canvas id="windChart"></canvas>
+        <h3>Trip forecast</h3>
+            <canvas id="tempChart"></canvas>
+            <canvas id="precipChart"></canvas>
+            <canvas id="windChart"></canvas>
         </div>
     </div>
 </div>
-<footer style="text-align:center; margin-top:2em; padding:1em; font-size:0.8em; color:#808080; border-top:1px solid #595959;">
-  © 2025 Marti — Licensed under the
-  <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer" class="contact-link">
-    GNU General Public License v3.0
-  </a>
-</footer>
+<div id="optimizeResultsModal" class="modal">
+  <div class="optimize-modal-content">
+      <span class="close">&times;</span>
+    <h2>Best Starting Times</h2>
+      <label>Select a starting time to see details</label>
+    <div id="optimizeResultsList"></div>
+  </div>
+</div>
+<div id="progressOverlay" class="progress-overlay" style="display:none;">
+  <div class="progress-box">
+    <h3 id="progressTitle">Fetching forecasts…</h3>
+    <div class="progress-bar-container">
+      <div id="progressBar"></div>
+    </div>
+    <p id="progressText">0%</p>
+  </div>
+</div>
+<div id="footer"></div>
+<script src="./js/common.js"></script>
+<!-- Goat Counter for logs and analytics -->
+<script data-goatcounter="https://martina-cioffi.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<!-- Firebase core + required services -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<!-- FirebaseUI for Web -->
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
+<script src="./js/auth.js"></script>
+<script type="module" src="./js/settings.js"></script>
 <!-- Leaflet JS -->
 <script
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -426,8 +464,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0"></script>
-<script type="module" src="./js/main.js"></script>
-<!-- Goat Counter for logs and analytics -->
-<script data-goatcounter="https://martina-cioffi.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script type="module" src="./js/main.js" defer></script>
 </body>
 </html>

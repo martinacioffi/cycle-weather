@@ -82,7 +82,7 @@ export function flagIconPoints(results, iconSpacingMeters, iconSpacingMinutes) {
 }
 
 export function ensureMap(provider, pictos) {
-      if (map) return { map, layerControl: null, baseLayers: null, overlays: null, weatherLayerGroup: null };
+      if (map) return { map, layerControl: null, baseLayers: null, overlays: null };
       map = L.map("map", { zoomControl: true, fullscreenControl: true });
       routeLayerGroup = L.layerGroup().addTo(map);
 
@@ -158,14 +158,10 @@ export function ensureMap(provider, pictos) {
 
     map.on('overlayadd', function(e) {
       if (e.name === "Temperature") {
-        document.getElementById("legendTempBox").style.display = "block";
-        document.getElementById("legendWindBox").style.display = "none";
         map.removeControl(windLegendControl);
         tempLegendControl.addTo(map);
       }
       if (e.name === "Wind") {
-        document.getElementById("legendTempBox").style.display = "none";
-        document.getElementById("legendWindBox").style.display = "block";
         map.removeControl(tempLegendControl);
         windLegendControl.addTo(map);
       }

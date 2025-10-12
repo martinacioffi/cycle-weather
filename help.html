@@ -11,35 +11,23 @@
             crossorigin=""
     />
    <link rel="stylesheet" href="./css/style.css">
-    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
-    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+    <link rel="icon" href="./images/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="32x32" href="./images/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
-<body>
-<header>
-  <div class="header-content">
-    <div class="header-left">
-      <a href="index.html" title="Back to home">
-          <img src="images/bike.jpg" alt="Logo" class="logo">
-        </a>
-      <div>
-        <h1>GPX Route Weather Forecast</h1>
-        <div class="sub">Documentation & Input Guide</div>
-      </div>
-    </div>
-  </div>
-</header>
-
+<body data-sub="Documentation & Input Guide" data-demo="false" data-compare="false">
+<header id="header"></header>
 <div class="help-wrap">
   <main class="help-content">
     <h2 id="help-intro">How to Use the Tool</h2>
     <p>This page explains the different inputs and options available in the app.</p>
 
 <h3 id="help-inputs">Inputs</h3>
-    <h4 id="help-gpx">GPX File</h4>
+    <h4 id="help-gpx">Route (GPX File)</h4>
     <p>Upload a GPX file containing your planned route. You can create one using <a href="https://gpx.studio/" target="_blank" class="contact-link">GPX Studio</a>,
-        <a href="https://mapstogpx.com/" target="_blank" class="contact-link">Maps to GPX</a>, or export it from other mapping tools.</p>
+        <a href="https://mapstogpx.com/" target="_blank" class="contact-link">Maps to GPX</a>, or export it from other mapping tools.
+    When logged in, you can choose the route from your saved ones, if any.</p>
     <h4 id="help-provider">Weather Provider</h4>
       <p>You can choose between two different weather providers:</p>
     <ul>
@@ -162,6 +150,10 @@
       <h4 id="help-optimize-granularity">Granularity</h4>
       <p>Controls the granularity of the candidate routes to be searched; e.g., a granularity of 20 minutes means that the
       optimization functions will scan routes starting every 20 minutes.</p>
+            <h3 id="help-compare">Compare</h3>
+      <p>The compare function lets you compare two different routes given a starting date and a set of optimization
+          parameters. See the <a href="#help-optimize-weights" style="color: inherit; text-decoration: none; cursor: pointer; font-style: italic;">
+              Optimization weights and thresholds</a> section above for details. Breaks are not supported.</p>
   </main>
 <aside class="on-this-page">
   <h4>On this page</h4>
@@ -170,7 +162,7 @@
       <ul>
         <li><a href="#help-inputs">Inputs</a>
           <ul>
-            <li><a href="#help-gpx">GPX File</a></li>
+            <li><a href="#help-gpx">Route (GPX File)</a></li>
             <li><a href="#help-provider">Weather Provider</a></li>
             <li><a href="#help-time">Start Time</a></li>
             <li><a href="#help-speed">Speed & Units</a></li>
@@ -197,15 +189,22 @@
                 <li><a href="#help-optimize-granularity">Granularity</a></li>
       </ul>
     </li>
+          <li><a href="#help-compare">Compare</a></li>
   </ul>
      </ul>
 </aside>
 </div>
-<footer style="text-align:center; margin-top:2em; padding:1em; font-size:0.8em; color:#help-808080; border-top:1px solid #help-595959;">
-  © 2025 Marti — Licensed under the
-  <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer" class="contact-link">
-    GNU General Public License v3.0
-  </a>
-</footer>
+<div id="footer"></div>
+<script src="./js/common.js"></script>
+<!-- Goat Counter for logs and analytics -->
+<script data-goatcounter="https://martina-cioffi.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<!-- Firebase core + required services -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<!-- FirebaseUI for Web -->
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
+<script src="./js/auth.js"></script>
 </body>
 </html>
