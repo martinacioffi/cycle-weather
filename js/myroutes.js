@@ -55,7 +55,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
         nameSpan.textContent = newName.trim();
         tsSpan.textContent = `Saved: just now`;
         if (typeof window.populateSavedRoutes === "function") {
-            console.log('updating routes');
           window.populateSavedRoutes(user);
         }
       }

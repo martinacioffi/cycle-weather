@@ -8,6 +8,7 @@ const inputFields = [
 ];
 
 const optimizationFields = [
+  "optSingleStartTime",
   "optStartTimeMin", "optStartTimeMax",
   "rainSlider", "maxAcceptableRain",
   "windMaxSlider", "maxAcceptableWindMax",
@@ -50,7 +51,10 @@ function applyUserDefaults(settings) {
       if (!el) return;
       if (key === "startTime" && settings.startTime) {
         el.value = expandTimeToTomorrow(settings.startTime);
-      } else {
+      } else if (key === "optSingleStartTime" && settings.startTime) {
+        el.value = expandTimeToTomorrow(settings.startTime);
+      }
+      else {
         el.value = settings[key] ?? el.value;
       }
     });
@@ -134,6 +138,14 @@ firebase.auth().onAuthStateChanged(user => {
           el.value = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T07:00`;
         }
       }
+      if (key === "optSingleStartTime" && el.type === "datetime-local") {
+          if (!el.defaultValue) {
+            const pad = n => n.toString().padStart(2, "0");
+            const now = new Date();
+            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            el.value = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T07:00`;
+          }
+        }
     });
 
     updateLabels();
@@ -149,6 +161,10 @@ firebase.auth().onAuthStateChanged(user => {
       if (el && !settings.startTime && !sessionStorage.getItem("startTime")) {
         el.value = expandTimeToTomorrow("07:00");
       }
+      const singleEl = document.getElementById("optSingleStartTime");
+        if (singleEl && !settings.startTime && !sessionStorage.getItem("startTime")) {
+          singleEl.value = expandTimeToTomorrow("07:00");
+        }
     })
     .catch(error => {
       console.error("Error loading settings:", error);

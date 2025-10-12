@@ -174,15 +174,14 @@ async function populateSavedRoutes(user) {
                              .orderBy("uploadedAt", "desc")
                              .get();
 
-    if (!savedRoutes) return;
-
-    savedRoutesSelect.innerHTML = '<option value="" disabled selected>💾 Choose from saved</option>';
+    document.querySelectorAll('select[id$="savedRoutes"]').forEach(select => {
+      select.innerHTML = '<option value="" disabled selected>💾 Choose from saved</option>';
     if (snapshot.empty) {
       // Add a disabled "no routes" option that only shows in the dropdown
       const opt = document.createElement("option");
       opt.disabled = true;
       opt.textContent = "No saved routes yet";
-      savedRoutes.appendChild(opt);
+      select.appendChild(opt);
       return;
     }
 
@@ -191,12 +190,15 @@ async function populateSavedRoutes(user) {
       const opt = document.createElement("option");
       opt.value = doc.id;
       opt.textContent = data.displayName || "Unnamed route";
-      savedRoutes.appendChild(opt);
+      select.appendChild(opt);
     });
+  });
 
   } catch (err) {
     console.error("Error loading saved routes:", err);
-    savedRoutes.innerHTML = '<option value="">(Error loading routes)</option>';
+    document.querySelectorAll('select[id$="savedRoutes"]').forEach(select => {
+      select.innerHTML = '<option value="">(Error loading routes)</option>';
+    });
   }
 }
 
@@ -205,40 +207,49 @@ window.populateSavedRoutes = populateSavedRoutes;
 const savedRoutesSelect = document.getElementById("savedRoutes");
 const currentRoute = document.getElementById("currentRoute");
 
-if (savedRoutesSelect && currentRoute) {
-savedRoutesSelect.addEventListener("change", async (e) => {
-  const id = e.target.value;
-  const user = firebase.auth().currentUser;
-  if (!id || !user) return;
+// Inline listener binding
+document.querySelectorAll('select[id$="savedRoutes"]').forEach(select => {
+  if (select.dataset.listenerAttached) return;
 
-  const db = firebase.firestore();
-  const doc = await db.collection("usersFiles")
-                      .doc(user.uid)
-                      .collection("gpxFiles")
-                      .doc(id)
-                      .get();
+  select.addEventListener("change", async (e) => {
+    const id = e.target.value;
+    const user = firebase.auth().currentUser;
+    if (!id || !user) return;
 
-  if (doc.exists) {
-    const data = doc.data();
-    let text = data.gpxContent;
-    if (data.isCompressed) text = decompressText(text);
-    handleGpxLoad(data.displayName, text);
+    const db = firebase.firestore();
+    const doc = await db.collection("usersFiles")
+                        .doc(user.uid)
+                        .collection("gpxFiles")
+                        .doc(id)
+                        .get();
 
-    // Update currentRoute display
-    currentRoute.textContent = data.displayName || "Unnamed route";
-    currentRoute.title = data.name || "Unnamed route";
-    currentRoute.classList.add("active");
+    if (doc.exists) {
+      const data = doc.data();
+      let text = data.gpxContent;
+      if (data.isCompressed) text = decompressText(text);
+      const prefix = select.id.replace("savedRoutes", "");
+      handleGpxLoad(data.displayName, text, prefix);
 
-    // Reset dropdown back to placeholder
-    savedRoutesSelect.selectedIndex = 0;
-  }
+      // Match the corresponding "current route" display
+      const currentRouteEl = document.getElementById(prefix + "currentRoute");
+      if (currentRouteEl) {
+        currentRouteEl.textContent = data.displayName || "Unnamed route";
+        currentRouteEl.title = data.name || "Unnamed route";
+        currentRouteEl.classList.add("active");
+      }
+
+      select.selectedIndex = 0;
+    }
+
     goatcounter.count({
-       path: `/loadedSavedRoute`,
-       title: `Loaded Route from Saved`,
-       event: true
+      path: `/loadedSavedRoute`,
+      title: `Loaded Route from Saved`,
+      event: true
     });
+  });
+
+  select.dataset.listenerAttached = "true";
 });
-}
 
 // --- Auth State Handling ---
 firebase.auth().onAuthStateChanged(async user => {
@@ -248,7 +259,9 @@ firebase.auth().onAuthStateChanged(async user => {
     // Show avatar, hide login button
     loginBtn.style.display = "none";
     userAvatar.style.display = "inline-block";
-    if (savedRoutes) savedRoutes.style.display = "inline-block";
+    document.querySelectorAll('select[id$="savedRoutes"]').forEach(select => {
+  select.style.display = "inline-block";
+});
 
     // Use user's photo or fallback
     userAvatar.src = user.photoURL || "https://i.imgur.com/8Km9tLL.png";
@@ -269,7 +282,9 @@ firebase.auth().onAuthStateChanged(async user => {
     loginBtn.style.display = "inline-block";
     userAvatar.style.display = "none";
     avatarMenu.style.display = "none";
-    if (savedRoutes) savedRoutes.style.display = "none";
+    document.querySelectorAll('select[id$="savedRoutes"]').forEach(select => {
+  select.style.display = "none";
+});
   }
 });
 
@@ -280,7 +295,6 @@ firebase.auth().onAuthStateChanged(async user => {
       if (file) {
         const text = await file.text();
         sessionStorage.setItem("gpxFileName", file.name);
-        sessionStorage.setItem("gpxFileContent", text);
         currentFile = file;
         updateSaveVisibility();
       }

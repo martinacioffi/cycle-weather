@@ -20,5 +20,12 @@ async function loadLayout() {
     demoBtn.style.display = "none";
   }
 
+  const compareBtn = document.getElementById("compareBtn");
+  if (compareBtn && document.body.dataset.compare !== "true") {
+    compareBtn.style.display = "none";
+  }
+
   document.dispatchEvent(new Event("layoutReady"));
 }
+
+document.addEventListener("DOMContentLoaded", loadLayout);

@@ -19,6 +19,7 @@
 <body
         data-sub="Upload GPX → set start time, speed & breaks → see forecast along your route"
         data-demo="true"
+        data-compare="true"
 >
 <header id="header"></header>
 <div class="wrap">
@@ -32,11 +33,11 @@
             </label>
           <div class="gpx-actions">
             <!-- Upload -->
-            <button id="uploadBtn" type="button">📂 Upload file</button>
+            <button id="uploadBtn" class="uploadBtn" type="button">📂 Upload file</button>
             <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
 
             <!-- Saved routes dropdown -->
-              <label for="savedRoutes"></label><select id="savedRoutes">
+              <label for="savedRoutes"></label><select id="savedRoutes" class="savedRoutes">
               <option value="" disabled selected>💾 Choose from saved</option>
               <!-- options populated dynamically -->
             </select>
@@ -64,7 +65,7 @@
                     GPX (GPS Exchange Format) files contain route, track, and waypoint data.
                 </p>
                 <p>
-                  You can create one using, for instance:
+                  You can create one using, for instance:</p>
                   <ul>
                     <li><a href="https://gpx.studio/" target="_blank">GPX Studio</a>
                     <span class="link-note">- fully flexible, create a route from scratch</span>
@@ -73,7 +74,6 @@
                     <span class="link-note">- starting from a Google Maps route</span>
                     </li>
                   </ul>
-                </p>
               </div>
             </div>
 
@@ -181,7 +181,7 @@
             </div>
 
             <button id="processBtn" disabled>Process route & fetch forecast</button>
-
+        </div>
         <div class="group">
             <h3>Stats</h3>
             <div class="stats">
@@ -225,15 +225,6 @@
     </aside>
     <div class="main-col">
         <main id="map" style="position: relative;">
-            <div id="progressOverlay" class="progress-overlay" style="display:none;">
-      <div class="progress-box">
-        <h3>Fetching forecasts…</h3>
-        <div class="progress-bar-container">
-          <div id="progressBar"></div>
-        </div>
-        <p id="progressText">0%</p>
-      </div>
-    </div>
         </main>
     <div id="timeSliderContainer">
       <!-- Label -->
@@ -283,7 +274,34 @@
             <a href="./help.html#help-optimize" target="_blank" class="help-icon" title="Read more in Help">?</a>
         </h2>
         <form id="optimizeForm">
-
+          <fieldset id="compareFieldset" class="compare-toggle" hidden>
+            <legend class="two-routes">Pick two routes to compare</legend>
+                  <div class="route-picker">
+                <div class="gpx-picker">
+          <label class="help-wrapper">Route 1</label>
+          <div class="gpx-actions">
+            <button id="route1uploadBtn" class="uploadBtn" type="button">📂 Upload file</button>
+            <input type="file" id="route1gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
+              <label for="route1savedRoutes"></label><select id="route1savedRoutes" class="savedRoutes">
+              <option value="" disabled selected>💾 Choose from saved</option>
+            </select>
+          </div>
+          <div id="route1currentRoute" class="current-route">No route selected</div>
+        </div>
+                              <div class="gpx-picker">
+          <label class="help-wrapper">Route 2</label>
+          <div class="gpx-actions">
+            <button id="route2uploadBtn" class="uploadBtn" type="button">📂 Upload file</button>
+            <input type="file" id="route2gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
+              <label for="route2savedRoutes"></label><select id="route2savedRoutes" class="savedRoutes">
+              <option value="" disabled selected>💾 Choose from saved</option>
+            </select>
+          </div>
+          <div id="route2currentRoute" class="current-route">No route selected</div>
+        </div>
+        </div>
+              <label id="routeError" style="color:red; display:none;"></label>
+          </fieldset>
           <fieldset class="time-range">
             <legend class="allowed-range">Allowed start time range</legend>
               <!-- Row 1: Dates -->
@@ -310,6 +328,11 @@
               </div>
               <label id="rangeError" style="color:red; display:none;"></label>
           </fieldset>
+            <fieldset id="singleStartFieldset" class="compare-toggle" hidden>
+              <legend class="param-legend">Start time</legend>
+              <label for="optSingleStartTime">Select the desired start time:</label>
+              <input type="datetime-local" id="optSingleStartTime" name="optSingleStartTime">
+            </fieldset>
         <fieldset class="sliders">
           <legend class="param-legend">Optimization weights and thresholds</legend>
           <div class="grid">
@@ -384,25 +407,35 @@
                       <option value="60">60 min</option>
                     </select>
         </fieldset>
-          <button id= "optimizeButton" type="submit">Optimize</button>
+          <button id= "optimizeButton" type="submit" class="optimize-button">Optimize</button>
+            <button id= "compareButton" type="submit" class="compare-toggle" hidden>Find the optimal route</button>
         </form>
       </div>
     </div>
-        <div id="optimizeResultsModal" class="modal">
-          <div class="optimize-modal-content">
-              <span class="close">&times;</span>
-            <h2>Best Starting Times</h2>
-              <label>Select a starting time to see details</label>
-            <div id="optimizeResultsList"></div>
-          </div>
-        </div>
         <div class="charts">
-            <h3>Trip forecast</h3>
-                <canvas id="tempChart"></canvas>
-                <canvas id="precipChart"></canvas>
-                <canvas id="windChart"></canvas>
+        <h3>Trip forecast</h3>
+            <canvas id="tempChart"></canvas>
+            <canvas id="precipChart"></canvas>
+            <canvas id="windChart"></canvas>
         </div>
     </div>
+</div>
+<div id="optimizeResultsModal" class="modal">
+  <div class="optimize-modal-content">
+      <span class="close">&times;</span>
+    <h2>Best Starting Times</h2>
+      <label>Select a starting time to see details</label>
+    <div id="optimizeResultsList"></div>
+  </div>
+</div>
+<div id="progressOverlay" class="progress-overlay" style="display:none;">
+  <div class="progress-box">
+    <h3 id="progressTitle">Fetching forecasts…</h3>
+    <div class="progress-bar-container">
+      <div id="progressBar"></div>
+    </div>
+    <p id="progressText">0%</p>
+  </div>
 </div>
 <div id="footer"></div>
 <script src="./js/common.js"></script>
@@ -418,7 +451,6 @@
 <script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
 <script src="./js/auth.js"></script>
 <script type="module" src="./js/settings.js"></script>
-<script>loadLayout();</script>
 <!-- Leaflet JS -->
 <script
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -432,6 +464,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0"></script>
-<script type="module" src="./js/main.js"></script>
+<script type="module" src="./js/main.js" defer></script>
 </body>
 </html>

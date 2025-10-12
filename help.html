@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
-<body data-sub="Documentation & Input Guide" data-demo="false">
+<body data-sub="Documentation & Input Guide" data-demo="false" data-compare="false">
 <header id="header"></header>
 <div class="help-wrap">
   <main class="help-content">
@@ -24,9 +24,10 @@
     <p>This page explains the different inputs and options available in the app.</p>
 
 <h3 id="help-inputs">Inputs</h3>
-    <h4 id="help-gpx">GPX File</h4>
+    <h4 id="help-gpx">Route (GPX File)</h4>
     <p>Upload a GPX file containing your planned route. You can create one using <a href="https://gpx.studio/" target="_blank" class="contact-link">GPX Studio</a>,
-        <a href="https://mapstogpx.com/" target="_blank" class="contact-link">Maps to GPX</a>, or export it from other mapping tools.</p>
+        <a href="https://mapstogpx.com/" target="_blank" class="contact-link">Maps to GPX</a>, or export it from other mapping tools.
+    When logged in, you can choose the route from your saved ones, if any.</p>
     <h4 id="help-provider">Weather Provider</h4>
       <p>You can choose between two different weather providers:</p>
     <ul>
@@ -149,6 +150,10 @@
       <h4 id="help-optimize-granularity">Granularity</h4>
       <p>Controls the granularity of the candidate routes to be searched; e.g., a granularity of 20 minutes means that the
       optimization functions will scan routes starting every 20 minutes.</p>
+            <h3 id="help-compare">Compare</h3>
+      <p>The compare function lets you compare two different routes given a starting date and a set of optimization
+          parameters. See the <a href="#help-optimize-weights" style="color: inherit; text-decoration: none; cursor: pointer; font-style: italic;">
+              Optimization weights and thresholds</a> section above for details. Breaks are not supported.</p>
   </main>
 <aside class="on-this-page">
   <h4>On this page</h4>
@@ -157,7 +162,7 @@
       <ul>
         <li><a href="#help-inputs">Inputs</a>
           <ul>
-            <li><a href="#help-gpx">GPX File</a></li>
+            <li><a href="#help-gpx">Route (GPX File)</a></li>
             <li><a href="#help-provider">Weather Provider</a></li>
             <li><a href="#help-time">Start Time</a></li>
             <li><a href="#help-speed">Speed & Units</a></li>
@@ -184,6 +189,7 @@
                 <li><a href="#help-optimize-granularity">Granularity</a></li>
       </ul>
     </li>
+          <li><a href="#help-compare">Compare</a></li>
   </ul>
      </ul>
 </aside>
@@ -200,6 +206,5 @@
 <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
 <script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
 <script src="./js/auth.js"></script>
-<script>loadLayout();</script>
 </body>
 </html>

@@ -1,7 +1,8 @@
 import {
-  haversine, formatKm, formatDuration, speedToMps, log, interpolateValues,
+  haversine, formatKm, formatDuration, speedToMps, log, interpolateValues, closestIndex,
   makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates, normalizeDateTimeLocal,
-  updateLegendRange, getPercentInput, roundToNearestQuarter, updateLabels, toLocalDateTimeString
+  updateLegendRange, getPercentInput, roundToNearestQuarter, updateLabels, toLocalDateTimeString,
+  parseDateInput, parseTimeInput, createProgressUpdater
 } from './utils.js';
 
 import {
@@ -52,7 +53,13 @@ let initialMetrics;
 // ---------- DOM Elements (match your HTML) ----------
 const fileInput = document.getElementById("gpxFile");
 const uploadBtn = document.getElementById("uploadBtn");
+const uploadBtn1 = document.getElementById("route1uploadBtn");
+const uploadBtn2 = document.getElementById("route2uploadBtn");
+const chooseBtn1 = document.getElementById("route1savedRoutes");
+const chooseBtn2 = document.getElementById("route2savedRoutes");
 const currentRoute = document.getElementById("currentRoute");
+const currentRoute1 = document.getElementById("route1currentRoute");
+const currentRoute2 = document.getElementById("route2currentRoute");
 const saveOption = document.getElementById("saveGpxOption");
 const providerSel = document.getElementById("provider");
 const meteoblueKeyInput = document.getElementById("meteoblueKey");
@@ -86,6 +93,11 @@ const optimizeMinutes = document.getElementById("granularityMinutes");
 const optimizeCheckbox = document.getElementById("optimizeStart");
 const modal = document.getElementById("optimizeModal");
 const closeBtn = modal.querySelector(".close");
+const progressOverlay = document.getElementById("progressOverlay");
+const progressBar = document.getElementById("progressBar");
+const progressText = document.getElementById("progressText");
+const progressTitle = document.getElementById("progressTitle");
+const optSingleStartTime = document.getElementById("optSingleStartTime");
 const optStartDateMin = document.getElementById("optStartDateMin");
 const optStartDateMax = document.getElementById("optStartDateMax");
 const optStartTimeMin = document.getElementById("optStartTimeMin");
@@ -93,8 +105,10 @@ const optStartTimeMax = document.getElementById("optStartTimeMax");
 const maxAcceptableTemp = document.getElementById("maxAcceptableTemp");
 const minAcceptableTemp = document.getElementById("minAcceptableTemp");
 const optimizeBtn = document.getElementById("optimizeButton");
+const compareBtn = document.getElementById("compareButton");
 const errorMsg = document.getElementById("rangeError");
 const errorMsgTemp = document.getElementById("tempRangeError");
+const errorMsgRoutes = document.getElementById("routeError");
 const sliders = [
   { id: "rainSlider", valueId: "rainSliderValue" },
   { id: "windMaxSlider", valueId: "windMaxSliderValue" },
@@ -107,7 +121,17 @@ const isMobile = window.innerWidth <= 768;
 // ---------- Init ----------
 document.getElementById("timeSliderContainer").classList.add("disabled");
 
-uploadBtn.addEventListener("click", () => fileInput.click());
+[
+  { btnId: "uploadBtn",   inputId: "gpxFile" },
+  { btnId: "route1uploadBtn", inputId: "route1gpxFile" },
+  { btnId: "route2uploadBtn", inputId: "route2gpxFile" }
+].forEach(pair => {
+  const btn = document.getElementById(pair.btnId);
+  const input = document.getElementById(pair.inputId);
+  if (btn && input) {
+    btn.addEventListener("click", () => input.click());
+  }
+});
 
 window.addEventListener("DOMContentLoaded", () => {
   // Set default start time to tomorrow at 07:00 (LOCAL string for datetime-local)
@@ -120,11 +144,6 @@ window.addEventListener("DOMContentLoaded", () => {
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
   startTimeInput.value = formatDateTimeLocal(tomorrow);
-  /*timeSliderLabel.textContent = tomorrow.toLocaleString([], {
-      dateStyle: "short",
-      timeStyle: "short"
-    });*/
-
   const initialVal = parseInt(sessionStorage.getItem("sliderValue") || "0", 10);
   slider.value = initialVal || 186;
 
@@ -134,18 +153,22 @@ window.addEventListener("DOMContentLoaded", () => {
   optStartDateMin.max = optStartDateMax.max = formatDateLocal(maxDate);
   optStartDateMin.value = formatDateLocal(todayMidnight);
   optStartDateMax.value = formatDateLocal(maxDate);
+
+  const todayMidnightTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const maxDateTime = new Date(todayMidnightTime.getTime() + 7 * 24 * 60 * 60 * 1000 - 8 * 60 * 60 * 1000);
+  optSingleStartTime.min = formatDateTimeLocal(todayMidnightTime);
+  optSingleStartTime.max = formatDateTimeLocal(maxDateTime);
+  optSingleStartTime.value = formatDateTimeLocal(tomorrow);
   optStartTimeMin.value = "07:00";
   optStartTimeMax.value = "09:00";
 
-  // Initialize map
   const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
   ({ map, layerControl, baseLayers, overlays } = ensureMap(providerSel.value, pictos));
   tempLayerGroup = overlays["Temperature"];
   windLayerGroup = overlays["Wind"];
-  // Initial attribution sync
   map.on("moveend zoomend", () => {
   const view = {
-    center: map.getCenter(), // {lat, lng}
+    center: map.getCenter(),
     zoom: map.getZoom()
   };
   sessionStorage.setItem("mapView", JSON.stringify(view));
@@ -232,7 +255,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   map.on("zoomend", () => {
   const zoom = map.getZoom();
-  // pick a scaling factor relative to zoom
   const scale = Math.max(0.4, 0.9 + (zoom - 10) * 0.15);
 
   document.querySelectorAll(".weather-icon, .break-icon, .flag-icon").forEach(el => {
@@ -243,6 +265,7 @@ window.addEventListener("DOMContentLoaded", () => {
   validateReady();
   restoreFromSession();
 });
+
   // ---------- Restore GPX from sessionStorage ----------
 async function restoreFromSession() {
     console.log("Restoring settings from sessionStorage...");
@@ -364,15 +387,24 @@ async function restoreFromSession() {
 }
 
 // ---------- Helpers ----------
-async function handleGpxLoad(name, text) {
-  sessionStorage.setItem("gpxFileName", name);
-  await saveResult("gpxFileContent", gpxText);
+async function handleGpxLoad(name, text, prefix = "") {
+  sessionStorage.setItem(prefix + "gpxFileName", name);
+  await saveResult(prefix + "gpxFileContent", text);
   gpxText = text;
-  currentRoute.textContent = name;
-  currentRoute.title = name;
-  currentRoute.classList.add("active");
-  updateSaveButtonVisibility(name, text);
-  log(`Loaded route: ${name}`);
+  const currentRouteEl = document.getElementById(prefix + "currentRoute");
+  if (currentRouteEl) {
+    currentRouteEl.textContent = name || "Unnamed route";
+    currentRouteEl.title = name || "Unnamed route";
+    currentRouteEl.classList.add("active");
+  }
+
+  if (!prefix) {
+    updateSaveButtonVisibility(name, text);
+    log(`Loaded route: ${name}`);
+  }
+  else {
+  validateDifferentRoutes();
+  }
   validateReady();
 }
 window.handleGpxLoad = handleGpxLoad;
@@ -391,8 +423,8 @@ function adjustSlider(steps) {
   ));
   slider.value = newVal;
   sessionStorage.setItem("sliderValue", newVal);
-  slider.dispatchEvent(new Event("input")); // trigger existing handler
-  updateStepButtons(); // refresh button states
+  slider.dispatchEvent(new Event("input"));
+  updateStepButtons();
 }
 
 function validateTempRanges() {
@@ -414,29 +446,65 @@ function validateTempRanges() {
     }
 }
 
+async function validateDifferentRoutes() {
+  let valid = true;
+  let messages = [];
+
+  const gpx1 = await loadResult("route1gpxFileContent") || "";
+  const gpx2 = await loadResult("route2gpxFileContent") || "";
+
+  if (!gpx1 || !gpx2) {
+    valid = false;
+  } else {
+    if (gpx1.trim() === gpx2.trim()) {
+      valid = false;
+      messages.push("The two routes are identical. Please select different GPX files.");
+    }
+  }
+
+  if (valid) {
+    compareBtn.disabled = false;
+    errorMsgRoutes.style.display = "none";
+  } else {
+    compareBtn.disabled = true;
+    errorMsgRoutes.textContent = messages.join(" ");
+    errorMsgRoutes.style.display = "block";
+  }
+}
+
 function validateRanges() {
   let valid = true;
   let messages = [];
 
-  // Date check
+  let dMin, dMax, minMinutes, maxMinutes;
   if (optStartDateMin.value && optStartDateMax.value) {
-    const dMin = new Date(optStartDateMin.value);
-    const dMax = new Date(optStartDateMax.value);
+    dMin = new Date(optStartDateMin.value);
+    dMax = new Date(optStartDateMax.value);
     if (dMin > dMax) {
       valid = false;
       messages.push("Earliest date must be before latest date.");
     }
   }
 
-  // Time check
   if (optStartTimeMin.value && optStartTimeMax.value) {
     const [h1, m1] = optStartTimeMin.value.split(":").map(Number);
     const [h2, m2] = optStartTimeMax.value.split(":").map(Number);
-    const minMinutes = h1 * 60 + m1;
-    const maxMinutes = h2 * 60 + m2;
+    minMinutes = h1 * 60 + m1;
+    maxMinutes = h2 * 60 + m2;
     if (minMinutes > maxMinutes) {
       valid = false;
       messages.push("Earliest time must be before latest time.");
+    }
+  }
+
+  if (dMin && dMax && minMinutes !== undefined && maxMinutes !== undefined) {
+    if (dMin.getTime() === dMax.getTime() && minMinutes >= maxMinutes) {
+      valid = false;
+      messages.push("If dates are equal, earliest time must be strictly before latest time.");
+    }
+    if (minMinutes === maxMinutes && dMin >= dMax) {
+      valid = false;
+      messages.push("If times are equal, earliest date must be strictly before latest date.");
     }
   }
 
@@ -523,18 +591,6 @@ function addBreakMarker(marker) {
   breakMarkers.push(marker);
 }
 
-function parseDateInput(value) {
-  // value is "YYYY-MM-DD"
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, m - 1, d); // local midnight
-}
-
-function parseTimeInput(value) {
-  // value is "HH:MM"
-  const [h, min] = value.split(":").map(Number);
-  return { hours: h, minutes: min };
-}
-
 function computeMetrics(weights, results, start) {
   const aligned = pickForecastAtETAs(results, start);
 
@@ -592,34 +648,43 @@ function computeMetrics(weights, results, start) {
   return res;
 }
 
-function optimizeStartTime(results, timeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights) {
+async function optimizeStartTime(results, timeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights) {
   const optimizeSteps = timeSteps.filter((t, idx) => {
-    // idx * stepMinutes = minutes offset from globalMinTime
     const minutesFromStart = idx * stepMinutes;
     return minutesFromStart % optimizeMinutes.value === 0;
   });
 
-  // Filter candidate times within allowed range
   const candidates = filterCandidates(optimizeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts);
   if (candidates.length === 0) return null;
-  // Helper: normalize array to 0–1
-  const normalizeFixed = (value, min, max) => {
-    return (value - min) / (max - min);
-  };
-  const scores = candidates.map(start => computeMetrics(weights, results, start));
 
-  // Pick best
+  progressTitle.textContent = "Checking starting times…";
+  progressOverlay.style.display = "flex";
+
+  const updateProgress = createProgressUpdater({progressBar, progressText, progressOverlay,
+    total: candidates.length, titleEl: progressTitle});
+
+  const scores = [];
+  for (const start of candidates) {
+    const metrics = computeMetrics(weights, results, start);
+    scores.push(metrics);
+    updateProgress();
+    await new Promise(r => setTimeout(r, 0));
+  }
   scores.sort((a, b) => a.score - b.score);
-  return scores.slice(0, 5); // best 5 candidates
+  return scores.slice(0, 5);
 }
 
 function updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing,
-minSpacingDense, minTimeSpacingDense, pictos) {
+minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false) {
   if (!aligned  || !aligned.length) {
     log("No forecast results to render.");
     return;
   }
-  // Clear old layers
+  if (updateBounds) {
+  const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
+  map.fitBounds(bounds.pad(0.1))
+  }
+
   overlays["Temperature"].clearLayers();
   overlays["Wind"].clearLayers();
   clearWeatherMarkers();
@@ -628,12 +693,10 @@ minSpacingDense, minTimeSpacingDense, pictos) {
   clearBreakMarkers();
   routeLayerGroup.clearLayers();
 
-  // Outline
   const fullRoute = points.map(p => [p.lat, p.lon]);
   const outline = L.polyline(fullRoute, { color: "black", weight: 8, opacity: 0.85 });
   routeLayerGroup.addLayer(outline);
 
-  // Temperature
   const temps = aligned.map(r => r.tempC).filter(t => isFinite(t));
   let minT = Math.min(...temps);
   let maxT = Math.max(...temps);
@@ -653,7 +716,6 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     tempLayerGroup.addLayer(seg);
   }
 
-  // Wind
   const winds = aligned.map(r => r.windEffectiveKmH).filter(w => isFinite(w));
   let minW = Math.min(...winds);
   let maxW = Math.max(...winds);
@@ -672,7 +734,6 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     windLayerGroup.addLayer(seg);
   }
 
-  // Legends
   updateLegendRange(minT, maxT, "legendBarMap", "legendTicksMap", "temp");
   updateLegendRange(minT, maxT, "legendBarTemp", "legendTicksTemp", "temp");
   updateLegendRange(minW, maxW, "legendBarWind", "legendTicksWind", "wind");
@@ -683,7 +744,6 @@ minSpacingDense, minTimeSpacingDense, pictos) {
   currentMinW = minW;
   currentMaxW = maxW;
 
-  // Start/end/break markers
   const startFlag = flagIcon("🚩");
   const startMarker = L.marker([aligned[0].lat, aligned[0].lon], { icon: startFlag, title: "Start" })
     .addTo(breakMarkersLayerGroup);
@@ -706,7 +766,6 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     addBreakMarker(breakMarker);
   }
 
-  // Weather/wind markers + popups
   const resultsWithFlags = flagIconPoints(aligned, minSpacing, minTimeSpacing);
   let wetPts = 0;
   for (const r of resultsWithFlags) {
@@ -722,17 +781,15 @@ minSpacingDense, minTimeSpacingDense, pictos) {
     weatherMarker._baseVisible = (!isBreak && r.showIcon);
     addWeatherMarker(weatherMarker);
 
-      // Wind barb marker
     const windDiv = createWindIcon(windSVG);
     const windMarker = L.marker([r.lat, r.lon], { icon: windDiv, opacity: (!isBreak && windLayerVisible && r.showIcon) ? 1 : 0 }).addTo(windMarkersLayerGroup);
     windMarker._baseVisible = (!isBreak && r.showIcon);
     addWindMarker(windMarker);
 
     const windKmh = (r.windKmH).toFixed(1);
-    const etaForLabel = new Date(r.eta);  // parse the ISO string into a Date
+    const etaForLabel = new Date(r.eta);
     const etaStr = etaForLabel.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
     const etaLabel = isBreak ? `During Break: ${etaStr}` : `ETA: ${etaStr}`;
-    // Decide headwind/tailwind
     let windLabel;
     const eff = r.windEffectiveKmH;
     const effRounded = Math.round(eff * 10) / 10;
@@ -785,7 +842,6 @@ minSpacingDense, minTimeSpacingDense, pictos) {
   document.getElementById("statTempRange").textContent = `${minT.toFixed(1)}°C → ${maxT.toFixed(1)}°C`;
   document.getElementById("statWetShare").textContent = Math.round(100 * wetPts / aligned.length) + "%";
 
-  // Charts
   let chartSeries = resultsWithFlags
     .map(r => ({
       t: r.eta, tempC: r.tempC, feltTempC: r.feltTempC, gusts: r.gusts,
@@ -801,7 +857,246 @@ minSpacingDense, minTimeSpacingDense, pictos) {
   buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
 }
 
+async function getForecastForRoute(prefix) {
+  const gpxText = await loadResult(prefix + "gpxFileContent");
+  if (!gpxText) {
+    throw new Error(`No GPX content found for ${prefix}. Upload a file or pick a saved route.`);
+  }
+
+  const startDate = new Date(document.getElementById("optSingleStartTime").value);
+  const speedVal = parseFloat(speedInput.value);
+  const mps = speedToMps(speedVal, speedUnit.value);
+  const mpsUp = speedToMps(speedVal * (1 - getPercentInput("speedUp") ?? 0), speedUnit.value);
+  const mpsDown = speedToMps(speedVal * (1 + getPercentInput("speedDown") ?? 0), speedUnit.value);
+  const maxCalls = parseInt(document.getElementById("maxCalls").value, 10);
+  const minSpacingDense = parseInt(sampleMetersSelectDense.value, 10);
+  const minTimeSpacingDense = parseInt(sampleMinutesSelectDense.value, 10);
+  const provider = providerSel.value;
+  const pictos = provider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+  const mbKey = document.getElementById("meteoblueKey").value;
+
+  const pointsRaw = parseGPX(gpxText);
+  const points = insertBreaksIntoPoints(pointsRaw, [], minTimeSpacingDense);
+  sessionStorage.setItem(prefix + "gpxPoints", JSON.stringify(points));
+  const { cum } = cumulDistance(points);
+  const brngs = segmentBearings(points);
+
+  const sampleIdx = buildSampleIndices(points, brngs, cum, maxCalls,
+    minSpacingDense, minTimeSpacingDense, mps, mpsUp, mpsDown, startDate, []
+  );
+  sessionStorage.setItem(prefix + "gpxSampleIndices", JSON.stringify(sampleIdx));
+
+  const results = [];
+  const errors = [];
+  const CONCURRENCY = 8;
+  let i = 0;
+
+  progressTitle.textContent = "Fetching forecasts…";
+  progressOverlay.style.display = "flex";
+
+  const updateProgress = createProgressUpdater({progressBar, progressText, progressOverlay,
+    total: sampleIdx.length, titleEl: progressTitle});
+
+  async function worker() {
+    while (i < sampleIdx.length) {
+      const my = i++;
+      const p = sampleIdx[my];
+
+      try {
+        const fc = await getForecast(p.lat, p.lon, provider, mbKey);
+        results.push({
+          ...p,
+          times: fc.times.map(t => new Date(t)),
+          tempC: fc.tempC.map(Number),
+          feltTempC: fc.feltTempC.map(Number),
+          gusts: fc.windGusts.map(Number),
+          windKmH: fc.windSpeedKmH.map(Number),
+          windDeg: fc.windFromDeg.map(Number),
+          windEffectiveKmH: fc.windSpeedKmH.map((spd, i) =>
+            effectiveWind(p.travelBearing, fc.windFromDeg[i], spd)
+          ),
+          precip: fc.precipMmHr.map(Number),
+          precipProb: fc.precipProb.map(Number),
+          cloudCover: fc.cloudCover.map(Number),
+          cloudCoverLow: fc.cloudCoverLow.map(Number),
+          isDay: fc.isDay.map(Number),
+          pictocode: fc.pictocode.map(v => Number(v ?? -1)),
+        });
+      } catch (e) {
+        errors.push({ my, reason: e.message });
+      } finally {
+      updateProgress();
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
+  await Promise.all(workers);
+  await saveResult(prefix + "gpxResults", JSON.stringify(results));
+
+  if (errors.length) {
+    console.warn(`Forecast completed with ${errors.length} issues for ${prefix}`);
+  }
+
+  return results;
+}
+
+function renderResultCards(sender, results, { highlightBest = false } = {}) {
+  if (!results.length) return;
+
+  const list = document.getElementById("optimizeResultsList");
+  const heading = document.querySelector("#optimizeResultsModal h2");
+  const label = document.querySelector("#optimizeResultsModal label");
+  if (sender === "compareButton") {
+    heading.textContent = "Routes Scores";
+    label.textContent = "Select a route to see details";
+  }
+  else {
+    heading.textContent = "Best Starting Times";
+    label.textContent = "Select a starting time to see details";
+  }
+
+  list.innerHTML = "";
+
+  results.forEach((r, idx) => {
+    const card = document.createElement("div");
+    card.className = "result-card";
+    const summary = document.createElement("div");
+    summary.className = "result-summary";
+    let label = r.summary || (r.start
+      ? r.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" })
+      : "");
+
+    if (highlightBest && idx === 0) {
+      label = "🏆 " + label;
+    }
+
+    summary.textContent = label;
+    card.appendChild(summary);
+    const details = document.createElement("div");
+    details.className = "result-details";
+
+    details.innerHTML = `
+      <div>Score: ${(100 - r.metrics.score).toFixed(1)}%</div><br>
+      <div><strong>🌧️ Precipitation</strong> avg: ${r.metrics.rainAvg.toFixed(1)} mm/h, max: ${r.metrics.rainMax.toFixed(1)} mm/h</div>
+      <div><strong>💨 Headwind</strong> avg: ${r.metrics.headWindAvg.toFixed(1)} km/h, max: ${r.metrics.headWindMax.toFixed(1)} km/h</div>
+      <div><strong>💨 Wind</strong> avg: ${r.metrics.windAvg.toFixed(1)} km/h, max: ${r.metrics.windMax.toFixed(1)} km/h</div>
+      <div><strong>🌡️ Temperature</strong> avg: ${r.metrics.tempAvg.toFixed(1)}°C, min: ${r.metrics.tempMin.toFixed(1)}°C, max: ${r.metrics.tempMax.toFixed(1)}°C</div>
+    `;
+
+    if (r.metrics.rainAboveMax === 0 && r.metrics.headWindAboveMax === 0 &&
+        r.metrics.windAboveMax === 0 && r.metrics.tempBelowMin === 0 &&
+        r.metrics.tempAboveMax === 0) {
+          const note = document.createElement("div");
+          note.style.marginBottom = "8px";
+          note.innerHTML = `<br>✅ All conditions within acceptable limits`;
+          details.appendChild(note);
+    } else {
+      const note = document.createElement("div");
+      note.style.marginBottom = "8px";
+      let issues = [];
+      if (r.metrics.rainAboveMax > 0) issues.push("precipitation");
+      if (r.metrics.headWindAboveMax > 0) issues.push("headwind");
+      if (r.metrics.windAboveMax > 0) issues.push("wind");
+      if (r.metrics.tempBelowMin > 0) issues.push("low temperature");
+      if (r.metrics.tempAboveMax > 0) issues.push("high temperature");
+      note.innerHTML += `<br>⚠️ Some conditions exceed acceptable limits: ${issues.join(", ")}`;
+      details.appendChild(note);
+    }
+
+    if (r.start) {
+      const applyBtn = document.createElement("button");
+      applyBtn.textContent = "Apply this start time";
+      applyBtn.addEventListener("click", () => {
+        const i = latestTimeSteps.findIndex(t => +t === +r.start);
+        slider.value = i;
+        timeSliderLabel.textContent = r.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+        slider.dispatchEvent(new Event("input"));
+        document.getElementById("optimizeResultsModal").style.display = "none";
+      });
+      details.appendChild(applyBtn);
+    }
+    if (r.applyableRoute) {
+      const applyBtn = document.createElement("button");
+      applyBtn.textContent = "Show this route";
+      applyBtn.addEventListener("click", async () => {
+      const start = new Date(document.getElementById("optSingleStartTime").value);
+      const raw = await loadResult(r.routeId + "gpxResults");
+      const rawResults = raw ? JSON.parse(raw) : [];
+      const results = rawResults.map(r => ({
+        ...r,
+        eta: new Date(r.eta),
+        etaQuarter: new Date(r.etaQuarter),
+        times: r.times.map(t => new Date(t))
+      }));
+      latestResults = results;
+
+      const allTimes = results.flatMap(r => r.times);
+      const allAccumTime = results.flatMap(r => r.accumTime);
+      const globalMinTime = new Date(allTimes.reduce((min, d) => Math.min(min, d), Infinity));
+      const globalMaxTime = new Date(allTimes.reduce((max, d) => Math.max(max, d), -Infinity));
+      const tripDurationMs = Math.max(...allAccumTime) * 1000;
+      const latestStartTime = new Date(globalMaxTime.getTime() - tripDurationMs);
+
+      const timeSteps = [];
+      for (let t = new Date(globalMinTime); t <= latestStartTime; t.setMinutes(t.getMinutes() + stepMinutes)) {
+        timeSteps.push(new Date(t));
+      }
+      latestTimeSteps = timeSteps;
+      slider.max = timeSteps.length - 1;
+      sessionStorage.setItem("sliderMax", slider.max);
+      slider.value = closestIndex(latestTimeSteps, start);
+      sessionStorage.setItem("gpxTimeSteps", JSON.stringify(timeSteps));
+
+      const aligned = pickForecastAtETAs(results, start);
+      const points = JSON.parse(sessionStorage.getItem(r.routeId + "gpxPoints"));
+      sessionStorage.setItem("gpxPoints", JSON.stringify(points));
+      latestPoints = points;
+      sessionStorage.setItem("breaks", "[]");
+      latestBreaks = [];
+
+      const selName = sessionStorage.getItem(r.routeId + "gpxFileName") || "";
+      const selContent = await loadResult(r.routeId + "gpxFileContent") || "";
+      handleGpxLoad(selName, selContent);
+
+      const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+      document.getElementById("timeSliderContainer").classList.remove("disabled");
+      optimizeCheckbox.disabled = false;
+
+      slider.dispatchEvent(new Event("input"));
+      updateMapAndCharts(points, aligned, [],
+          parseInt(document.getElementById("sampleMeters").value, 10),
+          parseInt(document.getElementById("sampleMinutes").value, 10),
+          parseInt(document.getElementById("sampleMetersDense").value, 10),
+          parseInt(document.getElementById("sampleMinutesDense").value, 10),
+          pictos, true);
+
+      document.getElementById("optimizeResultsModal").style.display = "none";
+      });
+      details.appendChild(applyBtn);
+    }
+
+    card.appendChild(details);
+
+    summary.addEventListener("click", () => {
+      document.querySelectorAll(".result-card.expanded").forEach(el => {
+        if (el !== card) el.classList.remove("expanded");
+      });
+      card.classList.toggle("expanded");
+    });
+
+    if (sender === "compareButton" && idx === 0) {
+    card.classList.add("expanded");
+    }
+
+    list.appendChild(card);
+  });
+
+  document.getElementById("optimizeResultsModal").style.display = "flex";
+}
+
 // ---------- UI wiring ----------
+document.addEventListener("layoutReady", () => {
 document.getElementById("demoBtn").addEventListener("click", async () => {
   goatcounter.count({
     path: `/demo`,
@@ -818,13 +1113,9 @@ document.getElementById("demoBtn").addEventListener("click", async () => {
 
     const gpxInput = document.getElementById("gpxFile");
     gpxInput.files = dataTransfer.files;
-
-    // Trigger change event if needed
     gpxInput.dispatchEvent(new Event("change"));
 
-    // Wait a moment for parsing to complete (adjust if needed)
     setTimeout(() => {
-    // Add a break automatically for the demo
     const breakRow = document.createElement("div");
     breakRow.className = "break-row";
     breakRow.innerHTML = `
@@ -836,11 +1127,36 @@ document.getElementById("demoBtn").addEventListener("click", async () => {
     breaksContainer.appendChild(breakRow);
     validateReady();
       document.getElementById("processBtn").click();
-    }, 500); // or longer if needed
+    }, 500);
   } catch (err) {
     console.error("Demo file load failed:", err);
     alert("Failed to load demo file.");
   }
+});
+
+document.getElementById('compareBtn').addEventListener('click', async function() {
+  try {
+    await deleteResult("route1gpxFileContent");
+    await deleteResult("route2gpxFileContent");
+    currentRoute1.classList.remove("active");
+    currentRoute2.classList.remove("active");
+    document.getElementById("route1gpxFile").value = "";
+    document.getElementById("route2gpxFile").value = "";
+    document.getElementById("route1savedRoutes").value = "";
+    document.getElementById("route2savedRoutes").value = "";
+
+  } catch (err) {
+    console.warn("Delete failed:", err);
+  }
+
+  const modal = document.getElementById('optimizeModal');
+  document.querySelectorAll(".compare-toggle").forEach(f => f.hidden = false);
+  document.querySelector(".time-range").hidden = true;
+  document.querySelector(".granularity").hidden = true;
+  document.querySelector(".optimize-button").hidden = true;
+  compareBtn.disabled = true;
+  modal.style.display = 'flex';
+});
 });
 
 providerSel.addEventListener("change", () => {
@@ -857,21 +1173,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("gpxHelpBtn");
   const popover = document.getElementById("gpxHelpPopover");
 
-  btn.addEventListener("click", (e) => {
-    // Toggle visibility
+btn.addEventListener("click", (e) => {
     if (popover.style.display === "block") {
       popover.style.display = "none";
       return;
     }
 
-    // Position near the button
     const rect = btn.getBoundingClientRect();
     popover.style.top = `${rect.bottom + window.scrollY + 4}px`;
     popover.style.left = `${rect.left + window.scrollX}px`;
     popover.style.display = "block";
   });
 
-  // Hide if clicking outside
   document.addEventListener("click", (e) => {
     if (!popover.contains(e.target) && e.target !== btn) {
       popover.style.display = "none";
@@ -916,6 +1229,10 @@ updateLabels();
   el.addEventListener("input", validateRanges);
 });
 
+[uploadBtn1, uploadBtn2, chooseBtn1, chooseBtn2].forEach(el => {
+  el.addEventListener("input", validateDifferentRoutes);
+});
+
 [maxAcceptableTemp, minAcceptableTemp].forEach(el => {
     el.addEventListener("input", validateTempRanges);
 });
@@ -926,8 +1243,12 @@ document.querySelector("#optimizeResultsModal .close").addEventListener("click",
 
 optimizeCheckbox.addEventListener("change", e => {
   if (e.target.checked) {
-    const oldFieldset = document.getElementById('compareFieldset');
-    if (oldFieldset) oldFieldset.remove();
+    const fields = document.querySelectorAll(".compare-toggle");
+    fields.forEach(f => f.hidden = true);
+    document.querySelector(".time-range").hidden = false;
+    document.querySelector(".granularity").hidden = false;
+    document.querySelector(".optimize-button").hidden = false;
+
     modal.style.display = "flex";
   } else {
     modal.style.display = "none";
@@ -946,24 +1267,18 @@ window.addEventListener("click", e => {
   }
 });
 
-document.getElementById("optimizeForm").addEventListener("submit", e => {
+document.getElementById("optimizeForm").addEventListener("submit", async e => {
   e.preventDefault();
+
+  const btn = e.submitter;
+
   const values = sliders.map(s => parseInt(document.getElementById(s.id).value, 10));
   const total = values.reduce((a, b) => a + b, 0) || 1;
-
-  // Normalize to sum = 100
   const normalized = values.map(v => Math.round((v / total) * 100));
-
-  // Apply back to sliders + labels
   sliders.forEach((s, i) => {
     document.getElementById(s.id).value = normalized[i];
     document.getElementById(s.valueId).textContent = normalized[i] + "%";
   });
-
-  const rangeDateMin = parseDateInput(optStartDateMin.value);
-  const rangeDateMax = parseDateInput(optStartDateMax.value);
-  const timeMinParts = parseTimeInput(optStartTimeMin.value);
-  const timeMaxParts = parseTimeInput(optStartTimeMax.value);
 
   const weights = {
     rain: parseInt(document.getElementById("rainSlider").value, 10),
@@ -972,87 +1287,79 @@ document.getElementById("optimizeForm").addEventListener("submit", e => {
     temperatureHot: parseInt(document.getElementById("tempSliderHot").value, 10),
     temperatureCold: parseInt(document.getElementById("tempSliderCold").value, 10)
   };
-  const bestCandidates = optimizeStartTime(latestResults, latestTimeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights);
-  if (bestCandidates.length) {
-  const list = document.getElementById("optimizeResultsList");
-  list.innerHTML = "";
 
-  bestCandidates.forEach((c, idx) => {
-  const card = document.createElement("div");
-  card.className = "result-card";
-
-  // summary row
-  const summary = document.createElement("div");
-  summary.className = "result-summary";
-  summary.textContent = `${c.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" })}`;
-  card.appendChild(summary);
-
-  // details section
-  const details = document.createElement("div");
-  details.className = "result-details";
-
-  details.innerHTML = `
-    <div>Score: ${(100 - c.score).toFixed(1)}%</div>
-    <br>
-    <div><strong>🌧️ Precipitation</strong> avg: ${c.rainAvg.toFixed(1)} mm/h, max: ${c.rainMax.toFixed(1)} mm/h</div>
-    <div><strong>💨 Headwind</strong> avg: ${c.headWindAvg.toFixed(1)} km/h, max: ${c.headWindMax.toFixed(1)} km/h</div>
-    <div><strong>💨 Wind</strong> avg: ${c.windAvg.toFixed(1)} km/h, max: ${c.windMax.toFixed(1)} km/h</div>
-    <div><strong>🌡️ Temperature</strong> avg: ${c.tempAvg.toFixed(1)}°C, min: ${c.tempMin.toFixed(1)}°C, max: ${c.tempMax.toFixed(1)}°C</div>
-  `;
-
-  if (c.rainAboveMax === 0 && c.headWindAboveMax === 0 && c.windAboveMax === 0 && c.tempBelowMin === 0 && c.tempAboveMax === 0) {
-    const note = document.createElement("div");
-    note.style.marginBottom = "8px";
-    note.innerHTML = `<br>✅ All conditions within acceptable limits`;
-    details.appendChild(note);
-  }
-    else {
-        const note = document.createElement("div");
-        note.style.marginBottom = "8px";
-        let issues = [];
-        if (c.rainAboveMax > 0) issues.push(`precipitation`);
-        if (c.headWindAboveMax > 0) issues.push(`headwind`);
-        if (c.windAboveMax > 0) issues.push(`wind`);
-        if (c.tempBelowMin > 0) issues.push(`low temperature`);
-        if (c.tempAboveMax > 0) issues.push(`high temperature`);
-        note.innerHTML = `<br>⚠️ Some conditions exceed acceptable limits: ${issues.join(", ")}`;
-        details.appendChild(note);
-    }
-
-  const applyBtn = document.createElement("button");
-  applyBtn.textContent = "Apply this start time";
-  applyBtn.addEventListener("click", () => {
-    const i = latestTimeSteps.findIndex(t => +t === +c.start);
-    slider.value = i;
-    timeSliderLabel.textContent = c.start.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
-    slider.dispatchEvent(new Event("input"));
-    document.getElementById("optimizeResultsModal").style.display = "none";
-  });
-  details.appendChild(applyBtn);
-
-  card.appendChild(details);
-
-  // toggle expand/collapse, but only one at a time
-  summary.addEventListener("click", () => {
-    // collapse all other cards
-    document.querySelectorAll(".result-card.expanded").forEach(el => {
-      if (el !== card) el.classList.remove("expanded");
-    });
-    // toggle this one
-    card.classList.toggle("expanded");
-  });
-
-  list.appendChild(card);
-});
-
-  document.getElementById("optimizeResultsModal").style.display = "flex";
-}
   modal.style.display = "none";
   optimizeCheckbox.checked = false;
+
+  if (btn.id === "optimizeButton") {
+  const rangeDateMin = parseDateInput(optStartDateMin.value);
+  const rangeDateMax = parseDateInput(optStartDateMax.value);
+  const timeMinParts = parseTimeInput(optStartTimeMin.value);
+  const timeMaxParts = parseTimeInput(optStartTimeMax.value);
+
+  const bestCandidates = await optimizeStartTime(latestResults, latestTimeSteps, rangeDateMin, rangeDateMax, timeMinParts, timeMaxParts, weights);
+  const bestCandidatesResults = bestCandidates.map(c => ({start: c.start, metrics: c}));
+  renderResultCards(btn.id, bestCandidatesResults);
+  }
+
+  else if (btn.id === "compareButton") {
+
+    const startStr = document.getElementById("optSingleStartTime").value;
+    const start = new Date(startStr);
+
+    const [results1, results2] = await Promise.all([
+    getForecastForRoute("route1"),
+    getForecastForRoute("route2")
+    ]);
+
+    const metrics1 = computeMetrics(weights, results1, start);
+    const metrics2 = computeMetrics(weights, results2, start);
+    const name1 = sessionStorage.getItem("route1gpxFileName") || "Route 1";
+    const name2 = sessionStorage.getItem("route2gpxFileName") || "Route 2";
+
+    const both = [
+      { summary: name1, metrics: metrics1, routeId: "route1", applyableRoute: true },
+      { summary: name2, metrics: metrics2, routeId: "route2", applyableRoute: true }
+    ].sort((a, b) => a.metrics.score - b.metrics.score);
+
+    renderResultCards(btn.id, both, { highlightBest: true });
+  }
+
   goatcounter.count({
-     path: `/optimizeSubmit`,
-     title: `Optimize Submit Clicked`,
+     path: btn.id === "optimizeButton" ? "/optimizeSubmit" : "/compareSubmit",
+     title: btn.id === "optimizeButton"
+     ? "Optimize Submit Clicked"
+     : "Compare Submit Clicked",
      event: true
+  });
+});
+
+["route1", "route2"].forEach(prefix => {
+  const fileInput = document.getElementById(prefix + "gpxFile");
+  const currentRouteEl = document.getElementById(prefix + "currentRoute");
+
+  if (!fileInput || !currentRouteEl) return;
+
+  fileInput.addEventListener("change", async (e) => {
+    const f = e.target.files?.[0];
+
+    if (!f) {
+      sessionStorage.setItem(prefix + "gpxFileName", "");
+      await saveResult(prefix + "gpxFileContent", "");
+      currentRouteEl.textContent = "No route selected";
+      currentRouteEl.title = "";
+      currentRouteEl.classList.remove("active");
+      validateReady();
+      return;
+    }
+
+    try {
+      const text = await f.text();
+      handleGpxLoad(f.name, text, prefix);
+    } catch (err) {
+      log("Error reading file: " + err.message);
+    }
+    validateReady();
   });
 });
 
@@ -1253,33 +1560,16 @@ minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpa
         log(`Expected travel time (with breaks): ${formatDuration(durationSecLog)}.`);
     }
 
-  // Fetch forecasts
   const results = [];
   const errors = [];
   const CONCURRENCY = 8;
   let i = 0;
-    let completed = 0;
-    const totalProgress = sampleIdx.length;
-    const modal = document.getElementById("progressOverlay");
-    const bar = document.getElementById("progressBar");
-    const text = document.getElementById("progressText");
 
-    // Show modal before starting
-    modal.style.display = "flex";
+  progressTitle.textContent = "Fetching forecasts…";
+  progressOverlay.style.display = "flex";
 
-    function updateProgress() {
-      completed++;
-      const pct = Math.round((completed / totalProgress) * 100);
-      bar.style.width = pct + "%";
-      text.textContent = pct + "%";
-
-      if (completed === totalProgress) {
-        text.textContent = "Done ✔";
-        setTimeout(() => {
-          modal.style.display = "none";
-        }, 1500);
-      }
-    }
+  const updateProgress = createProgressUpdater({progressBar, progressText, progressOverlay,
+    total: sampleIdx.length, titleEl: progressTitle});
 
 async function worker() {
 
@@ -1319,7 +1609,6 @@ async function worker() {
   const workers = Array.from({ length: Math.min(CONCURRENCY, sampleIdx.length) }, () => worker());
   await Promise.all(workers);
   latestResults = results;
-  // sessionStorage.setItem("gpxResults", JSON.stringify(results));
   await saveResult("gpxResults", results);
   // Now compute global time range across all results
   const allTimes = results.flatMap(r => r.times);
