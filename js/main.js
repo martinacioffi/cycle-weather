@@ -801,11 +801,12 @@ minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false) {
       windLabel = "<br/>No head/tailwind (pure crosswind)";
     }
     const windLabelBreak = isBreak ? "" : windLabel
+    const altitudeLine = r.ele != null ? `<div>Altitude: ${r.ele.toFixed(0)} m a.s.l.</div>` : "";
     const popupHtml = `
       <div style="min-width:200px">
         <div>${etaLabel}</div>
         <div>Km from start: ${formatKm(r.accumDist)}</div>
-        <div>Altitude: ${r.ele.toFixed(0)} m a.s.l.</div><br>
+        ${altitudeLine}<br>
         <div><strong>Forecast:</strong></div>
         ☀️ Temp: ${r.tempC.toFixed(1)}°C<br/>
         🌧️ Precipitation: ${isNaN(r.precip) ? '0.0' : r.precip.toFixed(1)} mm/h<br/>
