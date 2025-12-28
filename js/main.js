@@ -2,7 +2,7 @@ import {
   haversine, formatKm, formatDuration, speedToMps, log, interpolateValues, closestIndex,
   makeColorer, effectiveWind, pickForecastAtETAs, filterCandidates, normalizeDateTimeLocal,
   updateLegendRange, getPercentInput, roundToNearestQuarter, updateLabels, toLocalDateTimeString,
-  parseDateInput, parseTimeInput, createProgressUpdater
+  parseDateInput, parseTimeInput, createProgressUpdater, buildTrimmedGpx
 } from './utils.js';
 
 import {
@@ -72,6 +72,7 @@ const speedUp = document.getElementById("speedUp");
 const speedDown = document.getElementById("speedDown");
 const speedUnit = document.getElementById("speedUnit");
 const processBtn = document.getElementById("processBtn");
+const realtimeBtn = document.getElementById("realtimeBtn");
 const maxCallsInput = document.getElementById("maxCalls");
 const sampleMetersSelect = document.getElementById("sampleMeters");
 const sampleMinutesSelect = document.getElementById("sampleMinutes");
@@ -554,6 +555,7 @@ window.decompressText = decompressText;
 function validateReady() {
   const ok = !!gpxText && startTimeInput.value && parseFloat(speedInput.value) > 0;
   processBtn.disabled = !ok;
+  realtimeBtn.disabled = !ok;
 }
 
 function clearWeatherMarkers() {
@@ -1497,6 +1499,7 @@ processBtn.addEventListener("click", async () => {
     const mbKey = meteoblueKeyInput.value.trim();
 
     processBtn.disabled = true;
+    realtimeBtn.disabled = true;
     await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey,
     minSpacingDense, minTimeSpacingDense);
     document.getElementById("timeSliderContainer").classList.remove("disabled");
@@ -1507,6 +1510,96 @@ processBtn.addEventListener("click", async () => {
     validateReady();
   }
 });
+
+realtimeBtn.addEventListener("click", async () => {
+    if (!navigator.geolocation) {
+      log("Geolocation not supported by this browser.");
+      return;
+    }
+
+    try {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000 })
+      );
+      //const { latitude, longitude } = pos.coords;
+      let latitude, longitude;
+      latitude = 46.30320235772595;
+      longitude = 10.569474995476948;
+
+      let content = await loadResult("gpxFileContent") || "";
+      const pointsRaw = parseGPX(content);
+      if (!pointsRaw || pointsRaw.length === 0) {
+        log("No route loaded. Load a GPX first.");
+        return;
+      }
+
+      // Show progress overlay and create updater
+      progressTitle.textContent = "Finding nearest point…";
+      progressOverlay.style.display = "flex";
+      const updateProgress = createProgressUpdater({
+      progressBar,
+      progressText,
+      progressOverlay,
+      total: pointsRaw.length,
+      titleEl: progressTitle
+      });
+
+      // Compute nearest point index (uses imported haversine)
+      let minDist = Infinity;
+      let nearestIdx = 0;
+      for (let i = 0; i < pointsRaw.length; i++) {
+        const d = haversine(latitude, longitude, pointsRaw[i].lat, pointsRaw[i].lon);
+        if (d < minDist) { minDist = d; nearestIdx = i; }
+        updateProgress();
+        if (i % 200 === 0) await new Promise(r => setTimeout(r, 0));
+      }
+      progressOverlay.style.display = "none";
+
+      const thresholdMeters = 1000; // abort if too far from route
+      if (minDist > thresholdMeters) {
+        log(`You are ${Math.round(minDist)} m away from the route (threshold ${thresholdMeters} m). Move closer and try again.`);
+        return;
+      }
+
+      // Trim points from nearest index onward
+      const newPoints = pointsRaw.slice(nearestIdx);
+      if (newPoints.length < 2) {
+        log("Not enough remaining route points after trimming.");
+        return;
+      }
+      // Set start time to now and trigger processing
+      const now = new Date();
+      const pad = n => n.toString().padStart(2, "0");
+      const formatDateTimeLocal = d =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      startTimeInput.value = formatDateTimeLocal(now);
+      startTimeInput.dispatchEvent(new Event("change"));
+        const speedVal = parseFloat(speedInput.value);
+        const speedValUp = getPercentInput("speedUp");
+        const speedValDown = getPercentInput("speedDown");
+        const mps = speedToMps(speedVal, speedUnit.value);
+        const mpsUp = speedToMps(speedVal * (1 - speedValUp ?? 0), speedUnit.value);
+        const mpsDown = speedToMps(speedVal * (1 + speedValDown ?? 0), speedUnit.value);
+        if (!mps) return log("Invalid average speed.");
+
+        const maxCalls = Math.max(5, Math.min(1000, parseInt(maxCallsInput.value || "60", 10)));
+        const minSpacing = parseInt(sampleMetersSelect.value, 10);
+        const minTimeSpacing = parseInt(sampleMinutesSelect.value, 10);
+        const minSpacingDense = parseInt(sampleMetersSelectDense.value, 10);
+        const minTimeSpacingDense = parseInt(sampleMinutesSelectDense.value, 10);
+        const provider = providerSel.value;
+        const pictos = provider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
+        const mbKey = meteoblueKeyInput.value.trim();
+        const trimmedGpx = buildTrimmedGpx(content, { dropBeforeIndex: nearestIdx });
+        await processRoute(trimmedGpx, now, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey,
+        minSpacingDense, minTimeSpacingDense);
+
+      log(`Realtime update: trimmed route at index ${nearestIdx} (${Math.round(minDist)} m from your position).`);
+    } catch (err) {
+      progressOverlay.style.display = "none";
+      log("Realtime update failed: " + (err.message || err));
+    }
+  });
 
 // ---------- Core: processRoute ----------
 async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls,

@@ -346,3 +346,28 @@ export function filterCandidates(timeSteps, rangeDateMin, rangeDateMax, rangeTim
     return minutes >= minMinutes && minutes <= maxMinutes;
   });
 }
+
+export function buildTrimmedGpx(gpxContent, { dropBeforeIndex = 0 } = {}) {
+  // Load raw GPX text and trim leading/trailing whitespace
+  const raw = (gpxContent || "").trim();
+  if (!raw) {
+    throw new Error("No GPX content found.");
+  }
+
+  // Find start of first <wpt and end of the closing </gpx>
+  const firstWptPos = raw.search(/<wpt\b/i);
+  const lastGpxClose = raw.lastIndexOf("</gpx>");
+  const header = firstWptPos >= 0 ? raw.slice(0, firstWptPos).trim() : raw.slice(0, lastGpxClose >= 0 ? lastGpxClose : raw.length).trim();
+  const footer = lastGpxClose >= 0 ? raw.slice(lastGpxClose).trim() : "</gpx>";
+
+  // Extract all <wpt>...</wpt> blocks (non-greedy)
+  const wptRe = /<trkpt\b[\s\S]*?<\/trkpt>/gi;
+  const wpts = Array.from(raw.matchAll(wptRe), m => m[0].trim());
+
+  // Drop points that come before a given index (useful for "real-time" trimming)
+  const keptWpts = wpts.slice(Math.max(0, dropBeforeIndex));
+
+  // Rebuild GPX: header, kept waypoints, footer — join with single newlines and trim final result
+  const rebuilt = [header, ...keptWpts, footer].filter(Boolean).join("\n").trim();
+  return rebuilt;
+}
