@@ -373,7 +373,9 @@ async function restoreFromSession() {
       minTimeSpacing,
       minSpacingDense,
       minTimeSpacingDense,
-      pictos
+      pictos,
+      false,
+      false
     );
     // restore slider position and text label
     const sliderMax = parseInt(sessionStorage.getItem("sliderMax") || slider.max, 10);
@@ -677,8 +679,62 @@ async function optimizeStartTime(results, timeSteps, rangeDateMin, rangeDateMax,
   return scores.slice(0, 5);
 }
 
-function updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing,
-minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false) {
+function getUserLocationIfNeeded() {
+  const ts = sessionStorage.getItem("lastKnownTimestamp");
+  const ageMs = ts ? (Date.now() - Number(ts)) : null;
+  const THREE_MIN_MS = 3 * 60 * 1000;
+
+  // If we have a recent timestamp, use saved values
+  if (ageMs !== null && ageMs <= THREE_MIN_MS) {
+    const lat = sessionStorage.getItem("lastKnownLatitude");
+    const lon = sessionStorage.getItem("lastKnownLongitude");
+    return Promise.resolve({
+      lat: lat !== null ? Number(lat) : null,
+      lon: lon !== null ? Number(lon) : null,
+      ageMs
+    });
+  }
+
+  // Otherwise try to get current position; fall back to saved values on failure / no support
+  if (!navigator.geolocation) {
+    const lat = sessionStorage.getItem("lastKnownLatitude");
+    const lon = sessionStorage.getItem("lastKnownLongitude");
+    return Promise.resolve({
+      lat: lat !== null ? Number(lat) : null,
+      lon: lon !== null ? Number(lon) : null,
+      ageMs
+    });
+  }
+
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        // store fresh values and timestamp
+        sessionStorage.setItem("lastKnownLatitude", String(lat));
+        sessionStorage.setItem("lastKnownLongitude", String(lon));
+        sessionStorage.setItem("lastKnownTimestamp", String(Date.now()));
+        resolve({ lat, lon, ageMs: 0 });
+      },
+      err => {
+        console.warn("Geolocation failed, falling back to saved location:", err && err.message);
+        const lat = sessionStorage.getItem("lastKnownLatitude");
+        const lon = sessionStorage.getItem("lastKnownLongitude");
+        resolve({
+          lat: lat !== null ? Number(lat) : null,
+          lon: lon !== null ? Number(lon) : null,
+          ageMs
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+  }
+
+
+async function updateMapAndCharts(points, aligned, breaks, minSpacing, minTimeSpacing,
+minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false, realtime = false) {
   if (!aligned  || !aligned.length) {
     log("No forecast results to render.");
     return;
@@ -860,10 +916,29 @@ minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false) {
   buildTempChart(chartSeries, visibleWeatherMarkers, pictos, isMobile);
   buildPrecipChart(chartSeries, visibleWeatherMarkers, isMobile);
   buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
-  const sampledPoints = JSON.parse(sessionStorage.getItem("gpxSampleIndicesElevation")|| "[]");
-  const lastKnownLat = sessionStorage.getItem("lastKnownLatitude");
-  const lastKnownLon = sessionStorage.getItem("lastKnownLongitude");
-  drawUpcomingElevationChart({series: sampledPoints, userLocation: [lastKnownLat, lastKnownLon], isMobile});
+  const sampledPointsRaw = await loadResult("gpxSampleIndicesElevation") || [];
+  const sampledPoints = JSON.parse(sampledPointsRaw)
+if (realtime === true) {
+  getUserLocationIfNeeded()
+    .then(({ lat, lon, ageMs }) => {
+      console.log("User location age (ms):", ageMs);
+      const userLocation = (lat != null && lon != null) ? [lat, lon] : null;
+      console.log("User location:", userLocation);
+
+      drawUpcomingElevationChart({
+        series: sampledPoints,
+        userLocation,
+        isMobile
+      });
+    })
+} else {
+  drawUpcomingElevationChart({
+    series: sampledPoints,
+    userLocation: null,
+    isMobile
+  });
+}
+
 }
 
 async function getForecastForRoute(prefix) {
@@ -1078,7 +1153,7 @@ function renderResultCards(sender, results, { highlightBest = false } = {}) {
           parseInt(document.getElementById("sampleMinutes").value, 10),
           parseInt(document.getElementById("sampleMetersDense").value, 10),
           parseInt(document.getElementById("sampleMinutesDense").value, 10),
-          pictos, true);
+          pictos, true, false);
 
       document.getElementById("optimizeResultsModal").style.display = "none";
       });
@@ -1479,7 +1554,7 @@ slider.addEventListener("input", () => {
     const minSpacingDense = parseInt(sampleMetersSelectDense.value, 10);
     const minTimeSpacingDense = parseInt(sampleMinutesSelectDense.value, 10);
     const pictos = providerSel.value === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
-    updateMapAndCharts(latestPoints, aligned, latestBreaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
+    updateMapAndCharts(latestPoints, aligned, latestBreaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos, false, false);
 });
 
 processBtn.addEventListener("click", async () => {
@@ -1507,7 +1582,7 @@ processBtn.addEventListener("click", async () => {
     processBtn.disabled = true;
     realtimeBtn.disabled = true;
     await processRoute(gpxText, startDate, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey,
-    minSpacingDense, minTimeSpacingDense);
+    minSpacingDense, minTimeSpacingDense, false);
     document.getElementById("timeSliderContainer").classList.remove("disabled");
     optimizeCheckbox.disabled = false;
   } catch (e) {
@@ -1534,6 +1609,7 @@ realtimeBtn.addEventListener("click", async () => {
       console.log("Current position:", latitude, longitude);
       sessionStorage.setItem("lastKnownLatitude", latitude);
       sessionStorage.setItem("lastKnownLongitude", longitude);
+      sessionStorage.setItem('lastKnownTimestamp', String(Date.now()))
 
       let content = await loadResult("gpxFileContent") || "";
       const pointsRaw = parseGPX(content);
@@ -1601,7 +1677,7 @@ realtimeBtn.addEventListener("click", async () => {
         const mbKey = meteoblueKeyInput.value.trim();
         const trimmedGpx = buildTrimmedGpx(content, { dropBeforeIndex: nearestIdx });
         await processRoute(trimmedGpx, now, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey,
-        minSpacingDense, minTimeSpacingDense);
+        minSpacingDense, minTimeSpacingDense, true);
 
       log(`Realtime update: trimmed route at index ${nearestIdx} (${Math.round(minDist)} m from your position).`);
     } catch (err) {
@@ -1612,7 +1688,7 @@ realtimeBtn.addEventListener("click", async () => {
 
 // ---------- Core: processRoute ----------
 async function processRoute(gpxText, startDate, avgSpeedMps, avgSpeedMpsUp, avgSpeedMpsDown, maxCalls,
-minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpacingDense) {
+minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpacingDense, realtime) {
   // Reset UI
   clearWeatherMarkers();
   clearVisibleWeatherMarkers();
@@ -1657,7 +1733,7 @@ minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpa
   sessionStorage.setItem("gpxSampleIndices", JSON.stringify(sampleIdx));
   const sampleIdxElevation = buildSampleIndices(points, brngs, cum, 9999999, 5, 0, avgSpeedMps,
   avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
-  sessionStorage.setItem("gpxSampleIndicesElevation", JSON.stringify(sampleIdxElevation));
+  await saveResult("gpxSampleIndicesElevation", JSON.stringify(sampleIdxElevation));
   log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacingDense} meters and ≥ ${minTimeSpacingDense} minutes).`);
   const durationSecLog = sampleIdx[sampleIdx.length - 1].accumTime;
   log(`Route has ${pointsRaw.length} points, ${formatKm(cumulDistance(points).total)} total.`);
@@ -1760,7 +1836,7 @@ async function worker() {
   sessionStorage.setItem("startTime", toLocalDateTimeString(startDate));
   console.log('Results with initial start date:', resultsInitialStartDate);
   sessionStorage.setItem("gpxAlignedResults", JSON.stringify(resultsInitialStartDate));
-  updateMapAndCharts(points, resultsInitialStartDate, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos);
+  updateMapAndCharts(points, resultsInitialStartDate, breaks, minSpacing, minTimeSpacing, minSpacingDense, minTimeSpacingDense, pictos, false, realtime);
 
   if (errors.length) log(`Completed with ${errors.length} missing points (outside forecast range or fetch errors).`);
   else log("Completed successfully.");

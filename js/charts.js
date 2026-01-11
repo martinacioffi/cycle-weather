@@ -494,8 +494,7 @@ export function drawUpcomingElevationChart({
   userLocation,
   isMobile = false
 } = {}) {
-  if (!series || series.length < 2 || !userLocation) return null;
-  console.log("Drawing upcoming elevation chart...", series);
+  if (!series || series.length < 2) return null;
 
   destroyChartById("overviewChart");
   const ctx = document.getElementById("overviewChart").getContext("2d");
@@ -513,22 +512,29 @@ export function drawUpcomingElevationChart({
     return R * c;
   };
 
-  // find nearest sample index to user
+  // find nearest sample index to user if userLocation provided
   let nearestIdx = 0;
-  let minD = Infinity;
-  const [uLat, uLon] = userLocation;
-  for (let i = 0; i < series.length; i++) {
-    const s = series[i];
-    if (s.lat == null || s.lon == null) continue;
-    const d = haversineMeters(uLat, uLon, s.lat, s.lon);
-    if (d < minD) {
-      minD = d;
-      nearestIdx = i;
+  if (userLocation && Array.isArray(userLocation) && userLocation.length === 2) {
+    let minD = Infinity;
+    const [uLat, uLon] = userLocation;
+    for (let i = 0; i < series.length; i++) {
+      const s = series[i];
+      if (s.lat == null || s.lon == null) continue;
+      const d = haversineMeters(uLat, uLon, s.lat, s.lon);
+      if (d < minD) {
+        minD = d;
+        nearestIdx = i;
+      }
     }
+  } else {
+    nearestIdx = 0; // no user: start from beginning
   }
 
   const startAccum = series[nearestIdx].accumDist || 0;
-  const endAccum = startAccum + (2000 || 0);
+  const MAX_AHEAD_METERS = 2000;
+  const endAccum = (userLocation && Array.isArray(userLocation) && userLocation.length === 2)
+    ? startAccum + MAX_AHEAD_METERS
+    : Infinity; // no user: include all points
 
   // slice upcoming samples by accumDist; ensure at least two points
   const upcoming = series.filter(s => (s.accumDist || 0) >= startAccum && (s.accumDist || 0) <= endAccum);
@@ -552,7 +558,16 @@ export function drawUpcomingElevationChart({
     grades.push((dz / dx) * 100);
   }
 
-  // map grade -> color (tune palette as desired)
+  const gradeBuckets = [
+    { label: '< -4%',    color: '#66a182' },
+    { label: '-3.9% – 0%',    color: '#9ad3a2' },
+    { label: '0.1% – 3.9%',   color: '#ffd36b' },
+    { label: '4% – 7.9%',   color: '#ffb348' },
+    { label: '8% – 11.9%',  color: '#ff6f3c' },
+    { label: '12% – 19.9%', color: '#c41e3a' },
+    { label: '≥ 20%', color: '#6b0000' },
+  ];
+
   const gradeToColor = g => {
     if (g >= 20) return '#6b0000';
     if (g >= 12) return '#c41e3a';
@@ -561,14 +576,6 @@ export function drawUpcomingElevationChart({
     if (g >= 0)  return '#ffd36b';
     if (g >= -4) return '#9ad3a2';
     return '#66a182';
-    /*
-        if (g >= 20) return '#691338';
-    if (g >= 12) return '#B01034';
-    if (g >= 8)  return '#b15b2e';
-    if (g >= 4)  return '#ffd582';
-    if (g >= 0)  return '#D8D8D8';
-    if (g >= -4) return '#dde991';
-    return '#60995d';*/
   };
 
   // per-sample bar colors: average adjacent grades so each bar/column reflects surrounding slope
@@ -590,73 +597,78 @@ export function drawUpcomingElevationChart({
   const labels = distances.map(d => d >= 1000 ? (d/1000).toFixed(2) + ' km' : Math.round(d) + ' m');
 
   return new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            type: 'bar',
-            label: 'Elevation (m)',
-            data: elevations,
-            backgroundColor: barColors,
-            borderWidth: 0,
-            order: 1,                 // draw bars first
-            barPercentage: 1,      // thinner bars within each category
-            // maxBarThickness: 10,      // cap px thickness on wide screens
-            barThickness: 'flex',     // let barPercentage control sizing but keep cap
-            yAxisID: 'y'
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Elevation (m)',
+          data: elevations,
+          backgroundColor: barColors,
+          borderWidth: 0,
+          order: 1,
+          barPercentage: 1,
+          barThickness: 'flex',
+          yAxisID: 'y'
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            boxWidth: isMobile ? 20 : 30,
+            color: "#e6e8ef",
+            font: { size: isMobile ? 9 : 12 },
+            generateLabels: function(chart) {
+              return gradeBuckets.map((b, i) => ({
+                text: b.label,
+                fillStyle: b.color,
+                strokeStyle: b.color,
+                fontColor: "#e6e8ef",
+                hidden: false,
+                index: i,
+              }));
+            }
           },
-          /*{
-            type: 'line',
-            label: 'Elevation profile',
-            data: elevations,
-            borderColor: '#222',      // darker contour line
-            backgroundColor: 'transparent', // no filled area
-            fill: false,              // no area under line: contour effect
-            tension: 0.25,            // gentle smoothing for contour feel
-            pointRadius: 0,           // hide points
-            borderWidth: 2.4,         // visible contour line
-            order: 2,                 // draw on top of bars
-            yAxisID: 'y'
-          }*/
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {labels: { color: "#e6e8ef" , font: { size: isMobile ? 9 : 12 }}},
-          tooltip: {
-            callbacks: {
-              title: (items) => {
-                const i = items[0].dataIndex;
-                return labels[i] + ' ahead';
-              },
-              label: (ctxItem) => {
-                const i = ctxItem.dataIndex;
-                const elev = Number(elevations[i]);
-                const gradeStr = i === 0 ? `${(grades[0]||0).toFixed(1)}%` : (i >= grades.length ? `${(grades[grades.length-1]||0).toFixed(1)}%` : `${(( (grades[i-1]||0) + (grades[i]||grades[i-1]||0) )/2).toFixed(1)}%`);
-                return [`Elevation: ${isNaN(elev) ? '–' : elev.toFixed(0) + ' m'}`, `Grade: ${gradeStr}`];
-              }
+          onClick: (e, legendItem, legend) => { e.stopPropagation(); }
+        },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const i = items[0].dataIndex;
+              return labels[i] + ' ahead';
+            },
+            label: (ctxItem) => {
+              const i = ctxItem.dataIndex;
+              const elev = Number(elevations[i]);
+              const gradeStr = i === 0 ? `${(grades[0]||0).toFixed(1)}%` : (i >= grades.length ? `${(grades[grades.length-1]||0).toFixed(1)}%` : `${(((grades[i-1]||0) + (grades[i]||grades[i-1]||0))/2).toFixed(1)}%`);
+              return [`Elevation: ${isNaN(elev) ? '–' : elev.toFixed(0) + ' m'}`, `Grade: ${gradeStr}`];
             }
           }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          offset: false,
+          title: { display: false},
+          ticks: { autoSkip: true, maxRotation: 0, color: "#e6e8ef", maxTicksLimit: 10,
+          font: { size: isMobile ? 9 : 13 }, callback: (val, idx) => labels[idx] }
         },
-        scales: {
-          x: {
-            display: true,
-            offset: false,
-            title: { display: false},
-            ticks: { autoSkip: true, maxRotation: 0, color: "#e6e8ef", font: { size: isMobile ? 9 : 13 }, callback: (val, idx) => labels[idx] }
-          },
-          y: {
-            display: true,
-             grid: { color: "rgba(255,255,255,0.06)" },
-            title: { display: true, text: 'Elevation', color: "#a5adba", font: { size: isMobile ? 8 : 14  }},
-            ticks: { color: "#e6e8ef" , padding: 8, font: { size: isMobile ? 9 : 13 } },
-            beginAtZero: false
-          }
+        y: {
+          display: true,
+          grid: { color: "rgba(255,255,255,0.06)" },
+          title: { display: true, text: 'Elevation', color: "#a5adba", font: { size: isMobile ? 8 : 14  }},
+          ticks: { color: "#e6e8ef" , padding: 8, font: { size: isMobile ? 9 : 13 } },
+          beginAtZero: false
         }
       }
-    });
+    }
+  });
 }
