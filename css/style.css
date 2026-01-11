@@ -729,6 +729,19 @@ aspect-ratio: 2 / 1;
 max-height: 18.75rem;
 }
 
+.chart-panel {
+overflow: hidden;
+max-height: 0;
+opacity: 0;
+}
+.chart-panel.expanded {
+opacity: 1;
+max-height: 18.75rem;
+}
+.chart-toggle-btn {
+margin: 8px 0;
+}
+
 .help-btn {
   border: none;
   background: none;

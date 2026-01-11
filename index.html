@@ -181,6 +181,7 @@
             </div>
 
             <button id="processBtn" disabled>Process route & fetch forecast</button>
+            <button id="realtimeBtn" disabled>Real time update</button>
         </div>
         <div class="group">
             <h3>Stats</h3>
@@ -414,6 +415,59 @@
     </div>
         <div class="charts">
         <h3>Trip forecast</h3>
+            <!-- Optional toggle button (remove or hook your own action instead) -->
+            <button id="toggleOverviewBtn" class="chart-toggle-btn" type="button">Show elevation chart</button>
+
+            <!-- Hidden panel that contains the new chart -->
+            <div id="overviewPanel" class="chart-panel" aria-hidden="true">
+              <canvas id="overviewChart"></canvas>
+            </div>
+
+<script type="module">
+  // Import module and expose a global compatibility wrapper
+  import * as ChartsModule from './js/charts.js';
+
+  // Expose module for manual calls if needed
+  window.__charts = ChartsModule;
+
+  // Compatibility wrapper: accept positional args used by existing main.js calls
+  // drawUpcomingElevationChart(sampledPoints, [lat,lon], isMobile?)
+  window.drawUpcomingElevationChart = function(...args) {
+    const [series, userLocation, isMobile] = args;
+    return ChartsModule.drawUpcomingElevationChart({
+      series,
+      userLocation,
+      isMobile
+    });
+  };
+
+  // UI: toggle panel and ensure chart resizes after reveal
+  const panel = document.getElementById('overviewPanel');
+  const btn = document.getElementById('toggleOverviewBtn');
+
+  function showPanel() {
+    panel.classList.add('expanded');
+    panel.setAttribute('aria-hidden', 'false');
+    // let browser paint then trigger a chart resize if chart exists
+    requestAnimationFrame(() => {
+      const c = document.getElementById('overviewChart');
+      if (c && c._chart) c._chart.resize?.();
+    });
+  }
+  function hidePanel() {
+    panel.classList.remove('expanded');
+    panel.setAttribute('aria-hidden', 'true');
+  }
+  btn.addEventListener('click', () => {
+    if (panel.classList.contains('expanded')) { hidePanel(); btn.textContent = 'Show elevation chart'; }
+    else { showPanel(); btn.textContent = 'Hide elevation chart'; }
+  });
+
+  // Optional: when charts draw, attach the Chart instance to the canvas for resize reference
+  // (charts.js creates Charts via `new Chart(ctx, ...)` — attach in charts.js after creation:
+  //   const chart = new Chart(...); canvas._chart = chart; return chart;
+  // If you cannot edit charts.js, this is still safe to keep.)
+</script>
             <canvas id="tempChart"></canvas>
             <canvas id="precipChart"></canvas>
             <canvas id="windChart"></canvas>
