@@ -10,7 +10,7 @@ async function fetchOpenMeteo(lat, lon) {
     hourly: "precipitation_probability",
     minutely_15: ["temperature_2m", "apparent_temperature",
     "wind_gusts_10m", "windspeed_10m","winddirection_10m",
-    "precipitation", "cloud_cover", "cloud_cover_low", "is_day"].join(","),
+    "precipitation", "cloud_cover", "cloud_cover_low", "is_day", "weather_code"].join(","),
     past_days: "0",
     forecast_days: "7"
   });
@@ -53,7 +53,7 @@ async function fetchOpenMeteo(lat, lon) {
     cloudCover: d.minutely_15.cloud_cover,
     cloudCoverLow: d.minutely_15.cloud_cover_low,
     isDay: d.minutely_15.is_day,
-    pictocode: [] // Open-Meteo does not provide pictocodes
+    pictocode: d.minutely_15.weather_code
   };
 }
 

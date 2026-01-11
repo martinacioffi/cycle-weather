@@ -7,7 +7,14 @@ export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, is
     return `${padded}_${suffix}`;
   }
 
-  const suffix = isDay ? "d" : "n";
+  if (pictocode !== -1 && Number.isFinite(pictocode)) {
+    const suffix = isDay ? "d" : "n";
+    const padded = pictocode < 10 ? `0${pictocode}` : `${pictocode}`;
+    return `${padded}${suffix}`;
+  }
+  }
+
+  /*const suffix = isDay ? "d" : "n";
   const windMax = Math.max(windKmH, gusts);
 
   // --- Fog ---
@@ -92,7 +99,7 @@ export function getWeatherPictogram(tempC, precip, cloudCover, cloudCoverLow, is
   if (cloudCover <= 30) return "02" + suffix;
   if (cloudCover <= 70) return "03" + suffix;
   return "04"; // heavily clouded
-}
+}*/
 
 export function dirArrow8(deg) {
   // Normalize degrees to 0–360
