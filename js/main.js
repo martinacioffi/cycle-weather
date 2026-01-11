@@ -775,7 +775,8 @@ minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false) {
         const isBreak = r.isBreak
     const weatherIcon = getWeatherPictogram(r.tempC, r.precip, r.cloudCover, r.cloudCoverLow, r.isDay, r.windKmH, r.gusts, r.pictocode, pictos);
     const imgSrc = pictos === "meteoblue" ? `images/meteoblue_pictograms/${weatherIcon}.svg` : `images/yr_weather_symbols/${weatherIcon}.svg`;
-    const isNight = weatherIcon.endsWith("night");
+    const isNight = pictos === "meteoblue" ? weatherIcon.endsWith("night") : weatherIcon.endsWith("n");
+    //const isNight = weatherIcon.endsWith("night");
     const bgColor = pictos === "meteoblue" ? (isNight ? "#003366" : "#90c8fc") : "white";
     const windSVG = windArrowWithBarbs(r.windDeg, r.windKmH);
 
@@ -859,8 +860,7 @@ minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false) {
   buildTempChart(chartSeries, visibleWeatherMarkers, pictos, isMobile);
   buildPrecipChart(chartSeries, visibleWeatherMarkers, isMobile);
   buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
-  const sampledPoints = JSON.parse(sessionStorage.getItem("gpxSampleIndices")|| "[]");
-  console.log("Sampled points for elevation chart:", sampledPoints);
+  const sampledPoints = JSON.parse(sessionStorage.getItem("gpxSampleIndicesElevation")|| "[]");
   const lastKnownLat = sessionStorage.getItem("lastKnownLatitude");
   const lastKnownLon = sessionStorage.getItem("lastKnownLongitude");
   drawUpcomingElevationChart({series: sampledPoints, userLocation: [lastKnownLat, lastKnownLon], isMobile});
@@ -1655,6 +1655,9 @@ minSpacing, minTimeSpacing, provider, pictos, mbKey, minSpacingDense, minTimeSpa
   const sampleIdx = buildSampleIndices(points, brngs, cum, maxCalls, minSpacingDense, minTimeSpacingDense, avgSpeedMps,
   avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
   sessionStorage.setItem("gpxSampleIndices", JSON.stringify(sampleIdx));
+  const sampleIdxElevation = buildSampleIndices(points, brngs, cum, 9999999, 5, 0, avgSpeedMps,
+  avgSpeedMpsUp, avgSpeedMpsDown, startDate, breaks);
+  sessionStorage.setItem("gpxSampleIndicesElevation", JSON.stringify(sampleIdxElevation));
   log(`Sampling ${sampleIdx.length} points (limit ${maxCalls}, spacing ≥ ${minSpacingDense} meters and ≥ ${minTimeSpacingDense} minutes).`);
   const durationSecLog = sampleIdx[sampleIdx.length - 1].accumTime;
   log(`Route has ${pointsRaw.length} points, ${formatKm(cumulDistance(points).total)} total.`);
