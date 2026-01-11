@@ -1602,11 +1602,7 @@ realtimeBtn.addEventListener("click", async () => {
       const pos = await new Promise((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000 })
       );
-     // const { latitude, longitude } = pos.coords;
-      let latitude, longitude;
-      latitude = 46.30320235772595;
-      longitude = 10.569474995476948;
-      console.log("Current position:", latitude, longitude);
+      const { latitude, longitude } = pos.coords;
       sessionStorage.setItem("lastKnownLatitude", latitude);
       sessionStorage.setItem("lastKnownLongitude", longitude);
       sessionStorage.setItem('lastKnownTimestamp', String(Date.now()))

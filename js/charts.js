@@ -658,7 +658,7 @@ export function drawUpcomingElevationChart({
           display: true,
           offset: false,
           title: { display: false},
-          ticks: { autoSkip: true, maxRotation: 0, color: "#e6e8ef", maxTicksLimit: 10,
+          ticks: { autoSkip: true, maxRotation: 0, color: "#e6e8ef", maxTicksLimit: isMobile ? 5 : 10,
           font: { size: isMobile ? 9 : 13 }, callback: (val, idx) => labels[idx] }
         },
         y: {
