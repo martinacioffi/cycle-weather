@@ -488,3 +488,166 @@ const WindArrowPlugin = {
     plugins: [ChartDataLabels, BreakShadingPlugin, DaylightShadingPlugin, WindArrowPlugin]
   });
 }
+
+// javascript
+export function drawUpcomingElevationChart({
+  series,            // array of gpxSampleIndices (each: accumDist (m), ele (m), lat, lon, ...)
+  userLocation,      // [lat, lon]
+  isMobile = false
+} = {}) {
+  console.log('series:', series);
+  if (!series || series.length < 2 || !userLocation) return null;
+
+  destroyChartById("overviewChart");
+  const ctx = document.getElementById("overviewChart").getContext("2d");
+
+  // local haversine in meters
+  const haversineMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000;
+    const toRad = a => a * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // find nearest sample index to user
+  let nearestIdx = 0;
+  let minD = Infinity;
+  const [uLat, uLon] = userLocation;
+  for (let i = 0; i < series.length; i++) {
+    const s = series[i];
+    if (s.lat == null || s.lon == null) continue;
+    const d = haversineMeters(uLat, uLon, s.lat, s.lon);
+    if (d < minD) {
+      minD = d;
+      nearestIdx = i;
+    }
+  }
+
+  const startAccum = series[nearestIdx].accumDist || 0;
+  const endAccum = startAccum + (5000 || 0);
+
+  // slice upcoming samples by accumDist; ensure at least two points
+  const upcoming = series.filter(s => (s.accumDist || 0) >= startAccum && (s.accumDist || 0) <= endAccum);
+  if (upcoming.length < 2) {
+    // try to include one after nearest if available
+    const fallback = [];
+    for (let i = nearestIdx; i < Math.min(series.length, nearestIdx + 5); i++) fallback.push(series[i]);
+    if (fallback.length < 2) return null;
+    upcoming.splice(0, upcoming.length, ...fallback);
+  }
+
+  // distances relative to user snap (meters) and elevations
+  const distances = upcoming.map(s => (s.accumDist || 0) - startAccum);
+  const elevations = upcoming.map(s => (s.ele == null ? NaN : Number(s.ele)));
+
+  // compute per-segment grade (%) between successive samples
+  const grades = [];
+  for (let i = 1; i < upcoming.length; i++) {
+    const dz = (elevations[i] || 0) - (elevations[i - 1] || 0);
+    const dx = Math.max(1e-3, (distances[i] - distances[i - 1]) || 1e-3);
+    grades.push((dz / dx) * 100);
+  }
+  console.log('Grades:', grades);
+  console.log('Elevations:', elevations);
+
+  // map grade -> color (tune palette as desired)
+  const gradeToColor = g => {
+    if (g >= 20) return '#6b0000';
+    if (g >= 12) return '#c41e3a';
+    if (g >= 8)  return '#ff6f3c';
+    if (g >= 4)  return '#ffb348';
+    if (g >= 0)  return '#ffd36b';
+    if (g >= -4) return '#9ad3a2';
+    return '#66a182';
+  };
+
+  // per-sample bar colors: average adjacent grades so each bar/column reflects surrounding slope
+  const barColors = [];
+  for (let i = 0; i < upcoming.length; i++) {
+    if (upcoming.length === 2) {
+      barColors.push(gradeToColor(grades[0] || 0));
+    } else if (i === 0) {
+      barColors.push(gradeToColor(grades[0] || 0));
+    } else if (i === upcoming.length - 1) {
+      barColors.push(gradeToColor(grades[grades.length - 1] || 0));
+    } else {
+      const left = grades[i - 1] || 0;
+      const right = grades[i] || left;
+      barColors.push(gradeToColor((left + right) / 2));
+    }
+  }
+
+  const labels = distances.map(d => d >= 1000 ? (d/1000).toFixed(2) + ' km' : Math.round(d) + ' m');
+
+  const config = {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Elevation (m)',
+          data: elevations,
+          backgroundColor: barColors,
+          borderWidth: 0,
+          barPercentage: 1.0,
+          categoryPercentage: 1.0,
+          yAxisID: 'y'
+        },
+        {
+          type: 'line',
+          label: 'Elevation profile',
+          data: elevations,
+          borderColor: '#333',
+          backgroundColor: 'rgba(0,0,0,0.05)',
+          fill: true,
+          tension: 0.2,
+          pointRadius: Math.max(0, isMobile ? 0 : 2),
+          borderWidth: 1.5,
+          yAxisID: 'y'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const i = items[0].dataIndex;
+              return labels[i];
+            },
+            label: (ctxItem) => {
+              const i = ctxItem.dataIndex;
+              const elev = Number(elevations[i]);
+              const gradeStr = i === 0 ? `${(grades[0]||0).toFixed(1)}%` : (i >= grades.length ? `${(grades[grades.length-1]||0).toFixed(1)}%` : `${(( (grades[i-1]||0) + (grades[i]||grades[i-1]||0) )/2).toFixed(1)}%`);
+              return [`Elevation: ${isNaN(elev) ? '–' : elev.toFixed(0) + ' m'}`, `Grade: ${gradeStr}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          title: { display: true, text: 'Distance from you' },
+          ticks: { autoSkip: true, maxRotation: 0, callback: (val, idx) => labels[idx] }
+        },
+        y: {
+          display: true,
+          title: { display: true, text: 'Elevation (m a.s.l.)' },
+          beginAtZero: false
+        }
+      }
+    }
+  };
+
+  return new Chart(ctx, config);
+}

@@ -24,7 +24,8 @@ import {
 } from './icons.js'
 
 import {
-  buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById
+  buildTempChart, buildPrecipChart, buildWindChart, resetChart, destroyChartById,
+  drawUpcomingElevationChart
 } from './charts.js';
 
 import { saveResult, loadResult, deleteResult } from "./db.js";
@@ -858,6 +859,11 @@ minSpacingDense, minTimeSpacingDense, pictos, updateBounds = false) {
   buildTempChart(chartSeries, visibleWeatherMarkers, pictos, isMobile);
   buildPrecipChart(chartSeries, visibleWeatherMarkers, isMobile);
   buildWindChart(chartSeries, visibleWeatherMarkers, isMobile);
+  const sampledPoints = JSON.parse(sessionStorage.getItem("gpxSampleIndices")|| "[]");
+  console.log("Sampled points for elevation chart:", sampledPoints);
+  const lastKnownLat = sessionStorage.getItem("lastKnownLatitude");
+  const lastKnownLon = sessionStorage.getItem("lastKnownLongitude");
+  drawUpcomingElevationChart({series: sampledPoints, userLocation: [lastKnownLat, lastKnownLon], isMobile});
 }
 
 async function getForecastForRoute(prefix) {
@@ -1521,10 +1527,13 @@ realtimeBtn.addEventListener("click", async () => {
       const pos = await new Promise((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000 })
       );
-      //const { latitude, longitude } = pos.coords;
+     // const { latitude, longitude } = pos.coords;
       let latitude, longitude;
       latitude = 46.30320235772595;
       longitude = 10.569474995476948;
+      console.log("Current position:", latitude, longitude);
+      sessionStorage.setItem("lastKnownLatitude", latitude);
+      sessionStorage.setItem("lastKnownLongitude", longitude);
 
       let content = await loadResult("gpxFileContent") || "";
       const pointsRaw = parseGPX(content);
