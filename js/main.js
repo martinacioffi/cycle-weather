@@ -1634,13 +1634,14 @@ realtimeBtn.addEventListener("click", async () => {
         updateProgress();
         if (i % 200 === 0) await new Promise(r => setTimeout(r, 0));
       }
-      progressOverlay.style.display = "none";
+      // progressOverlay.style.display = "none";
 
       const thresholdMeters = 1000; // abort if too far from route
       if (minDist > thresholdMeters) {
         log(`You are ${Math.round(minDist)} m away from the route (threshold ${thresholdMeters} m). Move closer and try again.`);
         return;
       }
+      progressTitle.textContent = "Trimming points behind you…";
 
       // Trim points from nearest index onward
       const newPoints = pointsRaw.slice(nearestIdx);
@@ -1649,6 +1650,7 @@ realtimeBtn.addEventListener("click", async () => {
         return;
       }
       // Set start time to now and trigger processing
+      progressTitle.textContent = "Updating parameters…";
       const now = new Date();
       const pad = n => n.toString().padStart(2, "0");
       const formatDateTimeLocal = d =>
@@ -1672,9 +1674,10 @@ realtimeBtn.addEventListener("click", async () => {
         const pictos = provider === "meteoblue" && pictogramsProvider.value === "meteoblue" ? "meteoblue" : "yr";
         const mbKey = meteoblueKeyInput.value.trim();
         const trimmedGpx = buildTrimmedGpx(content, { dropBeforeIndex: nearestIdx });
+        progressTitle.textContent = "Recomputing the forecast…";
         await processRoute(trimmedGpx, now, mps, mpsUp, mpsDown, maxCalls, minSpacing, minTimeSpacing, provider, pictos, mbKey,
         minSpacingDense, minTimeSpacingDense, true);
-
+progressOverlay.style.display = "none";
       log(`Realtime update: trimmed route at index ${nearestIdx} (${Math.round(minDist)} m from your position).`);
     } catch (err) {
       progressOverlay.style.display = "none";

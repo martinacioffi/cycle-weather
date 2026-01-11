@@ -391,7 +391,7 @@ html, body {
   overflow: visible;
 }
 
-  .sub, .app-title, #aboutMeGroup, #logGroup {
+  .sub, .app-title, #aboutMeGroup{ /*, #logGroup */
     display: none;
   }
 
