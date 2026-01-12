@@ -638,6 +638,18 @@ export function drawUpcomingElevationChart({
           },
           onClick: (e, legendItem, legend) => { e.stopPropagation(); }
         },
+      zoom: {
+        zoom: {
+          wheel: { enabled: true },     // zoom with mouse wheel
+          pinch: { enabled: true },     // zoom with pinch on touch
+          drag:  { enabled: true },     // drag to select region
+          mode: 'x',                    // only x-axis
+        },
+        pan: {
+          enabled: true,
+          mode: 'x',
+        }
+      },
         tooltip: {
           callbacks: {
             title: (items) => {
