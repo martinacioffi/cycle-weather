@@ -534,7 +534,7 @@ export function drawUpcomingElevationChart({
   const MAX_AHEAD_METERS = 2000;
   const endAccum = (userLocation && Array.isArray(userLocation) && userLocation.length === 2)
     ? startAccum + MAX_AHEAD_METERS
-    : Infinity; // no user: include all points
+    : series[series.length - 1].accumDist || startAccum;
 
   // slice upcoming samples by accumDist; ensure at least two points
   const upcoming = series.filter(s => (s.accumDist || 0) >= startAccum && (s.accumDist || 0) <= endAccum);
@@ -604,7 +604,7 @@ export function drawUpcomingElevationChart({
         {
           type: 'bar',
           label: 'Elevation (m)',
-          data: elevations,
+          data: upcoming.map(s => ({ x: s.accumDist, y: s.ele })),
           backgroundColor: barColors,
           borderWidth: 0,
           order: 1,
@@ -648,7 +648,13 @@ export function drawUpcomingElevationChart({
         pan: {
           enabled: true,
           mode: 'x',
-        }
+        },
+        limits: {
+          x: {
+            min: 0, // lower bound
+            max: series[series.length - 1].accumDist, // upper bound
+          }
+          },
       },
         tooltip: {
           callbacks: {
@@ -667,11 +673,16 @@ export function drawUpcomingElevationChart({
       },
       scales: {
         x: {
+        type: 'linear',
+        min: startAccum, // or dynamic min
+        max: endAccum,   // or dynamic max
+        ticks: { autoSkip: true, maxRotation: 0, color: "#e6e8ef", maxTicksLimit: isMobile ? 5 : 10,
+          font: { size: isMobile ? 9 : 13 },
+          callback: (val) => val >= 1000 ? (val/1000).toFixed(2) + ' km' : Math.round(val) + ' m'
+        },
           display: true,
           offset: false,
-          title: { display: false},
-          ticks: { autoSkip: true, maxRotation: 0, color: "#e6e8ef", maxTicksLimit: isMobile ? 5 : 10,
-          font: { size: isMobile ? 9 : 13 }, callback: (val, idx) => labels[idx] }
+          title: { display: false}
         },
         y: {
           display: true,
